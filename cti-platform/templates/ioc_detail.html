@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}IOC Detail - CTI Platform{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <div style="margin-bottom: 32px;">
+            <a href="{{ url_for('iocs_list') }}" class="btn btn-secondary" style="margin-bottom: 16px;">
+                ← Back to list
+            </a>
+        </div>
+
+        <div class="card" style="margin-bottom: 24px;">
+            <h1 class="card-title">IOC Detail</h1>
+            
+            <div style="display: grid; gap: 24px;">
+                <div>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Type</div>
+                    <div style="font-size: 20px; font-weight: 600;">
+                        <span class="badge" style="font-size: 16px;">{{ ioc.ioc_type }}</span>
+                    </div>
+                </div>
+                
+                <div>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Value</div>
+                    <div style="font-size: 18px; font-family: monospace; word-break: break-all; color: var(--text-primary);">
+                        {{ ioc.ioc_value }}
+                    </div>
+                </div>
+                
+                {% if ioc.raw_value and ioc.raw_value != ioc.ioc_value %}
+                <div>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Original value</div>
+                    <div style="font-size: 14px; font-family: monospace; color: var(--text-secondary);">
+                        {{ ioc.raw_value }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Source</div>
+                    <div>
+                        <strong>{{ source.name }}</strong>
+                        <div style="font-size: 14px; color: var(--text-secondary); margin-top: 4px;">
+                            {{ source.context }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Dates</div>
+                    <div style="font-size: 14px; color: var(--text-secondary);">
+                        First seen: {{ ioc.first_seen }}<br>
+                        Last seen: {{ ioc.last_seen }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tags -->
+        <div class="card" style="margin-bottom: 24px;">
+            <h2 class="card-title" style="margin-bottom: 16px;">Tags</h2>
+            
+            <div id="tags-container" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
+                {% for tag in ioc.tags %}
+                <span class="tag" data-tag-id="{{ tag.id }}">
+                    {{ tag.name }}
+                    <span class="tag-remove" onclick="removeTag({{ ioc.id }}, {{ tag.id }})">×</span>
+                </span>
+                {% endfor %}
+            </div>
+            
+            <div style="display: flex; gap: 8px;">
+                <select id="tag-select" class="form-control" style="flex: 1;">
+                    <option value="">Select a tag...</option>
+                    {% for tag in all_tags %}
+                    <option value="{{ tag.id }}" data-color="{{ tag.color }}">{{ tag.name }}</option>
+                    {% endfor %}
+                </select>
+                <button onclick="addTag({{ ioc.id }})" class="btn btn-primary">Add</button>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="card" style="margin-bottom: 24px;">
+            <h2 class="card-title" style="margin-bottom: 16px;">Notes</h2>
+            <textarea id="notes-textarea" class="form-control" rows="4" placeholder="Add notes about this IOC...">{{ ioc.notes or '' }}</textarea>
+            <button onclick="saveNotes({{ ioc.id }})" class="btn btn-primary" style="margin-top: 16px;">Save</button>
+        </div>
+
+
+        <!-- History -->
+        {% if tag_history %}
+        <div class="card">
+            <h2 class="card-title" style="margin-bottom: 16px;">Modification history</h2>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                {% for entry in tag_history %}
+                <div style="padding: 12px; background: rgba(139, 92, 246, 0.05); border-radius: 8px; font-size: 14px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="tag" style="background: {{ entry.tag_color or 'rgba(139, 92, 246, 0.1)' }};">
+                            {{ entry.tag_name }}
+                        </span>
+                        <span style="color: var(--text-muted);">
+                            {% if entry.action == 'added' %}Added{% else %}Removed{% endif %}
+                        </span>
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 12px;">
+                        {{ entry.created_at }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function addTag(iocId) {
+    const select = document.getElementById('tag-select');
+    const tagId = select.value;
+    const tagName = select.options[select.selectedIndex].text;
+    const tagColor = select.options[select.selectedIndex].dataset.color;
+    
+    if (!tagId) return;
+    
+    fetch(`/api/ioc/${iocId}/tag`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tag_name: tagName})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const container = document.getElementById('tags-container');
+            const tagEl = document.createElement('span');
+            tagEl.className = 'tag';
+            tagEl.dataset.tagId = tagId;
+            tagEl.style.background = tagColor ? `rgba(${parseInt(tagColor.slice(1,3), 16)}, ${parseInt(tagColor.slice(3,5), 16)}, ${parseInt(tagColor.slice(5,7), 16)}, 0.1)` : '';
+            tagEl.innerHTML = `${tagName} <span class="tag-remove" onclick="removeTag(${iocId}, ${tagId})">×</span>`;
+            container.appendChild(tagEl);
+            select.value = '';
+        }
+    });
+}
+
+function removeTag(iocId, tagId) {
+    const tagName = document.querySelector(`[data-tag-id="${tagId}"]`).textContent.trim().replace('×', '').trim();
+    
+    fetch(`/api/ioc/${iocId}/tag`, {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tag_name: tagName})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelector(`[data-tag-id="${tagId}"]`).remove();
+        }
+    });
+}
+
+function saveNotes(iocId) {
+    const notes = document.getElementById('notes-textarea').value;
+    
+    fetch(`/api/ioc/${iocId}/notes`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({notes: notes})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Notes saved');
+        }
+    });
+}
+
+            // window.location.reload();
+        }
+    });
+}
+</script>
+{% endblock %}
+

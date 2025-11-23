@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+
+{% block title %}Export - CTI Platform{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <h1 style="font-size: 36px; font-weight: 700; margin-bottom: 40px;">Export Data</h1>
+
+        <div class="card" style="margin-bottom: 32px;">
+            <h2 class="card-title" style="margin-bottom: 24px;">Export Options</h2>
+            
+            <form id="export-form">
+                <div class="form-group">
+                    <label class="form-label">Export Format</label>
+                    <select name="format" id="export-format" class="form-control" required>
+                        <option value="txt">TXT (simple list)</option>
+                        <option value="json">JSON (complete internal format)</option>
+                        <option value="csv">CSV (spreadsheet format)</option>
+                        <option value="stix">STIX 2.1 (via txt2stix)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Selection</label>
+                    <select name="selection" id="export-selection" class="form-control" required>
+                        <option value="all">All IOCs</option>
+                        <option value="sources">By sources</option>
+                        <option value="groups">By groups</option>
+                    </select>
+                </div>
+
+                <div id="sources-selection" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Sources to export</label>
+                        <div style="max-height: 200px; overflow-y: auto; border: 1px solid rgba(167, 139, 250, 0.1); border-radius: 8px; padding: 12px;">
+                            {% for source in sources %}
+                            <label style="display: flex; align-items: center; gap: 8px; padding: 8px; cursor: pointer;">
+                                <input type="checkbox" name="source_ids" value="{{ source.id }}">
+                                <span>{{ source.name }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <div id="groups-selection" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Groups to export</label>
+                        <div style="max-height: 200px; overflow-y: auto; border: 1px solid rgba(167, 139, 250, 0.1); border-radius: 8px; padding: 12px;">
+                            {% for group in all_groups %}
+                            <label style="display: flex; align-items: center; gap: 8px; padding: 8px; cursor: pointer;">
+                                <input type="checkbox" name="group_ids" value="{{ group.id }}">
+                                <span style="color: {{ group.color or '#8B5CF6' }}; font-weight: 500;">{{ group.name }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if export_format == 'stix' %}
+                <div class="form-group">
+                    <label class="form-label">STIX Report Name</label>
+                    <input type="text" name="report_name" class="form-control" placeholder="CTI Export" value="CTI Export">
+                </div>
+                {% endif %}
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    Export
+                </button>
+            </form>
+        </div>
+
+        <div id="export-feedback"></div>
+        
+        <!-- Last 5 exports -->
+        <div class="card" style="margin-top: 32px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h2 style="font-size: 24px; font-weight: 600;">Last 5 exports</h2>
+                <button type="button" class="btn btn-secondary" onclick="loadRecentOutputs()" id="refresh-outputs-btn">
+                    🔄 Refresh
+                </button>
+            </div>
+            
+            <div id="recent-outputs-content">
+                <div style="text-align: center; padding: 32px; color: var(--text-secondary);">
+                    <div class="spinner-border text-info" role="status" style="width: 2rem; height: 2rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Progress modal for exports -->
+        <div id="export-progress-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 10000; align-items: center; justify-content: center;">
+            <div class="card" style="max-width: 500px; width: 90%; padding: 32px;">
+                <h2 style="margin-bottom: 24px; font-size: 24px;">Generating report...</h2>
+                <div id="export-progress-container">
+                    <div class="progress-bar-wrapper" style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; height: 32px; position: relative; overflow: hidden; margin-bottom: 16px;">
+                        <div id="export-progress-bar" style="background: linear-gradient(90deg, #8B5CF6 0%, #7C3AED 100%); height: 100%; width: 0%; transition: width 0.3s ease; border-radius: 12px;"></div>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; font-weight: 600; color: #8B5CF6; z-index: 1;">
+                            <span id="export-progress-percentage">0%</span>
+                        </div>
+                    </div>
+                    <div id="export-progress-message" style="text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">
+                        Preparing...
+                    </div>
+                    <div style="text-align: center;">
+                        <button type="button" id="export-stop-btn" class="btn btn-secondary" style="background: rgba(220, 38, 38, 0.1); color: #DC2626; border-color: #DC2626; display: none;" onclick="stopExportTask()">
+                            ⏹️ Stop
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thank You Message -->
+        <div class="thank-you-message" style="background: rgba(139, 92, 246, 0.1); border-left: 4px solid var(--violet-light); padding: 20px 24px; border-radius: 12px; margin-top: 60px; font-size: 16px; line-height: 1.6;">
+            <strong style="color: var(--violet-light);">Thank you to the contributors!</strong><br>
+            We sincerely thank the contributors of the <a href="https://github.com/muchdogesec/txt2stix" target="_blank" style="color: var(--violet-light); text-decoration: none;">txt2stix</a> project for their invaluable work in converting text-based threat intelligence into STIX 2.1 format. Their tool enables seamless integration with security tools and platforms that support the STIX standard, helping the security community share and analyze threat intelligence more effectively.
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('export-selection').addEventListener('change', (e) => {
+    const sourcesDiv = document.getElementById('sources-selection');
+    const groupsDiv = document.getElementById('groups-selection');
+    if (e.target.value === 'sources') {
+        sourcesDiv.style.display = 'block';
+        groupsDiv.style.display = 'none';
+    } else if (e.target.value === 'groups') {
+        sourcesDiv.style.display = 'none';
+        groupsDiv.style.display = 'block';
+    } else {
+        sourcesDiv.style.display = 'none';
+        groupsDiv.style.display = 'none';
+    }
+});
+
+document.getElementById('export-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const format = formData.get('format');
+    const selection = formData.get('selection');
+    
+    const data = {};
+    
+    if (selection === 'sources') {
+        const sourceIds = Array.from(formData.getAll('source_ids')).map(id => parseInt(id));
+        if (sourceIds.length === 0) {
+            alert('Please select at least one source');
+            return;
+        }
+        data.source_ids = sourceIds;
+    } else if (selection === 'groups') {
+        const groupIds = Array.from(formData.getAll('group_ids')).map(id => parseInt(id));
+        if (groupIds.length === 0) {
+            alert('Please select at least one group');
+            return;
+        }
+        data.group_ids = groupIds;
+    }
+    
+    if (format === 'stix') {
+        data.report_name = formData.get('report_name') || 'CTI Export';
+        data.source_context = 'Export CTI Platform';
+    }
+    
+    const feedback = document.getElementById('export-feedback');
+    
+    // Use progress bar for ALL exports (displayed immediately)
+    feedback.innerHTML = ''; // No text message, we'll use the progress bar
+    
+    // Display progress bar immediately
+    const modal = document.getElementById('export-progress-modal');
+    modal.style.display = 'flex';
+    document.getElementById('export-progress-bar').style.width = '10%';
+    document.getElementById('export-progress-percentage').textContent = '10%';
+    document.getElementById('export-progress-message').textContent = 'Preparing export...';
+    document.getElementById('export-stop-btn').style.display = 'none'; // Hide the stop button for now
+    
+    try {
+        let endpoint = '';
+        let method = 'POST';
+        
+        let progressTimeout;
+        let progressInterval = null;
+        let taskId = null;
+        
+        if (format === 'txt') {
+            endpoint = '/api/export/txt';
+        } else if (format === 'json') {
+            endpoint = '/api/export/json';
+        } else if (format === 'csv') {
+            endpoint = '/api/export/csv';
+        } else if (format === 'stix') {
+            endpoint = '/api/export/stix';
+        }
+        
+        // Update progress bar before sending
+        document.getElementById('export-progress-bar').style.width = '30%';
+        document.getElementById('export-progress-percentage').textContent = '30%';
+        document.getElementById('export-progress-message').textContent = 'Generating...';
+        
+        const response = await fetch(endpoint, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        if (progressTimeout) clearTimeout(progressTimeout);
+        
+        if (response.ok) {
+            // Check if it's a file download (has Content-Disposition header)
+            const contentDisposition = response.headers.get('content-disposition');
+            const isFileDownload = contentDisposition && contentDisposition.includes('attachment');
+            
+            // Check if it's a response with task_id (asynchronous export)
+            // Only check for JSON task_id if it's NOT a file download
+            if (!isFileDownload) {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    // Clone response to check for task_id without consuming it
+                    const clonedResponse = response.clone();
+                    try {
+                        const responseData = await clonedResponse.json();
+                        if (responseData.task_id) {
+                            if (progressTimeout) clearTimeout(progressTimeout);
+                            taskId = responseData.task_id;
+                            // Update progress modal (already displayed)
+                            document.getElementById('export-progress-bar').style.width = '50%';
+                            document.getElementById('export-progress-percentage').textContent = '50%';
+                            document.getElementById('export-progress-message').textContent = 'Generating...';
+                            document.getElementById('export-stop-btn').style.display = 'inline-block';
+                            document.getElementById('export-stop-btn').setAttribute('data-task-id', taskId);
+                            progressInterval = setInterval(() => updateExportProgress(taskId, format), 1000);
+                            return; // Exit, download will happen via progress
+                        }
+                    } catch (e) {
+                        // Not JSON or parsing failed, continue with file download
+                    }
+                }
+            }
+            
+            // Synchronous export (fast TXT, JSON, CSV, or STIX with few IOCs)
+            // Update progress bar to indicate completion
+            document.getElementById('export-progress-bar').style.width = '100%';
+            document.getElementById('export-progress-percentage').textContent = '100%';
+            document.getElementById('export-progress-message').textContent = 'Export completed, downloading...';
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const extension = format === 'stix' ? 'json' : format;
+            a.href = url;
+            
+            // Get filename from Content-Disposition header if available
+            let filename = `export_${format}_${new Date().toISOString().slice(0,10)}.${extension}`;
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+            }
+            
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            // Hide progress bar after download
+            const modal = document.getElementById('export-progress-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            
+            feedback.innerHTML = '<div class="alert alert-success">Export generated successfully!</div>';
+            // Reload recent outputs list
+            loadRecentOutputs();
+        } else {
+            const modal = document.getElementById('export-progress-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            const error = await response.json();
+            feedback.innerHTML = `<div class="alert alert-error">${error.error}</div>`;
+        }
+    } catch (error) {
+        if (progressTimeout) clearTimeout(progressTimeout);
+        if (progressInterval) clearInterval(progressInterval);
+        const modal = document.getElementById('export-progress-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        feedback.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    }
+    
+    function updateExportProgress(taskId, format) {
+        fetch(`/api/progress/${taskId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.progress) {
+                    const progress = data.progress;
+                    const percentage = progress.percentage || 0;
+                    const message = progress.message || 'Generating...';
+                    
+                    document.getElementById('export-progress-bar').style.width = percentage + '%';
+                    document.getElementById('export-progress-percentage').textContent = percentage + '%';
+                    document.getElementById('export-progress-message').textContent = message;
+                    
+                    if (progress.status === 'completed' || progress.status === 'stopping') {
+                        clearInterval(progressInterval);
+                        document.getElementById('export-stop-btn').style.display = 'none';
+                        
+                        if (progress.status === 'completed') {
+                            document.getElementById('export-progress-modal').style.display = 'none';
+                            // Download file
+                        fetch(`/api/progress/${taskId}/download`)
+                            .then(response => {
+                                if (response.ok) {
+                                    return response.blob();
+                                }
+                                throw new Error('Download error');
+                            })
+                            .then(blob => {
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                const extension = format === 'stix' ? 'json' : format;
+                                a.download = `export_${format}_${new Date().toISOString().slice(0,10)}.${extension}`;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                window.URL.revokeObjectURL(url);
+                                
+                                feedback.innerHTML = '<div class="alert alert-success">Export generated successfully!</div>';
+                                loadRecentOutputs();
+                            })
+                            .catch(error => {
+                                feedback.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+                            });
+                        } else {
+                            // Stop requested
+                            document.getElementById('export-progress-modal').style.display = 'none';
+                            feedback.innerHTML = '<div class="alert alert-warning">Export stopped by user</div>';
+                        }
+                    } else if (progress.status === 'error') {
+                        clearInterval(progressInterval);
+                        document.getElementById('export-stop-btn').style.display = 'none';
+                        document.getElementById('export-progress-modal').style.display = 'none';
+                        feedback.innerHTML = `<div class="alert alert-error">Error: ${message}</div>`;
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching progress:', error);
+            });
+    }
+});
+
+// Load recent outputs on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadRecentOutputs();
+});
+
+// Function to load recent outputs
+async function loadRecentOutputs() {
+    const container = document.getElementById('recent-outputs-content');
+    if (!container) return;
+    
+    try {
+        const response = await fetch('/api/settings/outputs/recent');
+        const data = await response.json();
+        
+        if (response.ok) {
+            renderRecentOutputs(data.outputs || []);
+        } else {
+            container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No recent export</div>';
+        }
+    } catch (error) {
+        console.error('Error loading recent outputs:', error);
+        container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No recent export</div>';
+    }
+}
+
+function renderRecentOutputs(outputs) {
+    const container = document.getElementById('recent-outputs-content');
+    
+    if (!outputs || outputs.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No recent export</div>';
+        return;
+    }
+    
+    let html = '<div class="table-responsive" style="overflow-x: auto;"><table class="table"><thead><tr><th>Name</th><th>Format</th><th>Size</th><th>Modified</th><th>Actions</th></tr></thead><tbody>';
+    
+    outputs.forEach(output => {
+        const modifiedDate = new Date(output.modified).toLocaleString('en-US');
+        const folderLabels = {
+            'iocs': 'IOCs',
+            'stix': 'STIX',
+            'reports': 'Reports'
+        };
+        
+        html += `
+            <tr>
+                <td style="font-weight: 500;">${escapeHtml(output.name)}</td>
+                <td><span class="badge">${folderLabels[output.folder] || output.folder}</span></td>
+                <td style="color: var(--text-secondary);">${output.size_formatted || '-'}</td>
+                <td style="color: var(--text-secondary);">${modifiedDate}</td>
+                <td>
+                    <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="downloadRecentOutput('${escapeHtml(output.path.replace(/'/g, "\\'"))}')">
+                        📥 Download
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+async function downloadRecentOutput(filePath) {
+    try {
+        const relativePath = filePath.replace(/^.*outputs[\/\\]/, '');
+        const url = `/api/settings/outputs/${relativePath}/download`;
+        
+        const response = await fetch(url);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = filePath.split(/[\/\\]/).pop();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        } else {
+            const error = await response.json();
+            alert('Error: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Function to stop an export
+async function stopExportTask() {
+    const btn = document.getElementById('export-stop-btn');
+    const taskId = btn ? btn.getAttribute('data-task-id') : null;
+    
+    if (!taskId) {
+        return;
+    }
+    
+    if (!confirm('Do you really want to stop this export?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/progress/${taskId}/stop`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            btn.style.display = 'none';
+            document.getElementById('export-progress-message').textContent = 'Stopping...';
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+</script>
+{% endblock %}
+

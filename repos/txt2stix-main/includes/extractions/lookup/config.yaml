@@ -1,0 +1,411 @@
+# ====== LOOKUP EXTRACTIONS =====
+
+####### County extractions #######
+
+lookup_country_alpha2:
+  type: lookup
+  dogesec_web: false
+  name: 'Country Alpha2'
+  description: 'Extracts countries using ISO 3166-1 alpha2 codes'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_country. This extractor is very dumb e.g the words `is` and `in` will result in extractions for Iceland and India'
+  file: 'lookups/country_iso3166_alpha2.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_country_alpha2
+  stix_mapping: ctibutler-location
+
+####### MITRE ATT&CK #######
+
+lookup_mitre_attack_enterprise_id:
+  type: lookup
+  dogesec_web: false
+  name: 'MITRE ATT&CK Enterprise IDs'
+  description: 'Extracts MITRE ATT&CK Enterprise IDs from text. See lookup name for version used.'
+  notes: 'ai_mitre_attack_enterprise also exists but beware of hallucinations'
+  file: 'lookups/mitre_attack_enterprise_id_v18_0.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_attack_enterprise
+  stix_mapping: ctibutler-mitre-attack-enterprise-id
+
+lookup_mitre_attack_enterprise_name:
+  type: lookup
+  dogesec_web: false
+  name: 'MITRE ATT&CK Enterprise names'
+  description: 'Extracts MITRE ATT&CK Enterprise names from text. See lookup name for version used.'
+  notes: 'ai_mitre_attack_enterprise also exists but beware of hallucinations'
+  file: 'lookups/mitre_attack_enterprise_name_v18_0.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_attack_enterprise_name
+  stix_mapping: ctibutler-mitre-attack-enterprise-name
+
+lookup_mitre_attack_enterprise_alias:
+  type: lookup
+  dogesec_web: false
+  name: 'MITRE ATT&CK Enterprise alias'
+  description: 'Extracts MITRE ATT&CK Enterprise aliases from text. See lookup name for version used.'
+  notes: 'ai_mitre_attack_enterprise also exists but beware of hallucinations'
+  file: 'lookups/mitre_attack_enterprise_aliases_v18_0.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_attack_enterprise_aliases
+  stix_mapping: ctibutler-mitre-attack-enterprise-aliases
+
+lookup_mitre_attack_mobile_id:
+  type: lookup
+  dogesec_web: false
+  name: 'MITRE ATT&CK Mobile IDs'
+  description: 'Extracts MITRE ATT&CK Mobile IDs from text. See lookup name for version used.'
+  notes: 'ai_mitre_attack_mobile also exists but beware of hallucinations'
+  file: 'lookups/mitre_attack_mobile_id_v18_0.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_attack_mobile
+  stix_mapping: ctibutler-mitre-attack-mobile-id
+
+lookup_mitre_attack_mobile_name:
+  type: lookup
+  dogesec_web: false
+  name: 'MITRE ATT&CK Mobile names'
+  description: 'Extracts MITRE ATT&CK Mobile names from text. See lookup name for version used.'
+  notes: 'ai_mitre_attack_mobile also exists but beware of hallucinations'
+  file: 'lookups/mitre_attack_mobile_name_v18_0.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_attack_mobile_name
+  stix_mapping: ctibutler-mitre-attack-mobile-name
+
+lookup_mitre_attack_mobile_alias:
+  type: lookup
+  dogesec_web: false
+  name: 'MITRE ATT&CK Mobile alias'
+  description: 'Extracts MITRE ATT&CK Mobile aliases from text. See lookup name for version used.'
+  notes: 'ai_mitre_attack_mobile also exists but beware of hallucinations'
+  file: 'lookups/mitre_attack_mobile_aliases_v18_0.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_attack_mobile_aliases
+  stix_mapping: ctibutler-mitre-attack-mobile-aliases
+
+lookup_mitre_attack_ics_id:
+  type: lookup
+  dogesec_web: false
+  name: 'MITRE ATT&CK ICS IDs'
+  description: 'Extracts MITRE ATT&CK ICS names from text. See lookup name for version used.'
+  notes: 'ai_mitre_attack_ics also exists but beware of hallucinations'
+  file: 'lookups/mitre_attack_ics_id_v18_0.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_attack_ics
+  stix_mapping: ctibutler-mitre-attack-ics-id
+
+lookup_mitre_attack_ics_name:
+  type: lookup
+  dogesec_web: false
+  name: 'MITRE ATT&CK ICS names'
+  description: 'Extracts MITRE ATT&CK ICS names from text. See lookup name for version used.'
+  notes: 'ai_mitre_attack_ics also exists but beware of hallucinations'
+  file: 'lookups/mitre_attack_ics_name_v18_0.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_attack_ics_name
+  stix_mapping: ctibutler-mitre-attack-ics-name
+
+lookup_mitre_attack_ics_alias:
+  type: lookup
+  dogesec_web: false
+  name: 'MITRE ATT&CK ICS alias'
+  description: 'Extracts MITRE ATT&CK ICS aliases from text. See lookup name for version used.'
+  notes: 'ai_mitre_attack_ics also exists but beware of hallucinations'
+  file: 'lookups/mitre_attack_ics_aliases_v18_0.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_attack_ics_aliases
+  stix_mapping: ctibutler-mitre-attack-ics-aliases
+
+####### MITRE CAPEC #######
+
+lookup_mitre_capec_id:
+  type: lookup
+  dogesec_web: false
+  name: 'MITRE CAPEC IDs'
+  description: 'Extracts MITRE CAPEC IDs from text. See lookup name for version used.'
+  notes: 'ai_mitre_capec also exists but beware of hallucinations'
+  file: 'lookups/mitre_capec_id_v3_9.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_capec
+  stix_mapping: ctibutler-mitre-capec-id
+
+lookup_mitre_capec_name:
+  type: lookup
+  dogesec_web: false
+  name: 'MITRE CAPEC names'
+  description: 'Extracts MITRE CAPEC names from text. See lookup name for version used.'
+  notes: 'ai_mitre_capec also exists but beware of hallucinations'
+  file: 'lookups/mitre_capec_name_v3_9.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_capec_name
+  stix_mapping: ctibutler-mitre-capec-name
+
+####### MITRE CWE #######
+
+lookup_mitre_cwe_id:
+  type: lookup
+  dogesec_web: false
+  name: MITRE CWE IDs
+  description: 'Extracts MITRE CWE IDs from text. See lookup name for version used.'
+  notes: 'ai_mitre_cwe also exists but beware of hallucinations'
+  file: 'lookups/mitre_cwe_id_v4_18.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_cwe
+  stix_mapping: ctibutler-mitre-cwe-id
+
+lookup_mitre_cwe_name:
+  type: lookup
+  dogesec_web: false
+  name: MITRE CWE names
+  description: 'Extracts MITRE CWE names from text. See lookup name for version used.'
+  notes: 'ai_mitre_cwe also exists but beware of hallucinations'
+  file: 'lookups/mitre_cwe_name_v4_18.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_cwe_name
+  stix_mapping: ctibutler-mitre-cwe-name
+
+####### MITRE ATLAS #######
+
+lookup_mitre_atlas_id:
+  type: lookup
+  dogesec_web: false
+  name: MITRE ATLAS IDs
+  description: 'Extracts MITRE ATLAS IDs from text. See lookup name for version used.'
+  notes: 'No corresponding AI version yet due to poor AI performance'
+  file: 'lookups/mitre_atlas_id_v4_9_0.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_atlas
+  stix_mapping: ctibutler-mitre-atlas-id
+
+lookup_mitre_atlas_name:
+  type: lookup
+  dogesec_web: false
+  name: MITRE ATLAS names
+  description: 'Extracts MITRE ATLAS names from text. See lookup name for version used.'
+  notes: 'No corresponding AI version yet due to poor AI performance'
+  file: 'lookups/mitre_atlas_name_v4_9_0.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mitre_atlas_name
+  stix_mapping: ctibutler-mitre-atlas-name
+
+####### DISARM #######
+
+lookup_disarm_id:
+  type: lookup
+  dogesec_web: false
+  name: DISARM names
+  description: 'Extracts DISARM IDs from text. See lookup name for version used.'
+  notes: 'No corresponding AI version yet due to poor AI performance'
+  file: 'lookups/disarm_id_v1_6.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_disarm
+  stix_mapping: ctibutler-disarm-id
+
+lookup_disarm_name:
+  type: lookup
+  dogesec_web: false
+  name: DISARM IDs
+  description: 'Extracts DISARM names from text. See lookup name for version used.'
+  notes: 'No corresponding AI version yet due to poor AI performance'
+  file: 'lookups/disarm_name_v1_6.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_disarm_name
+  stix_mapping: ctibutler-disarm-name
+
+####### Sector #######
+
+lookup_sector_alias:
+  type: lookup
+  dogesec_web: false
+  name: 'Sector names'
+  description: 'Extracts Sector alias from text.'
+  notes: 'ai_mitre_attack_ics also exists but beware of hallucinations'
+  file: 'lookups/sector_aliases_v1_0.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_sector_aliases
+  stix_mapping: ctibutler-sector-alias
+
+####### Generic Extractions #######
+
+lookup_attack_pattern:
+  type: lookup
+  dogesec_web: false
+  name: 'Attack Patterns'
+  description: 'Will extract all Attack Pattern entries found in the lookup file.'
+  notes: ''
+  file: 'lookups/attack_pattern.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: lookup_attack_pattern
+  stix_mapping: attack-pattern
+
+lookup_campaign:
+  type: lookup
+  dogesec_web: false
+  name: 'Campaign'
+  description: 'Will extract all Campaign entries found in the lookup file.'
+  notes: ''
+  file: 'lookups/campaign.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: lookup_campaign
+  stix_mapping: campaign
+
+lookup_course_of_action:
+  type: lookup
+  dogesec_web: false
+  name: 'Course of Action'
+  description: 'Will extract all Course of Action entries found in the lookup file.'
+  notes: ''
+  file: 'lookups/course_of_action.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: lookup_course_of_action
+  stix_mapping: course-of-action
+
+lookup_identity:
+  type: lookup
+  dogesec_web: false
+  name: 'Identity'
+  description: 'Will extract all Identity entries found in the lookup file.'
+  notes: ''
+  file: 'lookups/identity.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: lookup_identity
+  stix_mapping: identity
+
+lookup_infrastructure:
+  type: lookup
+  dogesec_web: false
+  name: 'Infrastructure'
+  description: 'Will extract all Infrastructure entries found in the lookup file.'
+  notes: ''
+  file: 'lookups/infrastructure.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: lookup_infrastructure
+  stix_mapping: infrastructure
+
+lookup_intrusion_set:
+  type: lookup
+  dogesec_web: false
+  name: 'Intrustion Set'
+  description: 'Will extract all Intrustion Set entries found in the lookup file.'
+  notes: ''
+  file: 'lookups/intrusion_set.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: lookup_intrusion_set
+  stix_mapping: intrusion-set
+
+lookup_malware:
+  type: lookup
+  dogesec_web: false
+  name: 'Malware'
+  description: 'Will extract all Malware entries found in the lookup file.'
+  notes: ''
+  file: 'lookups/malware.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: lookup_malware
+  stix_mapping: malware
+
+lookup_threat_actor:
+  type: lookup
+  dogesec_web: false
+  name: 'Threat Actor'
+  description: 'Will extract all Threat Actor entries found in the lookup file.'
+  notes: ''
+  file: 'lookups/threat_actor.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: lookup_threat_actor
+  stix_mapping: threat-actor
+
+lookup_tool:
+  type: lookup
+  dogesec_web: false
+  name: 'Tool'
+  description: 'Will extract all Tool entries found in the lookup file.'
+  notes: ''
+  file: 'lookups/tool.txt'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: lookup_tool
+  stix_mapping: tool
+
+

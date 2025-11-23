@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "txt2stix"
+version = "1.1.11"
+authors = [{ name = "dogesec" }]
+maintainers = [{ name = "dogesec" }]
+description = "txt2stix is a Python script that is designed to identify and extract IoCs and TTPs from text files, identify the relationships between them, convert them to STIX 2.1 objects, and output as a STIX 2.1 bundle."
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+]
+
+
+dependencies = [
+  "pathvalidate>=3.2.0",
+  "phonenumbers>=8.13.39",
+  "requests>=2.32.4",
+  "python-dotenv>=1.0.1",
+  "schwifty>=2024.6.1",
+  "stix2extensions>=2.0.1",
+  "tld>=0.13",
+  "tldextract>=5.1.2",
+  "validators>=0.28.3",
+  "base58>=2.1.1",
+  "llama-index-core>=0.12.42",
+  'llama-index-llms-openai>=0.4.5',
+  'mistune>=3.0.2',
+  'beautifulsoup4>=4.12.3',
+  'stix2-validator',
+  "json-repair",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+
+[project.urls]
+Homepage = "https://github.com/muchdogesec/txt2stix"
+Issues = "https://github.com/muchdogesec/txt2stix/issues"
+"dogesec HQ" = "https://dogesec.com"
+
+[project.scripts]
+stix2arango = "txt2stix.txt2stix:main"
+
+[tool.hatch.build.targets.wheel.force-include]
+"includes" = "txt2stix/includes"
+
+[project.optional-dependencies]
+anthropic = ['llama-index-llms-anthropic>=0.7.2']
+gemini = ['llama-index-llms-gemini>=0.5.0']
+deepseek = ['llama-index-llms-deepseek>=0.1.2']
+openrouter = ['llama-index-llms-openrouter>=0.3.2']
+tests = ["pytest", "requests", "pytest-subtests", "pytest-cov", "python-dateutil"]

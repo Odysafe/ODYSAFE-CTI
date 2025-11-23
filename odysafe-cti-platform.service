@@ -1,0 +1,27 @@
+[Unit]
+Description=Odysafe CTI Platform - Cyber Threat Intelligence Platform
+After=network.target
+
+[Service]
+Type=simple
+User=odysafe-cti-platform
+Group=odysafe-cti-platform
+WorkingDirectory=/opt/odysafe-cti-platform/cti-platform
+Environment="PATH=/opt/odysafe-cti-platform/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/opt/odysafe-cti-platform/venv/bin/python /opt/odysafe-cti-platform/cti-platform/app.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=odysafe-cti-platform
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/odysafe-cti-platform/cti-platform/uploads /opt/odysafe-cti-platform/cti-platform/outputs /opt/odysafe-cti-platform/cti-platform/database /opt/odysafe-cti-platform/cti-platform/modules /opt/odysafe-cti-platform/cti-platform/ssl
+
+[Install]
+WantedBy=multi-user.target
+

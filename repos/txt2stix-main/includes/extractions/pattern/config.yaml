@@ -1,0 +1,609 @@
+# ====== PATTERN EXTRACTIONS =====
+
+####### IPv4 extractions #######
+
+pattern_ipv4_address_only:
+  type: pattern
+  dogesec_web: true
+  name: 'IPv4 Address Only'
+  description: 'Extracts IPv4 addresses'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_ipv4_address_only'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_ipv4_address_only
+  stix_mapping: ipv4-addr
+
+pattern_ipv4_address_cidr:
+  type: pattern
+  dogesec_web: true
+  name: 'IPv4 Address with CIDR'
+  description: 'Extracts IPv4 addresses with CIDRs'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_ipv4_address_cidr'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: ipv4_address_cidr
+  stix_mapping: ipv4-addr
+
+pattern_ipv4_address_port:
+  type: pattern
+  dogesec_web: true
+  name: 'IPv4 Address with Port'
+  description: 'Extracts IPv4 addresses with Port'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_ipv4_address_port'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: ipv4_address_port
+  stix_mapping: ipv4-addr-port
+
+####### IPv6 extractions #######
+
+pattern_ipv6_address_only:
+  type: pattern
+  dogesec_web: true
+  name: 'IPv6 Address Only'
+  description: 'Extracts IPv6 addresses, but not with CIDR or Ports'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_ipv6_address_only'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_ipv6_address_only
+  stix_mapping: ipv6-addr
+
+pattern_ipv6_address_cidr:
+  type: pattern
+  dogesec_web: true
+  name: 'IPv6 Address with CIDR'
+  description: 'Extracts IPv6 addresses with CIDRs'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_ipv6_address_cidr'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_ipv6_address_cidr
+  stix_mapping: ipv6-addr
+
+pattern_ipv6_address_port:
+  type: pattern
+  dogesec_web: true
+  name: 'IPv6 Address with Port'
+  description: 'Extracts IPv6 addresses with Port'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_ipv6_address_port'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_ipv6_address_port
+  stix_mapping: ipv6-addr-port
+
+####### Domain name extractions #######
+
+pattern_domain_name_only:
+  type: pattern
+  dogesec_web: true
+  name: 'Domain name only'
+  description: 'Extracts domains, but not subdomains or IPv4 addresses. Must have a valid TLD.'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_domain_name_only'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_domain_name_only
+  stix_mapping: domain-name
+
+pattern_domain_name_subdomain:
+  type: pattern
+  dogesec_web: true
+  name: 'Subdomain name only'
+  description: 'Extracts subdomains, but not root domains or IPv4 addresses. Must have a valid TLD.'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_domain_name_subdomain'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_domain_name_subdomain
+  stix_mapping: domain-name
+
+####### URL extractions #######
+
+pattern_url:
+  type: pattern
+  dogesec_web: true
+  name: 'URL Only'
+  description: 'Extracts base URLs (can be IPs) with no path/file extension. If the sub/domain part is not an IP, then it must have a valid TLD.'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_pattern_url'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_url
+  stix_mapping: url
+
+pattern_url_file:
+  type: pattern
+  dogesec_web: true
+  name: 'URL with file extension'
+  description: 'Extracts URLs with file extension in path. If the sub/domain part is not an IP, then it must have a valid TLD. Filetype must also match valid filetype. Similar to pattern_url except checks for URL with path to file'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_url_file'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_url_file
+  stix_mapping: url
+
+pattern_url_path:
+  type: pattern
+  dogesec_web: true
+  name: 'URL path'
+  description: 'Extracts URLs without file extension in path. If the sub/domain part is not an IP, then it must have a valid TLD. Similar to pattern_url except checks for URL with path but without file'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_url_path'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_url_path
+  stix_mapping: url
+
+####### Hostname extractions #######
+
+pattern_host_name:
+  type: pattern
+  dogesec_web: true
+  name: 'Hostname extractions'
+  description: 'Extracts hostnames that fail domain TLD validation. Captures data that fails pattern_domain_name TLD validation.'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_host_name'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_host_name
+  stix_mapping: domain-name
+
+pattern_host_name_subdomain:
+  type: pattern
+  dogesec_web: true
+  name: 'Hostname (subdomain) extractions'
+  description: 'Extracts hostnames that fail subdomain TLD validation. Captures data that fails pattern_domain_name_subdomain TLD validation.'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_host_name_subdomain'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_host_name_subdomain
+  stix_mapping: domain-name
+
+pattern_host_name_url:
+  type: pattern
+  dogesec_web: true
+  name: 'Hostname extractions inside URL'
+  description: 'Extracts hostnames/sub hostnames with full URLs that fail subdomain TLD validation. Captures data that fails pattern_url TLD validation.'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_host_name_url'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_host_name_url
+  stix_mapping: url
+
+pattern_host_name_file:
+  type: pattern
+  dogesec_web: true
+  name: 'Hostname with file extension'
+  description: 'Extracts hostnames/sub hostnames with full URLs with file extension in path. Captures data that fails pattern_url_file TLD validation.'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_host_name_file'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_host_name_file
+  stix_mapping: url
+
+pattern_host_name_path:
+  type: pattern
+  dogesec_web: true
+  name: 'Hostname path'
+  description: 'Extracts hostnames/sub hostnames with full URLs without file extension in path. Captures data that fails pattern_url_path TLD validation.'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_host_name_path'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_host_name_path
+  stix_mapping: url
+
+####### Directory path extractions #######
+
+pattern_directory_windows:
+  type: pattern
+  dogesec_web: true
+  name: 'Windows Directory'
+  description: 'Extracts a Windows directory path. The .net docs provide a good overview to Windows paths: https://github.com/dotnet/docs/blob/main/docs/standard/io/file-path-formats.md#file-path-formats-on-windows-systems'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_directory_windows'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_directory_windows
+  stix_mapping: directory
+
+pattern_directory_windows_with_file:
+  type: pattern
+  dogesec_web: true
+  name: 'Windows Directory with file reported'
+  description: 'Similar to pattern_directory_windows, but captures paths that include the file printed.'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_directory_windows_with_file'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_directory_windows_with_file
+  stix_mapping: directory-file
+
+pattern_directory_unix:
+  type: pattern
+  dogesec_web: true
+  name: 'UNIX Directory'
+  description: 'Extracts a UNIX directory path'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_directory_unix'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_directory_unix
+  stix_mapping: directory
+
+pattern_directory_unix_file:
+  type: pattern
+  dogesec_web: true
+  name: 'UNIX Directory with file'
+  description: 'Similar to pattern_directory_unix, but captures paths that include the file printed.'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_directory_unix_file'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_directory_unix_file
+  stix_mapping: directory-file
+
+####### File extractions #######
+
+pattern_file_name:
+  type: pattern
+  dogesec_web: true
+  name: 'File name'
+  description: 'Extracts filename. The file extension must match a valid file extension. filenames have three parts `<NAME>.<EXTENSION>`. Filetypes only contain a single `.`. Note, the `.` and `<EXTENSION>` part are required, but `<NAME>` is optional (because hidden files can be in format like; `.DS_Store`). Uses helpers/mimetype_filename_extension_list.csv to check valid file extension.'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_file_name'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_file_name
+  stix_mapping: file
+
+pattern_file_hash_md5:
+  type: pattern
+  dogesec_web: true
+  name: 'MD5'
+  description: 'Extracts MD5 file hashes'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_file_hash_md5'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_file_hash_md5
+  stix_mapping: file-hash
+
+pattern_file_hash_sha_1:
+  type: pattern
+  dogesec_web: true
+  name: 'SHA-1'
+  description: 'Extracts SHA-1 file hashes'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_file_hash_sha_1'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_file_hash_sha_1
+  stix_mapping: file-hash
+
+pattern_file_hash_sha_256:
+  type: pattern
+  dogesec_web: true
+  name: 'SHA-256'
+  description: 'Extracts SHA-256 file hashes'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_file_hash_sha_256'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_file_hash_sha_256
+  stix_mapping: file-hash
+
+pattern_file_hash_sha_512:
+  type: pattern
+  dogesec_web: true
+  name: 'SHA-512'
+  description: 'Extracts SHA-512 file hashes'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_file_hash_sha_512'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_file_hash_sha_512
+  stix_mapping: file-hash
+
+####### Email address extractions #######
+
+pattern_email_address:
+  type: pattern
+  dogesec_web: true
+  name: 'Email addresses'
+  description: 'Extracts emails with valid TLDs'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_email_address'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_email_address
+  stix_mapping: email-addr
+
+####### MAC address extractions #######
+
+pattern_mac_address:
+  type: pattern
+  dogesec_web: true
+  name: 'MAC Addresses'
+  description: 'Extracts MAC addresses with either `-` or `:` seperators.'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_mac_address'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_mac_address
+  stix_mapping: mac-addr
+
+####### Windows registry key extractions #######
+
+pattern_windows_registry_key:
+  type: pattern
+  dogesec_web: true
+  name: 'Windows Registry Key'
+  description: 'Must start with a valid prefix as defined in /includes/helpers/windows_registry_key_prefix.txt'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_windows_registry_key'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_windows_registry_key
+  stix_mapping: windows-registry-key
+
+####### User agent extractions #######
+
+pattern_user_agent:
+  type: pattern
+  dogesec_web: true
+  name: 'User Agent'
+  description: 'Will capture a string that looks like a user agent. User Agents should follow: https://www.rfc-editor.org/rfc/rfc7231#section-5.5.3 . The problem here is that there is no defined prefix for user agent strings, they can be anything. txt2stix follows a similar approach to: https://regex101.com/r/nXKYBB/3'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_user_agent'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_user_agent
+  stix_mapping: user-agent
+
+####### ASN extractions #######
+
+pattern_autonomous_system_number:
+  type: pattern
+  dogesec_web: true
+  name: 'Autonomous System Numbers (ASN)'
+  description: 'Will create automomous-system objects. Always follow the formats: `ASN XXXXX` (e.g  `ASN15139`), `ASNXXXXX` (e.g  `ASN 15139`), `AS XXXXX` (e.g  `AS15139`), or `ASXXXXX` (e.g  `AS 15139`)'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_autonomous_system_number'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_autonomous_system_number
+  stix_mapping: autonomous-system
+
+####### Cryptocurrency extractions #######
+
+pattern_cryptocurrency_btc_wallet:
+  type: pattern
+  dogesec_web: true
+  name: 'Cryptocurrency Bitcoin Wallet'
+  description: 'Will extract bitcoin wallet hashes and create STIX cryptocurrency-wallet objects for them'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_cryptocurrency_btc_wallet'
+  created: 2020-01-01
+  modified: 2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_cryptocurrency_btc_wallet
+  stix_mapping: cryptocurrency-wallet
+
+pattern_cryptocurrency_btc_wallet_transaction:
+  type: pattern
+  dogesec_web: true
+  name: 'Cryptocurrency Bitcoin Wallet And Transaction'
+  description: 'Will extract bitcoin wallet hashes and lookup all transactions the extracted wallets have been seen in. Will create a cryptocurrency-wallet object for the wallet extracted, will create cryptocurrency-transaction objects for all transactions the wallet is found in. Use either pattern_cryptocurrency_btc_wallet_transaction or pattern_cryptocurrency_btc_transaction but not both in same extraction'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_cryptocurrency_btc_wallet_transaction'
+  created: 2020-01-01
+  modified: 2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_cryptocurrency_btc_wallet
+  stix_mapping: cryptocurrency-wallet-with-transaction
+
+pattern_cryptocurrency_btc_transaction:
+  type: pattern
+  dogesec_web: true
+  name: 'Cryptocurrency Bitcoin Transaction'
+  description: 'Will extract bitcoin transaction hashes. Will create a cryptocurrency-transaction object for the transaction extracted and will create cryptocurrency-wallet objects for all wallets seen in the input or output of the transaction. Use either pattern_cryptocurrency_btc_wallet_transaction or pattern_cryptocurrency_btc_transaction but not both in same extraction'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_cryptocurrency_btc_transaction'
+  created: 2020-01-01
+  modified: 2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_cryptocurrency_btc_transaction
+  stix_mapping: cryptocurrency-transaction
+
+####### CVE extractions #######
+
+pattern_cve_id:
+  type: pattern
+  dogesec_web: true
+  name: 'CVE'
+  description: 'Will create a vulnerability object. CVEs IDs always take the format; `CVE-YYYY-NNNNN` (e.g. `CVE-2022-29098`) or `CVE-YYYY-NNNN` (e.g. `CVE-1999-0007`).'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_cve_id'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_cve_id
+  stix_mapping: vulmatch-cve-id
+
+####### CPE extractions #######
+
+pattern_cpe_uri:
+  type: pattern
+  dogesec_web: true
+  name: 'CPE'
+  description: 'Will create a software object. CPE URIs always start with `cpe:2.3` and have 13 parts (or 12 `:` characters)'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_cpe_uri'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_cpe_uri
+  stix_mapping: vulmatch-cpe-id
+
+####### Bank card extractions #######
+
+pattern_bank_card_mastercard:
+  type: pattern
+  dogesec_web: true
+  name: 'Bank Card Mastercard'
+  description: 'Will extract card numbers and create a payment-card object. Will also enrich card information if BIN List API key set'
+  notes: 'Also available: ai_bank_card_mastercard'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_bank_card_mastercard
+  stix_mapping: payment-card
+
+pattern_bank_card_visa:
+  type: pattern
+  dogesec_web: true
+  name: 'Bank Card Visa'
+  description: 'Will extract card numbers and create a payment-card object. Will also enrich card information if BIN List API key set'
+  notes: 'Also available: ai_bank_card_visa'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_bank_card_visa
+  stix_mapping: payment-card
+
+pattern_bank_card_amex:
+  type: pattern
+  dogesec_web: true
+  name: 'Bank Card American Express'
+  description: 'Will extract card numbers and create a payment-card object. Will also enrich card information if BIN List API key set'
+  notes: 'Also available: ai_bank_card_amex'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_bank_card_amex
+  stix_mapping: payment-card
+
+pattern_bank_card_union_pay:
+  type: pattern
+  dogesec_web: true
+  name: 'Bank Card Union Pay'
+  description: 'Will extract card numbers and create a payment-card object. Will also enrich card information if BIN List API key set'
+  notes: 'Also available: ai_bank_card_union_pay'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_bank_card_union_pay
+  stix_mapping: payment-card
+
+pattern_bank_card_diners:
+  type: pattern
+  dogesec_web: true
+  name: 'Bank Card Diners'
+  description: 'Will extract card numbers and create a payment-card object. Will also enrich card information if BIN List API key set'
+  notes: 'Also available: ai_bank_card_diners'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_bank_card_diners
+  stix_mapping: payment-card
+
+pattern_bank_card_jcb:
+  type: pattern
+  dogesec_web: true
+  name: 'Bank Card JCB'
+  description: 'Will extract card numbers and create a payment-card object. Will also enrich card information if BIN List API key set'
+  notes: 'Also available: ai_bank_card_jcb'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_bank_card_jcb
+  stix_mapping: payment-card
+
+pattern_bank_card_discover:
+  type: pattern
+  dogesec_web: true
+  name: 'Bank Card Discover'
+  description: 'Will extract card numbers and create a payment-card object. Will also enrich card information if BIN List API key set'
+  notes: 'Also available: ai_bank_card_discover'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_bank_card_discover
+  stix_mapping: payment-card
+
+####### IBAN Extractions #######
+
+pattern_iban_number:
+  type: pattern
+  dogesec_web: true
+  name: 'IBAN'
+  description: 'Will extract IBAN numbers and create a bank-account object'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_iban_number'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_iban_number
+  stix_mapping: bank-account
+
+####### Phone number Extractions #######
+
+pattern_phone_number:
+  type: pattern
+  dogesec_web: true
+  name: 'Phone number'
+  description: 'Will extract phone numbers and create a phone-number object'
+  notes: 'RECOMMENDED FOR BETTER ACCURACY: Use ai_phone_number'
+  created: 2020-01-01
+  modified:  2020-01-01
+  created_by: dogesec
+  version: 1.0.0
+  test_cases: generic_phone_number
+  stix_mapping: phone-number

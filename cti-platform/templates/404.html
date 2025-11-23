@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}404 - Page Not Found - CTI Platform{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container" style="text-align: center; padding: 80px 20px;">
+        <div style="font-size: 120px; margin-bottom: 24px; opacity: 0.3;">404</div>
+        <h1 style="font-size: 36px; font-weight: 700; margin-bottom: 16px;">Page Not Found</h1>
+        <p style="color: var(--text-secondary); font-size: 18px; margin-bottom: 40px; max-width: 600px; margin-left: auto; margin-right: auto;">
+            The page you are looking for does not exist or has been moved.
+        </p>
+        <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
+            <a href="{{ url_for('sources_list') }}" class="btn btn-secondary">View Sources</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

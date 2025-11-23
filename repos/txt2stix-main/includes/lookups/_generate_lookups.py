@@ -1,0 +1,258 @@
+## IMPORTANT: if using CTI Butler database locally in arangodb (i.e is not app.ctibutler.com in .env) you need to follow these steps to import the data needed to populate these lookups: https://github.com/muchdogesec/stix2arango/blob/main/utilities/arango_cti_processor/README.md (use `--database ctibutler_database` in the s2a script or change it in this script)
+
+import os
+from arango import ArangoClient
+
+# Connect to ArangoDB
+client = ArangoClient()
+db = client.db('ctibutler_database', username='root', password='')
+
+# Get the directory where the script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Define queries and output files
+queries = {
+    "mitre_cwe_id_v4_18.txt":
+      """
+        FOR doc IN mitre_cwe_vertex_collection
+          FILTER doc._stix2arango_note == "version=4_18"
+          AND IS_ARRAY(doc.external_references)
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          AND doc.type == "weakness"
+          AND doc.name != null
+          AND !CONTAINS(doc.name, "DEPRECATED:")
+          FOR reference IN doc.external_references
+            FILTER reference.source_name == "cwe"
+            SORT reference.external_id ASC
+            RETURN reference.external_id
+      """,
+    "mitre_cwe_name_v4_18.txt":
+      """
+        FOR doc IN mitre_cwe_vertex_collection
+          FILTER doc._stix2arango_note == "version=4_18"
+          AND IS_ARRAY(doc.external_references)
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          AND doc.type == "weakness"
+          AND doc.name != null
+          AND !CONTAINS(doc.name, "DEPRECATED:")
+          RETURN doc.name
+      """,
+    "mitre_capec_id_v3_9.txt":
+      """
+        FOR doc IN mitre_capec_vertex_collection
+          FILTER doc._stix2arango_note == "version=3_9"
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          AND doc.type != "course-of-action"
+          AND doc.name != null
+          AND !CONTAINS(doc.name, "DEPRECATED:")
+          AND IS_ARRAY(doc.external_references)
+          FOR reference IN doc.external_references
+            FILTER reference.source_name == "capec"
+            SORT reference.external_id ASC
+            RETURN reference.external_id
+      """,
+    "mitre_capec_name_v3_9.txt":
+      """
+        FOR doc IN mitre_capec_vertex_collection
+          FILTER doc._stix2arango_note == "version=3_9"
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          AND doc.type != "course-of-action"
+          AND doc.name != null
+          AND !CONTAINS(doc.name, "DEPRECATED:")
+          RETURN doc.name
+      """,
+    "mitre_attack_enterprise_id_v18_0.txt":
+      """
+        FOR doc IN mitre_attack_enterprise_vertex_collection
+          FILTER doc._stix2arango_note == "version=18_0"
+          AND doc.type != "x-mitre-matrix"
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          AND IS_ARRAY(doc.external_references)
+          FOR reference IN doc.external_references
+            FILTER reference.source_name == "mitre-attack"
+            SORT reference.external_id ASC
+            RETURN reference.external_id
+      """,
+    "mitre_attack_enterprise_name_v18_0.txt":
+      """
+        FOR doc IN mitre_attack_enterprise_vertex_collection
+          FILTER doc._stix2arango_note == "version=18_0"
+          AND doc.type != "x-mitre-matrix"
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          RETURN doc.name
+      """,
+    "mitre_attack_enterprise_aliases_v18_0.txt":
+      """
+        FOR alias IN UNIQUE(
+          FLATTEN(
+            FOR doc IN mitre_attack_enterprise_vertex_collection
+              FILTER doc._stix2arango_note == "version=18_0"
+              AND doc.type != "x-mitre-matrix"
+              AND doc.x_mitre_deprecated != true
+              AND doc.revoked != true
+              LET combined_aliases = APPEND(
+                doc.aliases ? doc.aliases : [],
+                doc.x_mitre_aliases ? doc.x_mitre_aliases : []
+              )
+              FILTER LENGTH(combined_aliases) > 0
+              RETURN combined_aliases
+          )
+        )
+        RETURN alias
+      """,
+    "mitre_attack_ics_id_v18_0.txt":
+      """
+        FOR doc IN mitre_attack_ics_vertex_collection
+          FILTER doc._stix2arango_note == "version=18_0"
+          AND doc.type != "x-mitre-matrix"
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          AND IS_ARRAY(doc.external_references)
+          FOR reference IN doc.external_references
+            FILTER reference.source_name == "mitre-attack"
+            SORT reference.external_id ASC
+            RETURN reference.external_id
+      """,
+    "mitre_attack_ics_name_v18_0.txt":
+      """
+        FOR doc IN mitre_attack_ics_vertex_collection
+          FILTER doc._stix2arango_note == "version=18_0"
+          AND doc.type != "x-mitre-matrix"
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          RETURN doc.name
+      """,
+    "mitre_attack_ics_aliases_v18_0.txt":
+      """
+        FOR alias IN UNIQUE(
+          FLATTEN(
+            FOR doc IN mitre_attack_ics_vertex_collection
+              FILTER doc._stix2arango_note == "version=18_0"
+              AND doc.type != "x-mitre-matrix"
+              AND doc.x_mitre_deprecated != true
+              AND doc.revoked != true
+              LET combined_aliases = APPEND(
+                doc.aliases ? doc.aliases : [],
+                doc.x_mitre_aliases ? doc.x_mitre_aliases : []
+              )
+              FILTER LENGTH(combined_aliases) > 0
+              RETURN combined_aliases
+          )
+        )
+        RETURN alias
+      """,
+    "mitre_attack_mobile_id_v18_0.txt":
+      """
+        FOR doc IN mitre_attack_mobile_vertex_collection
+          FILTER doc._stix2arango_note == "version=18_0"
+          AND doc.type != "x-mitre-matrix"
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          AND IS_ARRAY(doc.external_references)
+          FOR reference IN doc.external_references
+            FILTER reference.source_name == "mitre-attack"
+            SORT reference.external_id ASC
+            RETURN reference.external_id
+      """,
+    "mitre_attack_mobile_name_v18_0.txt":
+      """
+        FOR doc IN mitre_attack_mobile_vertex_collection
+          FILTER doc._stix2arango_note == "version=18_0"
+          AND doc.type != "x-mitre-matrix"
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          RETURN doc.name
+      """,
+    "mitre_attack_mobile_aliases_v18_0.txt":
+      """
+        FOR alias IN UNIQUE(
+          FLATTEN(
+            FOR doc IN mitre_attack_mobile_vertex_collection
+              FILTER doc._stix2arango_note == "version=18_0"
+              AND doc.type != "x-mitre-matrix"
+              AND doc.x_mitre_deprecated != true
+              AND doc.revoked != true
+              LET combined_aliases = APPEND(
+                doc.aliases ? doc.aliases : [],
+                doc.x_mitre_aliases ? doc.x_mitre_aliases : []
+              )
+              FILTER LENGTH(combined_aliases) > 0
+              RETURN combined_aliases
+          )
+        )
+        RETURN alias
+      """,
+    "mitre_atlas_id_v4_9_0.txt":
+      """
+        FOR doc IN mitre_atlas_vertex_collection
+          FILTER doc._stix2arango_note == "version=4_9_0"
+          AND doc.type != "x-mitre-matrix"
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          AND IS_ARRAY(doc.external_references)
+          FOR reference IN doc.external_references
+            FILTER reference.source_name == "mitre-atlas"
+            SORT reference.external_id ASC
+            RETURN reference.external_id
+      """,
+    "mitre_atlas_name_v4_9_0.txt":
+      """
+        FOR doc IN mitre_atlas_vertex_collection
+          FILTER doc._stix2arango_note == "version=4_9_0"
+          AND doc.type != "x-mitre-matrix"
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          RETURN doc.name
+      """,
+    "disarm_id_v1_6.txt":
+      """
+        FOR doc IN disarm_vertex_collection
+          FILTER doc._stix2arango_note == "version=1_6"
+          AND doc.type != "x-mitre-matrix"
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          AND IS_ARRAY(doc.external_references)
+          FOR reference IN doc.external_references
+            FILTER reference.source_name == "DISARM"
+            SORT reference.external_id ASC
+            RETURN reference.external_id
+    """,
+    "disarm_name_v1_6.txt":
+      """
+        FOR doc IN disarm_vertex_collection
+          FILTER doc._stix2arango_note == "version=1_6"
+          AND doc.type != "x-mitre-matrix"
+          AND doc.x_mitre_deprecated != true
+          AND doc.revoked != true
+          RETURN doc.name
+      """,
+    "sector_aliases_v1_0.txt":
+      """
+        FOR doc IN sector_vertex_collection
+          FILTER doc._stix2arango_note == "version=1_0"
+            AND doc.revoked != true
+          FOR alias IN (doc.x_opencti_aliases ? doc.x_opencti_aliases : [])
+            COLLECT alias_dedup = alias
+            RETURN alias_dedup
+      """
+}
+
+# Execute each query and save the results in the script's directory
+for filename, query in queries.items():
+    cursor = db.aql.execute(query)
+    results = [str(doc) for doc in cursor]
+    
+    # Full path for each output file
+    filepath = os.path.join(script_dir, filename)
+    
+    # Write results to a text file with each result on a new line
+    with open(filepath, 'w') as f:
+        f.write("\n".join(results))
+    
+    print(f"Results saved to {filepath}")
