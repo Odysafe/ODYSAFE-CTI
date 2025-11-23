@@ -71,7 +71,7 @@ The web interface allows you to view, filter, and manage all your IOCs easily. Y
 ### Installation
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Odysafe/ODYSAFE-CTI.git
 cd Odysafe-CTI
 sudo ./install.sh
 ```
