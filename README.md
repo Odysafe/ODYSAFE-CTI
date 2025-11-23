@@ -72,8 +72,8 @@ The web interface allows you to view, filter, and manage all your IOCs easily. Y
 
 ```bash
 git clone https://github.com/Odysafe/ODYSAFE-CTI.git
-cd Odysafe-CTI
-sudo ./install.sh
+cd ODYSAFE-CTI
+./install.sh
 ```
 
 The installation script automatically configures everything: dependencies, Python environment, systemd service, and SSL certificate.
