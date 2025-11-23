@@ -14,14 +14,14 @@ This software includes the following third-party components with their own
 licenses:
 
 1. iocsearcher
-   - Location: repos/iocsearcher-main/
-   - License: See repos/iocsearcher-main/LICENSE
-   - Copyright: See repos/iocsearcher-main/LICENSE
+   - Location: dependencies/repos/iocsearcher-main/
+   - License: See dependencies/repos/iocsearcher-main/LICENSE
+   - Copyright: See dependencies/repos/iocsearcher-main/LICENSE
 
 2. txt2stix
-   - Location: repos/txt2stix-main/
-   - License: See repos/txt2stix-main/LICENSE
-   - Copyright: See repos/txt2stix-main/LICENSE
+   - Location: dependencies/repos/txt2stix-main/
+   - License: See dependencies/repos/txt2stix-main/LICENSE
+   - Copyright: See dependencies/repos/txt2stix-main/LICENSE
 
 3. Python Dependencies
    - Flask, Werkzeug, and other dependencies listed in requirements.txt

@@ -1293,6 +1293,106 @@ def api_iocs_all_ids():
         logger.error(f"api_iocs_all_ids error: {e}")
         return api_error(str(e), 500)
 
+@app.route('/api/iocs/load', methods=['GET'])
+@require_auth
+def api_iocs_load():
+    """API: Load IOCs with pagination for lazy loading"""
+    try:
+        from modules.ioc_query_urls import get_query_urls
+        
+        # Retrieve filtering parameters (same as iocs_list)
+        ioc_type = request.args.get('type', '').strip()
+        search = request.args.get('search', '').strip()
+        source_name = request.args.get('source', '').strip()
+        date_range = request.args.get('date_range', '')
+        date_from = request.args.get('date_from', '').strip()
+        date_to = request.args.get('date_to', '').strip()
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+        
+        # Handle hashtag filters
+        hashtag_filters = request.args.get('hashtag_filters', '')
+        if hashtag_filters:
+            try:
+                hashtag_filters_list = json.loads(hashtag_filters)
+                # Convert hashtag filters to regular filters
+                for filter_key in hashtag_filters_list:
+                    if ':' in filter_key:
+                        filter_type, filter_value = filter_key.split(':', 1)
+                        if filter_type == 'type':
+                            ioc_type = filter_value
+                        elif filter_type == 'source':
+                            source_name = filter_value
+                        elif filter_type == 'group':
+                            # Extract group ID from group name
+                            groups = db.get_all_groups()
+                            for group in groups:
+                                group_name_clean = group['name'].replace(' ', '_').replace('/', '_').replace('\\', '_').replace('#', '').replace(':', '_')
+                                if group_name_clean == filter_value:
+                                    group_id = group['id']
+                                    break
+            except json.JSONDecodeError:
+                pass
+        
+        filters = {}
+        if ioc_type:
+            filters['ioc_type'] = ioc_type
+        if search:
+            filters['search'] = search
+        if source_name:
+            filters['source_name'] = source_name
+        group_id = request.args.get('group', '').strip()
+        if group_id:
+            try:
+                filters['group_id'] = int(group_id)
+            except ValueError:
+                pass
+        show_duplicates = request.args.get('duplicates', '').strip()
+        if show_duplicates == 'true':
+            filters['show_duplicates'] = True
+        if date_range:
+            filters['date_range'] = date_range
+            from datetime import datetime, timedelta
+            now = datetime.now()
+            if date_range == '24h':
+                filters['date_from'] = (now - timedelta(hours=24)).strftime('%Y-%m-%d')
+            elif date_range == '7d':
+                filters['date_from'] = (now - timedelta(days=7)).strftime('%Y-%m-%d')
+            elif date_range == '30d':
+                filters['date_from'] = (now - timedelta(days=30)).strftime('%Y-%m-%d')
+            elif date_range == '3m':
+                filters['date_from'] = (now - timedelta(days=90)).strftime('%Y-%m-%d')
+            elif date_range == '1y':
+                filters['date_from'] = (now - timedelta(days=365)).strftime('%Y-%m-%d')
+            elif date_range == 'custom':
+                if date_from:
+                    filters['date_from'] = date_from
+                if date_to:
+                    filters['date_to'] = date_to
+        else:
+            if date_from:
+                filters['date_from'] = date_from
+            if date_to:
+                filters['date_to'] = date_to
+        
+        offset = (page - 1) * per_page
+        iocs, total = db.get_all_iocs(filters=filters, limit=per_page, offset=offset)
+        
+        # Enrich each IOC with its query URLs
+        for ioc in iocs:
+            ioc['query_urls'] = get_query_urls(ioc['ioc_type'], ioc['ioc_value'])
+        
+        return api_success({
+            'iocs': iocs,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'has_more': (page * per_page) < total
+        })
+    except Exception as e:
+        logger.error(f"api_iocs_load error: {e}")
+        return api_error(str(e), 500)
+
 @app.route('/api/iocs/get-sources', methods=['POST'])
 @require_auth
 def api_iocs_get_sources():
@@ -2354,11 +2454,12 @@ def api_iocs_add_manual():
             if source_row:
                 source_id = source_row[0]
             else:
-                # Create "Manual" source
+                # Create "Manual" source with explicit local timestamp
+                from database import get_local_timestamp
                 cursor.execute("""
-                    INSERT INTO sources (name, context, source_type)
-                    VALUES (?, ?, ?)
-                """, ('Manual', source_context, 'manual'))
+                    INSERT INTO sources (name, context, source_type, created_at)
+                    VALUES (?, ?, ?, ?)
+                """, ('Manual', source_context, 'manual', get_local_timestamp()))
                 source_id = cursor.lastrowid
                 
                 # Add to default group

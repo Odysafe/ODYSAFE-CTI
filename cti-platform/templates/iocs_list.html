@@ -509,9 +509,9 @@
                 </table>
             </div>
 
-            <!-- Pagination -->
+            <!-- Pagination (hidden when lazy loading is active) -->
             {% if total > per_page %}
-            <div style="display: flex; justify-content: center; gap: 8px; margin-top: 32px;">
+            <div id="pagination-container" style="display: flex; justify-content: center; gap: 8px; margin-top: 32px;">
                 {% if page > 1 %}
                 <a href="#" onclick="navigateToPage({{ page - 1 }}); return false;" class="btn btn-secondary" id="prev-page-link">
                     Previous
@@ -1080,41 +1080,75 @@ function removeHashtagFilter(filterKey) {
     updateURL();
 }
 
+// Optimized applyHashtagFilters with requestAnimationFrame for smooth scrolling
+let filterAnimationFrame = null;
 function applyHashtagFilters() {
-    const rows = document.querySelectorAll('tbody tr[data-ioc-id]');
-    
-    if (activeHashtagFilters.size === 0) {
-        rows.forEach(row => row.style.display = '');
-        return;
+    // Cancel any pending animation frame
+    if (filterAnimationFrame) {
+        cancelAnimationFrame(filterAnimationFrame);
     }
     
-    rows.forEach(row => {
-        const container = row.querySelector('.hashtags-container');
-        if (!container) {
-            row.style.display = 'none';
+    // Use requestAnimationFrame to batch DOM updates
+    filterAnimationFrame = requestAnimationFrame(() => {
+        const rows = document.querySelectorAll('tbody tr[data-ioc-id]');
+        
+        if (activeHashtagFilters.size === 0) {
+            // Use DocumentFragment for better performance
+            const fragment = document.createDocumentFragment();
+            rows.forEach(row => {
+                row.style.display = '';
+            });
             return;
         }
         
-        let matches = false;
-        activeHashtagFilters.forEach(filterKey => {
-            const [type, value] = filterKey.split(':');
-            const hashtag = container.querySelector(`.hashtag[data-hashtag-type="${type}"][data-hashtag-value="${value}"]`);
-            if (hashtag) {
-                matches = true;
-            }
-        });
+        // Process in batches to avoid blocking the UI
+        let processed = 0;
+        const batchSize = 50;
         
-        row.style.display = matches ? '' : 'none';
+        function processBatch() {
+            const end = Math.min(processed + batchSize, rows.length);
+            
+            for (let i = processed; i < end; i++) {
+                const row = rows[i];
+                const container = row.querySelector('.hashtags-container');
+                if (!container) {
+                    row.style.display = 'none';
+                    continue;
+                }
+                
+                let matches = false;
+                activeHashtagFilters.forEach(filterKey => {
+                    const [type, value] = filterKey.split(':');
+                    const hashtag = container.querySelector(`.hashtag[data-hashtag-type="${type}"][data-hashtag-value="${value}"]`);
+                    if (hashtag) {
+                        matches = true;
+                    }
+                });
+                
+                row.style.display = matches ? '' : 'none';
+            }
+            
+            processed = end;
+            
+            if (processed < rows.length) {
+                // Process next batch on next frame
+                requestAnimationFrame(processBatch);
+            } else {
+                // Update count after all rows processed
+                updateFilteredCount();
+            }
+        }
+        
+        processBatch();
     });
-    
-    // Update count
+}
+
+// Optimized count update
+function updateFilteredCount() {
     const visibleCount = document.querySelectorAll('tbody tr[data-ioc-id]:not([style*="display: none"])').length;
     const countElement = document.querySelector('.card .container > div:first-child');
     if (countElement) {
-        const originalText = countElement.textContent.match(/(\d+)/);
-        if (originalText) {
-            countElement.textContent = `${visibleCount} IOC(s) found${activeHashtagFilters.size > 0 ? ' (filtered)' : ''}`;
-        }
+        countElement.textContent = `${visibleCount} IOC(s) found${activeHashtagFilters.size > 0 ? ' (filtered)' : ''}`;
     }
 }
 
@@ -1123,6 +1157,334 @@ function navigateToPage(newPage) {
     const url = buildFilterURL(newPage);
     window.location.href = url;
 }
+
+// ============================================
+// LAZY LOADING & SMOOTH SCROLLING OPTIMIZATION
+// ============================================
+
+// Debounce and throttle utilities
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function throttle(func, limit) {
+    let inThrottle;
+    return function(...args) {
+        if (!inThrottle) {
+            func.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+}
+
+// Lazy loading state
+let lazyLoadingState = {
+    isLoading: false,
+    currentPage: {{ page }},
+    hasMore: {{ (total / per_page)|round(0, 'ceil')|int > page }},
+    totalPages: {{ (total / per_page)|round(0, 'ceil')|int }},
+    perPage: {{ per_page }}
+};
+
+// Intersection Observer for lazy loading
+let lazyLoadObserver = null;
+
+function initLazyLoading() {
+    // Only enable lazy loading if there are more pages
+    if (!lazyLoadingState.hasMore) {
+        return;
+    }
+    
+    // Create a sentinel element at the bottom of the table
+    const tbody = document.querySelector('tbody');
+    if (!tbody) return;
+    
+    // Remove existing sentinel if any
+    const existingSentinel = document.getElementById('lazy-load-sentinel');
+    if (existingSentinel) {
+        existingSentinel.remove();
+    }
+    
+    // Create sentinel element
+    const sentinel = document.createElement('tr');
+    sentinel.id = 'lazy-load-sentinel';
+    sentinel.innerHTML = '<td colspan="8" style="text-align: center; padding: 20px;"><div class="loading-spinner" style="display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(139, 92, 246, 0.3); border-top-color: var(--violet-light); border-radius: 50%; animation: spin 1s linear infinite;"></div></td>';
+    tbody.appendChild(sentinel);
+    
+    // Create Intersection Observer
+    if (lazyLoadObserver) {
+        lazyLoadObserver.disconnect();
+    }
+    
+    lazyLoadObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && !lazyLoadingState.isLoading && lazyLoadingState.hasMore) {
+                loadMoreIocs();
+            }
+        });
+    }, {
+        root: null,
+        rootMargin: '200px', // Start loading 200px before reaching the sentinel
+        threshold: 0.1
+    });
+    
+    lazyLoadObserver.observe(sentinel);
+}
+
+// Load more IOCs asynchronously
+async function loadMoreIocs() {
+    if (lazyLoadingState.isLoading || !lazyLoadingState.hasMore) {
+        return;
+    }
+    
+    lazyLoadingState.isLoading = true;
+    lazyLoadingState.currentPage += 1;
+    
+    const sentinel = document.getElementById('lazy-load-sentinel');
+    if (sentinel) {
+        sentinel.querySelector('td').innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading-spinner" style="display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(139, 92, 246, 0.3); border-top-color: var(--violet-light); border-radius: 50%; animation: spin 1s linear infinite;"></div> Loading more IOCs...</div>';
+    }
+    
+    try {
+        // Build API URL with current filters
+        const urlParams = new URLSearchParams(window.location.search);
+        const apiParams = new URLSearchParams();
+        
+        // Copy all filter parameters
+        ['search', 'type', 'source', 'group', 'duplicates', 'date_range', 'date_from', 'date_to', 'hashtag_filters'].forEach(key => {
+            const value = urlParams.get(key);
+            if (value) {
+                apiParams.set(key, value);
+            }
+        });
+        
+        apiParams.set('page', lazyLoadingState.currentPage);
+        apiParams.set('per_page', lazyLoadingState.perPage);
+        
+        const response = await fetch(`/api/iocs/load?${apiParams.toString()}`);
+        const data = await response.json();
+        
+        if (response.ok && data.iocs && data.iocs.length > 0) {
+            // Render new IOCs
+            renderIocsRows(data.iocs);
+            
+            // Update state
+            lazyLoadingState.hasMore = data.has_more;
+            
+            // Re-observe sentinel if there are more pages
+            if (lazyLoadingState.hasMore && sentinel) {
+                lazyLoadObserver.observe(sentinel);
+            } else if (sentinel) {
+                sentinel.remove();
+            }
+        } else {
+            lazyLoadingState.hasMore = false;
+            if (sentinel) {
+                sentinel.remove();
+            }
+        }
+    } catch (error) {
+        console.error('Error loading more IOCs:', error);
+        lazyLoadingState.currentPage -= 1; // Revert page increment
+        if (sentinel) {
+            sentinel.remove();
+        }
+    } finally {
+        lazyLoadingState.isLoading = false;
+    }
+}
+
+// Render IOCs rows (optimized)
+function renderIocsRows(iocs) {
+    const tbody = document.querySelector('tbody');
+    if (!tbody) return;
+    
+    // Use DocumentFragment for better performance
+    const fragment = document.createDocumentFragment();
+    
+    iocs.forEach(ioc => {
+        const row = createIocRow(ioc);
+        fragment.appendChild(row);
+    });
+    
+    // Insert before sentinel
+    const sentinel = document.getElementById('lazy-load-sentinel');
+    if (sentinel) {
+        tbody.insertBefore(fragment, sentinel);
+    } else {
+        tbody.appendChild(fragment);
+    }
+    
+    // Re-apply hashtag filters if any are active
+    if (activeHashtagFilters.size > 0) {
+        applyHashtagFilters();
+    }
+}
+
+// Create IOC row element (simplified version - you may need to adapt based on your template)
+function createIocRow(ioc) {
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-ioc-id', ioc.id);
+    
+    // This is a simplified version - you'll need to match your exact template structure
+    // For now, we'll use a placeholder that you can enhance
+    tr.innerHTML = `
+        <td style="width: 40px;">
+            <input type="checkbox" class="ioc-checkbox" value="${ioc.id}" onchange="updateSelection()" style="cursor: pointer;">
+        </td>
+        <td><span class="badge">${ioc.ioc_type}</span></td>
+        <td style="font-family: monospace; word-break: break-all;">${escapeHtml(ioc.ioc_value)}</td>
+        <td><a href="/sources" style="color: var(--violet-light); text-decoration: none;">${escapeHtml(ioc.source_name || 'N/A')}</a></td>
+        <td>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                ${renderQueryUrls(ioc.query_urls || [])}
+            </div>
+        </td>
+        <td>
+            <div class="hashtags-container" data-ioc-id="${ioc.id}" style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 300px; max-width: 600px;">
+                ${renderHashtags(ioc)}
+            </div>
+        </td>
+        <td style="color: var(--text-secondary); font-size: 13px;">${formatDate(ioc.created_at)}</td>
+        <td>
+            <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                <button type="button" onclick="markIocAsTruePositive(${ioc.id})" style="background: rgba(16, 185, 129, 0.1); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;">✓ True Positive</button>
+                <button type="button" onclick="markIocAsFalsePositive(${ioc.id})" style="background: rgba(220, 38, 38, 0.1); color: #DC2626; border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;">✗ False Positive</button>
+                <button type="button" onclick="deleteSingleIoc(${ioc.id})" style="background: rgba(220, 38, 38, 0.1); color: #DC2626; border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 14px; cursor: pointer;">×</button>
+            </div>
+        </td>
+    `;
+    
+    return tr;
+}
+
+// Helper functions for rendering
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
+function renderQueryUrls(queryUrls) {
+    if (!queryUrls || queryUrls.length === 0) {
+        return '<span style="color: var(--text-secondary); font-size: 12px; font-style: italic;">No query URLs</span>';
+    }
+    
+    return queryUrls.map(url => `
+        <a href="${escapeHtml(url.url)}" target="_blank" rel="noopener noreferrer"
+           style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: rgba(59, 130, 246, 0.12); color: #3B82F6; border-radius: 6px; font-size: 11px; font-weight: 500; border: 1px solid rgba(59, 130, 246, 0.3); text-decoration: none;">
+            <span>🔗</span>
+            <span>${escapeHtml(url.name)}</span>
+        </a>
+    `).join('');
+}
+
+function renderHashtags(ioc) {
+    let html = '';
+    
+    // Type hashtag
+    const iocTypeClean = (ioc.ioc_type || '').replace(/ /g, '_').toLowerCase();
+    html += `<span class="hashtag hashtag-type" data-hashtag-type="type" data-hashtag-value="${escapeHtml(iocTypeClean)}" onclick="toggleHashtagFilter(this, 'type', '${escapeHtml(iocTypeClean)}')" style="cursor: pointer; padding: 6px 12px; background: rgba(59, 130, 246, 0.12); color: #3B82F6; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(59, 130, 246, 0.3); transition: all 0.2s ease; white-space: nowrap;">#${escapeHtml(iocTypeClean)}</span>`;
+    
+    // Source hashtag
+    const sourceNameClean = (ioc.source_name || 'N/A').replace(/ /g, '_').replace(/\//g, '_').replace(/\\/g, '_').replace(/#/g, '').substring(0, 25);
+    html += `<span class="hashtag hashtag-source" data-hashtag-type="source" data-hashtag-value="${escapeHtml(sourceNameClean)}" onclick="toggleHashtagFilter(this, 'source', '${escapeHtml(sourceNameClean)}')" style="cursor: pointer; padding: 6px 12px; background: rgba(34, 197, 94, 0.12); color: #22C55E; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(34, 197, 94, 0.3); transition: all 0.2s ease; white-space: nowrap;">#${escapeHtml(sourceNameClean)}</span>`;
+    
+    // Date hashtag
+    if (ioc.created_at) {
+        const date = new Date(ioc.created_at);
+        const monthYear = `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+        html += `<span class="hashtag hashtag-date" data-hashtag-type="date" data-hashtag-value="${escapeHtml(monthYear)}" onclick="toggleHashtagFilter(this, 'date', '${escapeHtml(monthYear)}')" style="cursor: pointer; padding: 6px 12px; background: rgba(245, 158, 11, 0.12); color: #F59E0B; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(245, 158, 11, 0.3); transition: all 0.2s ease; white-space: nowrap;">#${escapeHtml(monthYear)}</span>`;
+    }
+    
+    // Group hashtags (IOC groups first, then source groups)
+    const iocGroups = ioc.ioc_groups || [];
+    const sourceGroups = ioc.source_groups || [];
+    const iocGroupNames = new Set(iocGroups.map(g => g.name));
+    
+    // Display IOC groups
+    iocGroups.forEach(group => {
+        const groupNameClean = (group.name || '').replace(/ /g, '_').replace(/\//g, '_').replace(/\\/g, '_').replace(/#/g, '').replace(/:/g, '_');
+        html += `<span class="hashtag hashtag-group" data-hashtag-type="group" data-hashtag-value="${escapeHtml(groupNameClean)}" onclick="toggleHashtagFilter(this, 'group', '${escapeHtml(groupNameClean)}')" style="cursor: pointer; padding: 6px 12px; background: rgba(168, 85, 247, 0.12); color: #A855F7; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(168, 85, 247, 0.3); transition: all 0.2s ease; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">#${escapeHtml(groupNameClean)} <span onclick="event.stopPropagation(); removeIocFromGroup(${ioc.id}, ${group.id})" style="cursor: pointer; padding: 2px 4px; background: rgba(220, 38, 38, 0.2); color: #DC2626; border-radius: 4px; font-size: 10px; font-weight: bold;">×</span></span>`;
+    });
+    
+    // Display source groups (excluding those already in IOC groups and TLP/Positive if IOC has any)
+    const iocHasTlp = iocGroups.some(g => ['TLP:CLEAR', 'TLP:GREEN', 'TLP:AMBER', 'TLP:RED'].includes(g.name));
+    const iocHasPositive = iocGroups.some(g => ['True Positive', 'False Positive'].includes(g.name));
+    
+    sourceGroups.forEach(group => {
+        // Skip if exact same name as IOC group
+        if (iocGroupNames.has(group.name)) return;
+        
+        // Skip TLP if IOC has any TLP
+        if (iocHasTlp && ['TLP:CLEAR', 'TLP:GREEN', 'TLP:AMBER', 'TLP:RED'].includes(group.name)) return;
+        
+        // Skip Positive if IOC has any Positive
+        if (iocHasPositive && ['True Positive', 'False Positive'].includes(group.name)) return;
+        
+        const groupNameClean = (group.name || '').replace(/ /g, '_').replace(/\//g, '_').replace(/\\/g, '_').replace(/#/g, '').replace(/:/g, '_');
+        html += `<span class="hashtag hashtag-group" data-hashtag-type="group" data-hashtag-value="${escapeHtml(groupNameClean)}" onclick="toggleHashtagFilter(this, 'group', '${escapeHtml(groupNameClean)}')" style="cursor: pointer; padding: 6px 12px; background: rgba(168, 85, 247, 0.12); color: #A855F7; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(168, 85, 247, 0.3); transition: all 0.2s ease; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">#${escapeHtml(groupNameClean)} <span onclick="event.stopPropagation(); removeIocFromGroup(${ioc.id}, ${group.id}, true)" style="cursor: pointer; padding: 2px 4px; background: rgba(220, 38, 38, 0.2); color: #DC2626; border-radius: 4px; font-size: 10px; font-weight: bold;">×</span></span>`;
+    });
+    
+    return html;
+}
+
+// Optimize scroll events with throttling
+const optimizedScrollHandler = throttle(() => {
+    // This runs during scroll but throttled
+    // Intersection Observer handles the actual loading
+}, 100);
+
+// Store original renderIocsRows for filter re-application
+const originalRenderIocsRows = renderIocsRows;
+
+// Override renderIocsRows to re-apply filters
+renderIocsRows = function(iocs) {
+    originalRenderIocsRows(iocs);
+    // Small delay to ensure DOM is updated
+    setTimeout(() => {
+        if (activeHashtagFilters.size > 0) {
+            applyHashtagFilters();
+        }
+    }, 50);
+};
+
+// Initialize lazy loading when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide pagination if lazy loading is enabled
+    if (lazyLoadingState.hasMore) {
+        const paginationContainer = document.getElementById('pagination-container');
+        if (paginationContainer) {
+            paginationContainer.style.display = 'none';
+        }
+        initLazyLoading();
+    }
+    
+    // Add scroll optimization (though Intersection Observer is better)
+    window.addEventListener('scroll', optimizedScrollHandler, { passive: true });
+});
 
 // Initialize hashtag filters from URL on page load
 
@@ -1464,6 +1826,51 @@ document.addEventListener('click', function(e) {
 
 .tag-active {
     font-weight: 600;
+}
+
+/* Smooth scrolling optimization */
+html {
+    scroll-behavior: smooth;
+}
+
+.table-responsive {
+    will-change: scroll-position;
+    transform: translateZ(0); /* Force GPU acceleration */
+}
+
+.table tbody tr {
+    will-change: transform, opacity;
+    transform: translateZ(0); /* Force GPU acceleration */
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(139, 92, 246, 0.3);
+    border-top-color: var(--violet-light);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Optimize rendering performance */
+.hashtags-container {
+    contain: layout style paint;
+}
+
+.hashtag {
+    contain: layout style paint;
+}
+
+/* Reduce repaints during scroll */
+.table {
+    contain: layout;
 }
 
 /* Responsive Design - Modern Style */

@@ -29,6 +29,11 @@ from config import DATABASE_PATH, PREDEFINED_TAGS
 logger = logging.getLogger(__name__)
 
 
+def get_local_timestamp() -> str:
+    """Retourne l'heure locale actuelle formatée pour SQLite (format: YYYY-MM-DD HH:MM:SS)"""
+    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+
 class Database:
     def __init__(self, db_path: Path = DATABASE_PATH):
         self.db_path = db_path
@@ -43,6 +48,13 @@ class Database:
             try:
                 conn = sqlite3.connect(self.db_path, timeout=30.0)
                 conn.row_factory = sqlite3.Row
+                
+                # Enregistrer une fonction SQLite personnalisée pour l'heure locale
+                def local_timestamp():
+                    """Fonction SQLite personnalisée qui retourne l'heure locale"""
+                    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                conn.create_function('LOCAL_TIMESTAMP', 0, local_timestamp)
+                
                 # Enable WAL mode for better concurrency
                 conn.execute("PRAGMA journal_mode=WAL")
                 conn.execute("PRAGMA synchronous=NORMAL")
@@ -501,9 +513,9 @@ class Database:
                 counter += 1
 
             cursor.execute("""
-                INSERT INTO sources (name, context, source_type, file_path, original_filename)
-                VALUES (?, ?, ?, ?, ?)
-            """, (final_name, context, source_type, file_path, original_filename))
+                INSERT INTO sources (name, context, source_type, file_path, original_filename, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (final_name, context, source_type, file_path, original_filename, get_local_timestamp()))
 
             source_id = cursor.lastrowid
             
@@ -548,9 +560,9 @@ class Database:
         if status == 'completed':
             cursor.execute("""
                 UPDATE sources 
-                SET status = ?, processed_at = CURRENT_TIMESTAMP
+                SET status = ?, processed_at = ?
                 WHERE id = ?
-            """, (status, source_id))
+            """, (status, get_local_timestamp(), source_id))
         else:
             cursor.execute("""
                 UPDATE sources 
@@ -623,16 +635,17 @@ class Database:
             # Update last_seen
             cursor.execute("""
                 UPDATE iocs 
-                SET last_seen = CURRENT_TIMESTAMP
+                SET last_seen = ?
                 WHERE id = ?
-            """, (existing["id"],))
+            """, (get_local_timestamp(), existing["id"]))
             ioc_id = existing["id"]
         else:
-            # Create new IOC
+            # Create new IOC with explicit local timestamps
+            local_ts = get_local_timestamp()
             cursor.execute("""
-                INSERT INTO iocs (source_id, ioc_type, ioc_value, raw_value)
-                VALUES (?, ?, ?, ?)
-            """, (source_id, ioc_type, ioc_value, raw_value or ioc_value))
+                INSERT INTO iocs (source_id, ioc_type, ioc_value, raw_value, first_seen, last_seen, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (source_id, ioc_type, ioc_value, raw_value or ioc_value, local_ts, local_ts, local_ts))
             ioc_id = cursor.lastrowid
             
             # Add automatic tags
@@ -1606,9 +1619,9 @@ class Database:
 
         cursor.execute("""
             UPDATE source_templates 
-            SET name = ?, context = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
+            SET name = ?, context = ?, tags = ?, updated_at = ?
             WHERE id = ?
-        """, (name, context, tags_json, template_id))
+        """, (name, context, tags_json, get_local_timestamp(), template_id))
 
         success = cursor.rowcount > 0
         conn.commit()
@@ -1648,8 +1661,8 @@ class Database:
 
         cursor.execute("""
             INSERT OR REPLACE INTO settings (key, value, updated_at)
-            VALUES (?, ?, CURRENT_TIMESTAMP)
-        """, (key, value))
+            VALUES (?, ?, ?)
+        """, (key, value, get_local_timestamp()))
 
         conn.commit()
         conn.close()
@@ -2122,9 +2135,9 @@ class Database:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE iocs 
-                SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP
+                SET is_deleted = 1, deleted_at = ?
                 WHERE id = ?
-            """, (ioc_id,))
+            """, (get_local_timestamp(), ioc_id))
             success = cursor.rowcount > 0
         
         # Clean up orphaned tags after deletion (in separate transaction)
@@ -2218,9 +2231,9 @@ class Database:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE sources 
-                SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP
+                SET is_deleted = 1, deleted_at = ?
                 WHERE id = ? AND is_deleted = 0
-            """, (source_id,))
+            """, (get_local_timestamp(), source_id))
             return cursor.rowcount > 0
 
     def hard_delete_source(self, source_id: int) -> bool:

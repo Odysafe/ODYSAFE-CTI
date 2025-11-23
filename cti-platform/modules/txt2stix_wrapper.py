@@ -37,7 +37,7 @@ TXT2STIX_INCLUDES_PATH = None
 try:
     current_file = Path(__file__).resolve()
     project_root = current_file.parent.parent.parent
-    repos_dir = project_root / "repos"
+    repos_dir = project_root / "dependencies" / "repos"
     
     # Search for txt2stix in repos
     txt2stix_path = None
@@ -101,7 +101,7 @@ try:
             os.chdir(original_cwd)
     else:
         TXT2STIX_AVAILABLE = False
-        logger.warning("txt2stix directory not found in repos/")
+        logger.warning("txt2stix directory not found in dependencies/repos/")
         
 except Exception as e:
     logger.warning(f"Error configuring txt2stix: {e}")
@@ -337,7 +337,7 @@ def _convert_via_cli(temp_file: str, report_name: str, source_context: str,
         # Find txt2stix directory
         current_file = Path(__file__).resolve()
         project_root = current_file.parent.parent.parent
-        repos_dir = project_root / "repos"
+        repos_dir = project_root / "dependencies" / "repos"
         
         # Search for txt2stix in repos (may be txt2stix-main, txt2stix, etc.)
         txt2stix_path = None
