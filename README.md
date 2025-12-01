@@ -81,8 +81,8 @@ The installation script automatically configures everything: dependencies, Pytho
 ![Installation](docs/images/install.gif)
 
 Once installed, access the application:
-- Local: `http://localhost:5001`
-- Network: `http://<SERVER_IP>:5001`
+- Local: `https://localhost:5001`
+- Network: `https://<SERVER_IP>:5001`
 
 ---
 
