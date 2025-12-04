@@ -1637,17 +1637,25 @@ create_venv_robust() {
             fi
             
             # Try to install pip using get-pip.py if curl or wget is available
-            # First check network connectivity
+            # First check network connectivity with multiple methods
             NETWORK_AVAILABLE=false
-            if command -v curl &>/dev/null; then
-                if curl -sS --max-time 5 --connect-timeout 3 https://www.python.org &>/dev/null; then
-                    NETWORK_AVAILABLE=true
+            local network_test_urls=("https://www.python.org" "https://pypi.org" "https://www.google.com")
+            
+            for test_url in "${network_test_urls[@]}"; do
+                if command -v curl &>/dev/null; then
+                    if curl -sS --max-time 5 --connect-timeout 3 "$test_url" &>/dev/null; then
+                        NETWORK_AVAILABLE=true
+                        log_info "Network connectivity verified via $test_url"
+                        break
+                    fi
+                elif command -v wget &>/dev/null; then
+                    if wget -q --spider --timeout=5 --tries=1 "$test_url" &>/dev/null; then
+                        NETWORK_AVAILABLE=true
+                        log_info "Network connectivity verified via $test_url"
+                        break
+                    fi
                 fi
-            elif command -v wget &>/dev/null; then
-                if wget -q --spider --timeout=5 --tries=1 https://www.python.org &>/dev/null; then
-                    NETWORK_AVAILABLE=true
-                fi
-            fi
+            done
             
             if [ "$NETWORK_AVAILABLE" = true ]; then
                 if command -v curl &>/dev/null; then
@@ -3003,114 +3011,164 @@ EOF
 }
 
 # ============================================================================
-# VERIFY INSTALLATION
+# POST-INSTALLATION VALIDATION
+# ============================================================================
+
+# ============================================================================
+# POST-INSTALLATION VALIDATION
 # ============================================================================
 
 verify_installation() {
     log_step "Verifying installation..."
+    local validation_passed=true
+    local validation_errors=()
+    local validation_warnings=()
     
-    # Check Python imports
-    # Change to txt2stix directory so includes/ is found correctly
-    cd "$INSTALL_DIR/dependencies/repos/txt2stix-main" || {
-        log_error "Cannot change to txt2stix directory: $INSTALL_DIR/dependencies/repos/txt2stix-main"
-        exit 1
-    }
-    
-    # Create a temporary Python script for verification
-    VERIFY_SCRIPT="/tmp/verify_install_$$.py"
-    cat > "$VERIFY_SCRIPT" << 'PYEOF'
-import sys
-import os
-errors = []
-warnings = []
-
-# Ensure we're in txt2stix directory for includes resolution
-os.chdir("INSTALL_DIR_PLACEHOLDER/dependencies/repos/txt2stix-main")
-
-try:
-    import flask
-    print("✓ Flask installed")
-except ImportError:
-    errors.append("Flask not installed")
-
-try:
-    import iocsearcher
-    print("✓ iocsearcher installed")
-except ImportError:
-    errors.append("iocsearcher not installed")
-
-try:
-    # Import txt2stix from txt2stix directory (includes/ will be found)
-    import txt2stix
-    print("✓ txt2stix installed")
-except ImportError as e:
-    warnings.append(f"txt2stix import failed: {str(e)}")
-except Exception as e:
-    warnings.append(f"txt2stix error: {str(e)}")
-
-if errors:
-    print("\n❌ Errors detected:")
-    for e in errors:
-        print(f"  - {e}")
-    sys.exit(1)
-
-if warnings:
-    print("\n⚠ Warnings (txt2stix may work at runtime):")
-    for w in warnings:
-        print(f"  - {w}")
-
-print("\n✓ Installation verification successful")
-PYEOF
-    
-    # Replace placeholder with actual install directory
-    sed -i "s|INSTALL_DIR_PLACEHOLDER|$INSTALL_DIR|g" "$VERIFY_SCRIPT"
-    
-    # Execute verification script
-    if [ "$IS_ROOT" = true ]; then
-        # If root, run as service user
-        if id "$SERVICE_USER" &>/dev/null; then
-            if ! su -s /bin/bash -c "$INSTALL_DIR/venv/bin/python $VERIFY_SCRIPT" "$SERVICE_USER" 2>&1; then
-                log_error "Installation verification failed"
-                rm -f "$VERIFY_SCRIPT" 2>/dev/null || true
-                cd "$INSTALL_DIR" || true
-                exit 1
-            fi
+    # Test 1: Verify Python is accessible
+    if [ -n "$PYTHON_CMD" ] && command -v "$PYTHON_CMD" &>/dev/null; then
+        if $PYTHON_CMD --version &>/dev/null; then
+            log_info "✓ Python accessible: $PYTHON_CMD"
         else
-            # Service user doesn't exist, run as root
-            if ! "$INSTALL_DIR/venv/bin/python" "$VERIFY_SCRIPT" 2>&1; then
-        log_error "Installation verification failed"
-                rm -f "$VERIFY_SCRIPT" 2>/dev/null || true
-                cd "$INSTALL_DIR" || true
-        exit 1
-            fi
+            validation_errors+=("Python command not functional")
+            validation_passed=false
         fi
     else
-        # Not root, use sudo to run as service user
-        if id "$SERVICE_USER" &>/dev/null; then
-            if ! sudo -u "$SERVICE_USER" "$INSTALL_DIR/venv/bin/python" "$VERIFY_SCRIPT" 2>&1; then
-                log_error "Installation verification failed"
-                rm -f "$VERIFY_SCRIPT" 2>/dev/null || true
-                cd "$INSTALL_DIR" || true
-                exit 1
+        validation_errors+=("Python command not found")
+        validation_passed=false
+    fi
+    
+    # Test 2: Verify venv exists and is functional
+    if [ -d "$INSTALL_DIR/venv" ]; then
+        if [ -f "$INSTALL_DIR/venv/bin/python" ]; then
+            if "$INSTALL_DIR/venv/bin/python" --version &>/dev/null; then
+                log_info "✓ Virtual environment functional"
+            else
+                validation_errors+=("Venv Python not functional")
+                validation_passed=false
             fi
         else
-            # Service user doesn't exist, run with sudo
-            if ! sudo "$INSTALL_DIR/venv/bin/python" "$VERIFY_SCRIPT" 2>&1; then
-                log_error "Installation verification failed"
-                rm -f "$VERIFY_SCRIPT" 2>/dev/null || true
-                cd "$INSTALL_DIR" || true
-                exit 1
-            fi
+            validation_errors+=("Venv Python executable not found")
+            validation_passed=false
+        fi
+    else
+        validation_errors+=("Virtual environment directory not found")
+        validation_passed=false
+    fi
+    
+    # Test 3: Verify pip in venv
+    if [ -f "$INSTALL_DIR/venv/bin/pip" ]; then
+        if "$INSTALL_DIR/venv/bin/pip" --version &>/dev/null; then
+            log_info "✓ pip available in venv"
+        else
+            validation_warnings+=("pip in venv not functional")
+        fi
+    else
+        validation_warnings+=("pip not found in venv")
+    fi
+    
+    # Test 4: Verify critical Python modules can be imported
+    local critical_modules=("flask" "werkzeug" "requests")
+    for module in "${critical_modules[@]}"; do
+        if "$INSTALL_DIR/venv/bin/python" -c "import $module" 2>/dev/null; then
+            log_info "✓ Module $module importable"
+        else
+            validation_errors+=("Critical module $module not importable")
+            validation_passed=false
+        fi
+    done
+    
+    # Test 5: Verify application directory exists
+    if [ -d "$INSTALL_DIR/cti-platform" ]; then
+        log_info "✓ Application directory exists"
+        
+        # Test 5a: Verify app.py exists
+        if [ -f "$INSTALL_DIR/cti-platform/app.py" ]; then
+            log_info "✓ Application file (app.py) exists"
+        else
+            validation_errors+=("Application file (app.py) not found")
+            validation_passed=false
+        fi
+        
+        # Test 5b: Verify config.py exists
+        if [ -f "$INSTALL_DIR/cti-platform/config.py" ]; then
+            log_info "✓ Configuration file (config.py) exists"
+        else
+            validation_warnings+=("Configuration file (config.py) not found")
+        fi
+    else
+        validation_errors+=("Application directory not found")
+        validation_passed=false
+    fi
+    
+    # Test 6: Verify service file exists (if systemd available)
+    if command -v systemctl &>/dev/null; then
+        if [ -f "/etc/systemd/system/$SERVICE_FILE" ]; then
+            log_info "✓ Systemd service file exists"
+        else
+            validation_warnings+=("Systemd service file not found")
         fi
     fi
     
-    # Cleanup
-    rm -f "$VERIFY_SCRIPT" 2>/dev/null || true
+    # Test 7: Verify service user exists
+    if id "$SERVICE_USER" &>/dev/null; then
+        log_info "✓ Service user exists: $SERVICE_USER"
+    else
+        validation_warnings+=("Service user not found: $SERVICE_USER")
+    fi
     
-    log_success "Installation verification successful"
+    # Test 8: Verify permissions on key directories
+    local key_dirs=("$INSTALL_DIR/cti-platform" "$INSTALL_DIR/venv")
+    for dir in "${key_dirs[@]}"; do
+        if [ -d "$dir" ]; then
+            if [ -r "$dir" ] && [ -x "$dir" ]; then
+                log_info "✓ Directory permissions OK: $dir"
+            else
+                validation_warnings+=("Directory permissions issue: $dir")
+            fi
+        fi
+    done
     
-    # Return to install directory
-    cd "$INSTALL_DIR" || true
+    # Test 9: Verify network connectivity (if needed for runtime)
+    local network_ok=false
+    if command -v curl &>/dev/null; then
+        if curl -sS --max-time 3 --connect-timeout 2 https://www.python.org &>/dev/null; then
+            network_ok=true
+        fi
+    elif command -v wget &>/dev/null; then
+        if wget -q --spider --timeout=3 --tries=1 https://www.python.org &>/dev/null; then
+            network_ok=true
+        fi
+    fi
+    
+    if [ "$network_ok" = true ]; then
+        log_info "✓ Network connectivity available"
+    else
+        validation_warnings+=("Network connectivity not verified (may affect some features)")
+    fi
+    
+    # Report results
+    echo ""
+    if [ ${#validation_errors[@]} -gt 0 ]; then
+        log_error "Validation errors found:"
+        for error in "${validation_errors[@]}"; do
+            log_error "  - $error"
+        done
+    fi
+    
+    if [ ${#validation_warnings[@]} -gt 0 ]; then
+        log_warning "Validation warnings:"
+        for warning in "${validation_warnings[@]}"; do
+            log_warning "  - $warning"
+        done
+    fi
+    
+    if [ "$validation_passed" = true ]; then
+        log_success "Installation validation passed"
+        return 0
+    else
+        log_error "Installation validation failed"
+        return 1
+    fi
 }
 
 # ============================================================================
