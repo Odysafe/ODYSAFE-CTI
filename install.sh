@@ -474,7 +474,8 @@ detect_all_python_versions() {
                     version_str=$("$py_bin" --version 2>&1 | cut -d' ' -f2)
                     major=$(echo "$version_str" | cut -d'.' -f1)
                     minor=$(echo "$version_str" | cut -d'.' -f2)
-                    if [ "$major" -eq 3 ] && [ "$minor" -ge 8 ]; then
+                    # Check if major and minor are numeric before comparison
+                    if [[ "$major" =~ ^[0-9]+$ ]] && [[ "$minor" =~ ^[0-9]+$ ]] && [ "$major" -eq 3 ] && [ "$minor" -ge 8 ]; then
                         available_versions+=("$py_bin|$version_str|$major|$minor")
                     fi
                 fi
@@ -1469,7 +1470,7 @@ install_files() {
 # ============================================================================
 
 check_venv_validity() {
-    # Check if virtual environment exists and is valid
+    # Check if virtual environment exists and is valid (basic check only)
     local venv_path="$1"
     
     if [ ! -d "$venv_path" ] || [ ! -f "$venv_path/bin/python" ]; then
@@ -1481,26 +1482,14 @@ check_venv_validity() {
         return 1  # Python doesn't work
     fi
     
-    # Check essential packages
-    if ! "$venv_path/bin/python" -c "import flask" 2>/dev/null; then
-        return 1  # Flask not installed
+    # Check if pip works
+    if [ ! -f "$venv_path/bin/pip" ] || ! "$venv_path/bin/pip" --version &>/dev/null; then
+        return 1  # pip doesn't work
     fi
     
-    if ! "$venv_path/bin/python" -c "import iocsearcher" 2>/dev/null; then
-        return 1  # iocsearcher not installed
-    fi
-    
-    # Check txt2stix (optional but recommended)
-    if ! "$venv_path/bin/python" -c "import txt2stix" 2>/dev/null; then
-        log_info "txt2stix not found in venv, will be installed during setup"
-    fi
-    
-    # Check pdfalyzer (optional)
-    if ! "$venv_path/bin/python" -c "from pdfalyzer.pdfalyzer import Pdfalyzer" 2>/dev/null; then
-        log_info "pdfalyzer not found in venv, will be installed during setup"
-    fi
-    
-    return 0  # Venv is valid
+    # Only check if venv structure is valid, not specific packages
+    # Packages will be checked separately and installed if missing
+    return 0  # Venv structure is valid
 }
 
 check_packages_installed() {
@@ -1925,36 +1914,61 @@ setup_python_environment() {
     if [ -d "venv" ]; then
         log_info "Checking existing virtual environment..."
         if check_venv_validity "$INSTALL_DIR/venv"; then
-            log_success "Existing virtual environment is valid"
+            log_success "Existing virtual environment structure is valid"
+            
+            # Use venv pip directly (no need to activate)
+            local venv_pip="$INSTALL_DIR/venv/bin/pip"
             
             # Check if packages are up to date
             if check_packages_installed "$INSTALL_DIR/venv" "$INSTALL_DIR/requirements.txt"; then
                 log_success "All required packages are installed"
-                log_info "Skipping venv creation and package installation"
-                
-                # Still check and install optional packages if needed
-                if ! "$INSTALL_DIR/venv/bin/python" -c "import txt2stix" 2>/dev/null; then
-                    log_info "Installing txt2stix..."
-                    install_txt2stix_optional "$INSTALL_DIR/venv/bin/pip"
-                fi
-                
-                if ! "$INSTALL_DIR/venv/bin/python" -c "from pdfalyzer.pdfalyzer import Pdfalyzer" 2>/dev/null; then
-                    log_info "Installing pdfalyzer..."
-                    install_pdfalyzer_optional "$INSTALL_DIR/venv/bin/pip"
-                fi
-                
-                # Set ownership
-                if [ "$IS_ROOT" = true ]; then
-                    chown -R "$SERVICE_USER:$SERVICE_GROUP" venv 2>/dev/null || true
-                else
-                    sudo chown -R "$SERVICE_USER:$SERVICE_GROUP" venv 2>/dev/null || true
-                fi
-                
-                log_success "Python environment setup complete (using existing venv)"
-                return 0
             else
-                log_info "Some packages are missing, will update venv"
+                log_info "Some packages are missing, installing them..."
+                # Upgrade pip first
+                $venv_pip install --upgrade pip setuptools wheel --quiet 2>/dev/null || true
+                # Install missing packages
+                if ! execute_with_retry "$venv_pip install -r requirements.txt --quiet" 3 3 false; then
+                    log_warning "Failed to install dependencies with retry, trying without --quiet..."
+                    execute_with_retry "$venv_pip install -r requirements.txt" 2 3 false || {
+                        log_error "Failed to install missing packages"
+                        exit 1
+                    }
+                fi
             fi
+            
+            # Install iocsearcher if missing
+            if [ -d "dependencies/repos/iocsearcher-main" ]; then
+                if ! "$INSTALL_DIR/venv/bin/python" -c "import iocsearcher" 2>/dev/null; then
+                    log_info "Installing iocsearcher..."
+                    if ! execute_with_retry "$venv_pip install -e dependencies/repos/iocsearcher-main --quiet" 3 3 false; then
+                        execute_with_retry "$venv_pip install -e dependencies/repos/iocsearcher-main" 2 3 false || {
+                            log_error "Failed to install iocsearcher"
+                            exit 1
+                        }
+                    fi
+                fi
+            fi
+            
+            # Still check and install optional packages if needed
+            if ! "$INSTALL_DIR/venv/bin/python" -c "import txt2stix" 2>/dev/null; then
+                log_info "Installing txt2stix..."
+                install_txt2stix_optional "$INSTALL_DIR/venv/bin/pip"
+            fi
+            
+            if ! "$INSTALL_DIR/venv/bin/python" -c "from pdfalyzer.pdfalyzer import Pdfalyzer" 2>/dev/null; then
+                log_info "Installing pdfalyzer..."
+                install_pdfalyzer_optional "$INSTALL_DIR/venv/bin/pip"
+            fi
+            
+            # Set ownership
+            if [ "$IS_ROOT" = true ]; then
+                chown -R "$SERVICE_USER:$SERVICE_GROUP" venv 2>/dev/null || true
+            else
+                sudo chown -R "$SERVICE_USER:$SERVICE_GROUP" venv 2>/dev/null || true
+            fi
+            
+            log_success "Python environment setup complete (using existing venv)"
+            return 0
         else
             log_info "Existing virtual environment is invalid, will recreate"
             rm -rf venv
@@ -2002,34 +2016,34 @@ setup_python_environment() {
         fi
     fi
     
-    # Activate virtual environment
-    source venv/bin/activate || {
-        log_error "Failed to activate virtual environment"
-        exit 1
-    }
+    # Use venv pip directly (no need to activate)
+    local venv_pip="$INSTALL_DIR/venv/bin/pip"
     
     # Upgrade pip, setuptools, wheel with retry
     log_info "Upgrading pip, setuptools, wheel..."
-    if ! execute_with_retry "$PIP_CMD install --upgrade pip setuptools wheel --quiet" 3 2 false; then
+    if ! execute_with_retry "$venv_pip install --upgrade pip setuptools wheel --quiet" 3 2 false; then
         log_warning "Failed to upgrade pip with retry, trying without --quiet for diagnostics..."
-        $PIP_CMD install --upgrade pip setuptools wheel 2>&1 | head -20
+        $venv_pip install --upgrade pip setuptools wheel 2>&1 | head -20
         log_error "Failed to upgrade pip, setuptools, wheel"
         exit 1
     fi
     
-    # Install main dependencies with flexible method
+    # Install main dependencies
     log_info "Installing main dependencies from requirements.txt..."
-    install_requirements_flexible "$PIP_CMD" "requirements.txt" || {
-        log_error "Failed to install main dependencies"
-        exit 1
-    }
+    if ! execute_with_retry "$venv_pip install -r requirements.txt --quiet" 3 3 false; then
+        log_warning "Failed to install dependencies with retry, trying without --quiet..."
+        if ! execute_with_retry "$venv_pip install -r requirements.txt" 2 3 false; then
+            log_error "Failed to install main dependencies"
+            exit 1
+        fi
+    fi
     
     # Configure iocsearcher from local repository (already included in package)
     if [ -d "dependencies/repos/iocsearcher-main" ]; then
         log_info "Configuring iocsearcher from local repository..."
-        if ! execute_with_retry "$PIP_CMD install -e dependencies/repos/iocsearcher-main --quiet" 3 3 false; then
+        if ! execute_with_retry "$venv_pip install -e dependencies/repos/iocsearcher-main --quiet" 3 3 false; then
             log_warning "Failed to install iocsearcher with retry, trying without --quiet..."
-            if ! execute_with_retry "$PIP_CMD install -e dependencies/repos/iocsearcher-main" 2 3 false; then
+            if ! execute_with_retry "$venv_pip install -e dependencies/repos/iocsearcher-main" 2 3 false; then
                 log_error "Failed to install iocsearcher"
                 exit 1
             fi
@@ -2040,7 +2054,7 @@ setup_python_environment() {
         log_info "Fixing SyntaxWarnings in iocsearcher..."
         IOCSEARCHER_DIR="$INSTALL_DIR/dependencies/repos/iocsearcher-main"
         if [ -f "$IOCSEARCHER_DIR/fix_syntax_warnings.py" ]; then
-            if $PYTHON_CMD "$IOCSEARCHER_DIR/fix_syntax_warnings.py" 2>/dev/null; then
+            if "$INSTALL_DIR/venv/bin/python" "$IOCSEARCHER_DIR/fix_syntax_warnings.py" 2>/dev/null; then
                 log_success "SyntaxWarnings fixes applied to iocsearcher"
             else
                 log_warning "Failed to apply SyntaxWarnings fixes (non-critical)"
@@ -2055,11 +2069,11 @@ setup_python_environment() {
     fi
     
     # Configure txt2stix and pdfalyzer from local repository (already included in package)
-    install_txt2stix_optional "$PIP_CMD" || {
+    install_txt2stix_optional "$venv_pip" || {
         log_error "Failed to install txt2stix"
         exit 1
     }
-    install_pdfalyzer_optional "$PIP_CMD" || {
+    install_pdfalyzer_optional "$venv_pip" || {
         log_warning "pdfalyzer installation failed, PDF analysis features will not be available"
     }
     
