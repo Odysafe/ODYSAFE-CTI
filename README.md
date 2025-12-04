@@ -2,6 +2,26 @@
 
 ![Logo Odysafe](cti-platform/static/images/logo-c.png)
 
+## 📑 Table of Contents
+
+- [Introduction](#-introduction)
+- [Web Interface](#-web-interface)
+- [Features](#-features)
+- [Key Capabilities](#-key-capabilities)
+- [Quick Install](#-quick-install)
+- [IOC Extraction](#-ioc-extraction)
+- [CTI Resources](#-cti-resources)
+- [Home Interface](#-home-interface)
+- [Export Functionality](#-export-functionality)
+- [PDF Analysis](#-pdf-analysis)
+- [ISO 27001 & NIS2 Compliance](#-iso-27001--nis2-compliance)
+- [Privacy and Offline Operation](#-privacy-and-offline-operation)
+- [Logs and Observability](#-logs-and-observability)
+- [Roadmap](#-roadmap)
+- [License](#-license)
+
+---
+
 ## 🎯 Introduction
 
 Odysafe CTI Platform is an on-premise solution to extract, organize, and enrich your IOCs (Indicators of Compromise).
@@ -58,20 +78,20 @@ The web interface allows you to view, filter, and manage all your IOCs easily. Y
 
 ## 🎯 Key Capabilities
 
-| Daily Need | Solution | Status |
-|------------|----------|--------|
-| **Store identified CTI resources** | Centralized SQLite database with source management and favorites | ✅ |
-| **Quickly classify IOCs with TLP** | Built-in TLP tagging (RED, AMBER, GREEN, WHITE, CLEAR) | ✅ |
-| **Extract IOCs from DFIR reports** | Automatic extraction from PDF, Word, HTML, text files via iocsearcher | ✅ |
-| **Organize IOCs by threat type** | Tagging system (Malware, Phishing, APT, C2, etc.) and custom groups | ✅ |
-| **Track IOC validation status** | Status tags (Verified, False Positive, Under Investigation) | ✅ |
-| **Export to security tools** | Multi-format export: TXT, TXT simple, CSV, CSV firewall, JSON, JSON simple, XLSX, STIX 2.1 | ✅ |
-| **Browse CTI sources** | Integrated access to DeepDarkCTI and Ransomware Tool Matrix with favorites | ✅ |
-| **Analyze suspicious PDFs** | YARA-based detection, PDF structure visualization, and binary search via pdfalyzer | ✅ |
-| **Filter and search IOCs** | Advanced filtering by type, date, tags, groups, and text search | ✅ |
-| **Bulk operations** | Bulk delete, bulk tag assignment, bulk group assignment for IOCs and sources | ✅ |
-| **Maintain audit trail** | Complete history with first_seen, last_seen, and source tracking | ✅ |
-| **Storage management** | Automatic cleanup, storage monitoring, and manual cleanup tools | ✅ |
+| Need | Solution | Status |
+|------|----------|--------|
+| **🪶 Lightweight platform running on Linux** | **SQLite database**, minimal memory footprint, local processing. Runs efficiently on minimal servers (**500 MB disk**, Python 3.8+). | ✅ Validated |
+| **📥 Extract and centralize all IOCs from various sources** | **Automatic extraction** from files (PDF, Word, HTML, text) via iocsearcher, **URL import**, **text paste**, and **manual entry**. Centralized SQLite database with source management. | ✅ Validated |
+| **🔍 Extract IOCs from a website, DFIR report, or copy-paste** | Multiple import methods: **URL import**, **file upload** (PDF, Word, HTML, text), and **text paste**. Automatic IOC detection via iocsearcher (**IPs, domains, hashes, URLs**). | ✅ Validated |
+| **🔬 Investigate identified IOCs (e.g., VirusTotal)** | Complete IOC metadata (**first_seen, last_seen**, source context, audit trail). **Notes system** for investigation results. **Export to external analysis tools**. | ✅ Validated |
+| **📤 Export IOCs to specific security solutions** | **8 export formats**: TXT, TXT Simple (firewall/EDR), CSV, CSV Firewall, JSON, JSON Simple, XLSX, STIX 2.1. **Filtered exports** by sources, groups, types, dates. | ✅ Validated |
+| **🌐 Threat intelligence monitoring via quality, up-to-date resources** | Integrated **DeepDarkCTI** (hundreds of CTI sources) and **Ransomware Tool Matrix**. Browse, search, add sources, **favorites system**. Automatic repository updates. | ✅ Validated |
+| **📄 Analyze a potentially malicious PDF** | PDF analysis via pdfalyzer: **YARA rule scanning**, **structure visualization**, font analysis, binary search. Identifies suspicious PDF elements. | ✅ Validated |
+| **🏷️ Organize and classify IOCs by threat type and priority** | Tagging system (**custom tags**, **TLP classification**, status tracking), **custom groups**, **bulk operations** for efficient management. | ✅ Validated |
+| **📊 Maintain audit trail and track IOC lifecycle** | Complete history: **first_seen, last_seen**, source attribution, change history. **Full audit information** in exports for compliance. | ✅ Validated |
+| **🔒 Operate offline or in air-gapped environments** | **Offline-first**: all processing happens locally. SQLite database on your server. **No telemetry**. Internet only for optional features when explicitly requested. | ✅ Validated |
+| **🗄️ Manage storage and cleanup automatically** | **Storage monitoring**, automatic cleanup of old sources/IOCs, **configurable retention policies**, trash system with recovery, manual cleanup tools. | ✅ Validated |
+| **🔐 Secure access control and session management** | **Optional authentication**, secure session management (HTTP-only cookies, SSL support), **dedicated service user**, secure data handling. | ✅ Validated |
 
 ---
 
