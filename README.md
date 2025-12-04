@@ -10,7 +10,7 @@ It centralizes all your threat intelligence work in a simple web interface. You 
 
 **Designed to be lightweight** 🚀
 
-The application is built to be lightweight and run on minimal Linux servers without requiring extensive resources. Perfect for small teams or resource-constrained environments.
+The application is specifically designed to be lightweight and function efficiently on minimal Linux servers without requiring extensive resources. It uses a SQLite database, runs with minimal memory footprint, and processes data locally without heavy external dependencies. Perfect for small teams or resource-constrained environments where performance and simplicity are key priorities.
 
 **External Resources and Tools** 🔧
 
@@ -43,10 +43,15 @@ The web interface allows you to view, filter, and manage all your IOCs easily. Y
 | Manual IOC entry | ✅ |
 | Automatic IOC extraction (iocsearcher) | ✅ |
 | Tags, groups, and history | ✅ |
-| Export TXT / CSV / JSON / STIX | ✅ |
+| Export formats: TXT, TXT simple, CSV, CSV firewall, JSON, JSON simple, XLSX, STIX 2.1 | ✅ |
 | Authentication and session protection | ✅ |
 | Background pipelines and cleanup | ✅ |
 | Journald log rotation | ✅ |
+| PDF analysis with YARA rules and structure visualization | ✅ |
+| CTI Resources browsing (DeepDarkCTI, Ransomware Tool Matrix) | ✅ |
+| Source management and favorites | ✅ |
+| Bulk operations (delete, tag, group) | ✅ |
+| Storage monitoring and cleanup | ✅ |
 | Push-based third-party CTI feeds | ✕ |
 | Advanced workflow orchestration | ✕ |
 
@@ -54,16 +59,18 @@ The web interface allows you to view, filter, and manage all your IOCs easily. Y
 
 | Daily Need | Solution | Status |
 |------------|----------|--------|
-| **Store identified CTI resources** | Centralized database with source management and favorites | ✅ |
+| **Store identified CTI resources** | Centralized SQLite database with source management and favorites | ✅ |
 | **Quickly classify IOCs with TLP** | Built-in TLP tagging (RED, AMBER, GREEN, WHITE, CLEAR) | ✅ |
-| **Extract IOCs from DFIR reports** | Automatic extraction from PDF, Word, HTML, text files | ✅ |
-| **Organize IOCs by threat type** | Tagging system (Malware, Phishing, APT, C2, etc.) | ✅ |
+| **Extract IOCs from DFIR reports** | Automatic extraction from PDF, Word, HTML, text files via iocsearcher | ✅ |
+| **Organize IOCs by threat type** | Tagging system (Malware, Phishing, APT, C2, etc.) and custom groups | ✅ |
 | **Track IOC validation status** | Status tags (Verified, False Positive, Under Investigation) | ✅ |
-| **Export to security tools** | Multi-format export (TXT, CSV, JSON, STIX 2.1) | ✅ |
-| **Browse CTI sources** | Integrated access to DeepDarkCTI and Ransomware Tool Matrix | ✅ |
-| **Analyze suspicious PDFs** | YARA-based detection and PDF structure visualization | ✅ |
+| **Export to security tools** | Multi-format export: TXT, TXT simple, CSV, CSV firewall, JSON, JSON simple, XLSX, STIX 2.1 | ✅ |
+| **Browse CTI sources** | Integrated access to DeepDarkCTI and Ransomware Tool Matrix with favorites | ✅ |
+| **Analyze suspicious PDFs** | YARA-based detection, PDF structure visualization, and binary search via pdfalyzer | ✅ |
 | **Filter and search IOCs** | Advanced filtering by type, date, tags, groups, and text search | ✅ |
+| **Bulk operations** | Bulk delete, bulk tag assignment, bulk group assignment for IOCs and sources | ✅ |
 | **Maintain audit trail** | Complete history with first_seen, last_seen, and source tracking | ✅ |
+| **Storage management** | Automatic cleanup, storage monitoring, and manual cleanup tools | ✅ |
 
 ---
 
@@ -154,7 +161,18 @@ The home page provides a central dashboard for accessing all platform features.
 
 ## 📊 Export Functionality
 
-Export your IOCs in various formats including Excel (XLSX), CSV, JSON, and STIX 2.1.
+Export your IOCs in various formats:
+
+- **TXT** : Text format with IOC types
+- **TXT Simple** : Values only, compatible with firewalls and EDR systems
+- **CSV** : Detailed format with metadata (tags, groups, dates, sources)
+- **CSV Firewall** : Simplified format compatible with firewalls and EDR systems
+- **JSON** : Complete internal format with all metadata
+- **JSON Simple** : Simplified format grouped by IOC type
+- **XLSX** : Excel format with formatted report and color coding
+- **STIX 2.1** : Standard threat intelligence format via txt2stix
+
+Exports can be filtered by sources, groups, IOC types, and date ranges.
 
 ![Export to Excel](docs/images/exportxlsx.gif)
 
