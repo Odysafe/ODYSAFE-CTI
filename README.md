@@ -114,6 +114,7 @@ The web interface allows you to view, filter, and manage all your IOCs easily. Y
 - systemd
 - git
 - pip
+- **Root privileges** (#) - Required for installation
 
 ### Installation
 
@@ -122,6 +123,8 @@ git clone https://github.com/Odysafe/ODYSAFE-CTI.git
 cd ODYSAFE-CTI
 ./install.sh
 ```
+
+> **Note:** The installation script requires **root privileges** (#) to configure systemd services, create service users, and set up SSL certificates.
 
 The installation script automatically configures everything: dependencies, Python environment, systemd service, and SSL certificate.
 
