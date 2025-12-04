@@ -52,8 +52,9 @@ The web interface allows you to view, filter, and manage all your IOCs easily. Y
 | Source management and favorites | ✅ |
 | Bulk operations (delete, tag, group) | ✅ |
 | Storage monitoring and cleanup | ✅ |
-| Push-based third-party CTI feeds | ✕ |
-| Advanced workflow orchestration | ✕ |
+| Automatic IOC enrichment for malicious indicators | Coming soon |
+| Multi-source correlation to identify relationships between IOCs | Coming soon |
+| YARA and Sigma rules management for detection rule creation, optimization, and correction | Coming soon |
 
 ## 🎯 Key Capabilities
 
@@ -263,10 +264,6 @@ The journald configuration automatically limits log size (500 MB max, 30 days re
 ## 🚀 Roadmap
 
 The following features are planned for future releases:
-
-- **Automatic IOC enrichment** for malicious indicators
-- **Multi-source correlation** to identify relationships between IOCs
-- **YARA and Sigma rules management** for detection rule creation, optimization, and correction
 
 These enhancements will further strengthen the platform's capabilities in threat intelligence analysis and detection rule management.
 
