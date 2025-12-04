@@ -45,7 +45,7 @@ def get_file_mime_type(filepath, n=1024):
     elif mime_type == "text/plain":
         with open(filepath, 'rb') as fd:
             buf = fd.read(n)
-        html_regex = (b"<h1>|<h2>|<h3>|<p>|<em>|<i>|<br>|<br \/>"
+        html_regex = (br"<h1>|<h2>|<h3>|<p>|<em>|<i>|<br>|<br />"
                       b"<b>|<strong[^>]*>")
         if re.search(html_regex, buf):
             mime_type = "text/html"

@@ -99,9 +99,9 @@ class Html(Document):
         # Read raw contents
         data = read_raw_file(self.filepath)
         # Replace beautifiers
-        replace_regex = (b"<span[^>]*>|<\/span>|<pre[^>]*>|<\/pre>|"
-                         b"<em>|<\/em>|<i>|<\/i>|"
-                         b"<b>|<\/b>|<strong[^>]*>|<\/strong>|<wbr \/>")
+        replace_regex = (br"<span[^>]*>|</span>|<pre[^>]*>|</pre>|"
+                         br"<em>|</em>|<i>|</i>|"
+                         br"<b>|</b>|<strong[^>]*>|</strong>|<wbr />")
         data = re.sub(replace_regex, b'', data)
         # Parse HTML
         soup = BeautifulSoup(data, features="lxml")

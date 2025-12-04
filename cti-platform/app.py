@@ -24,12 +24,14 @@ import threading
 import time
 import zipfile
 import tempfile
+import socket
 from datetime import datetime, timedelta
 from pathlib import Path
 from flask import Flask, render_template, request, send_file, redirect, url_for, flash, session, g
 from typing import List, Dict
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.serving import run_simple
 
 from config import (
     UPLOAD_FOLDER, OUTPUT_FOLDER, ALLOWED_EXTENSIONS, ALLOWED_MIME_TYPES, MAX_FILE_SIZE,
@@ -42,15 +44,24 @@ from modules.iocsearcher_wrapper import (
     IOCSEARCHER_AVAILABLE
 )
 from modules.txt2stix_wrapper import convert_to_stix, TXT2STIX_AVAILABLE
+from modules.pdfalyzer_wrapper import (
+    analyze_pdf, PDFALYZER_AVAILABLE
+)
 from modules.storage_monitor import get_storage_info
 from modules.progress_tracker import progress_tracker
 from modules.api_helpers import api_success, api_error, api_not_found
 from modules.github_repo import github_repo_manager
-from modules.export_helpers import export_txt, export_json, export_csv, export_stix
+from modules.github_repo_rtm import rtm_repo_manager
+from modules.export_helpers import (
+    export_txt, export_json, export_csv, export_stix,
+    export_txt_simple, export_csv_firewall, export_json_simple,
+    export_xlsx
+)
 from modules.auth import (
     require_auth, is_auth_enabled, create_user, verify_user,
     change_password, user_exists, get_current_username
 )
+from markdown import markdown as md_markdown
 
 # Configuration logging
 logging.basicConfig(
@@ -93,6 +104,14 @@ db = Database()
 @app.before_request
 def before_request():
     g.db = db
+
+# Ajouter la fonction markdown au contexte des templates
+@app.template_filter('markdown')
+def markdown_filter(text):
+    """Convert Markdown to HTML"""
+    if not text:
+        return ''
+    return md_markdown(text, extensions=['fenced_code', 'tables', 'nl2br'])
 
 # ========== HELPERS ==========
 
@@ -137,7 +156,7 @@ def validate_file_mime(file_path: Path) -> bool:
         return True
 
 def generate_default_context(source_type: str) -> str:
-    """Génère un contexte par défaut basé sur le type de source"""
+    """Generates a default context based on source type"""
     now = datetime.now()
     context_map = {
         'file_upload': f"File upload - {now.strftime('%Y-%m-%d %H:%M:%S')}",
@@ -147,7 +166,7 @@ def generate_default_context(source_type: str) -> str:
     return context_map.get(source_type, f"Source - {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
 def check_and_apply_auto_rotation(db_instance):
-    """Vérifie et applique l'auto-rotation des sources si activée"""
+    """Checks and applies auto-rotation of sources if enabled"""
     auto_rotation = db_instance.get_setting('auto_rotation_enabled', 'false').lower() == 'true'
     if auto_rotation:
         max_sources = int(db_instance.get_setting('max_sources', '20'))
@@ -253,7 +272,7 @@ start_cleanup_scheduler()
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Page de connexion"""
+    """Login page"""
     # Si l'auth n'est pas activée, rediriger vers le dashboard
     if not is_auth_enabled(db):
         return redirect(url_for('dashboard'))
@@ -291,7 +310,7 @@ def login():
 
 @app.route('/logout', methods=['POST'])
 def logout():
-    """Déconnexion"""
+    """Logout"""
     session.clear()
     if request.is_json:
         return api_success({"message": "Logged out successfully"})
@@ -299,7 +318,7 @@ def logout():
 
 @app.route('/api/auth/status', methods=['GET'])
 def api_auth_status():
-    """API: Vérifier le statut de l'authentification"""
+    """API: Check authentication status"""
     try:
         enabled = is_auth_enabled(db)
         is_logged_in = 'user_id' in session
@@ -316,7 +335,7 @@ def api_auth_status():
 
 @app.route('/api/auth/create-user', methods=['POST'])
 def api_auth_create_user():
-    """API: Créer un utilisateur et activer l'authentification"""
+    """API: Create user and enable authentication"""
     try:
         data = request.get_json()
         username = data.get('username', '').strip()
@@ -359,7 +378,7 @@ def api_auth_create_user():
 @app.route('/api/auth/change-password', methods=['POST'])
 @require_auth
 def api_auth_change_password():
-    """API: Changer le mot de passe (nécessite d'être connecté)"""
+    """API: Change password (requires authentication)"""
     try:
         if 'username' not in session:
             return api_error("Not authenticated", 401)
@@ -391,7 +410,7 @@ def api_auth_change_password():
 
 @app.route('/api/auth/toggle', methods=['POST'])
 def api_auth_toggle():
-    """API: Désactiver l'authentification (activation se fait via create-user)"""
+    """API: Disable authentication (enable via create-user)"""
     try:
         data = request.get_json()
         enabled = data.get('enabled', False)
@@ -425,21 +444,87 @@ def api_auth_toggle():
 @app.route('/')
 @require_auth
 def dashboard():
-    """Page d'accueil avec statistiques"""
+    """Home page with statistics"""
     try:
         stats = db.get_statistics()
         recent_limit = int(db.get_setting('recent_sources_limit', '20'))
         recent_sources = db.get_all_sources(limit=recent_limit)
-        return render_template('dashboard.html', stats=stats, recent_sources=recent_sources)
+        
+        # CTI Resources statistics
+        cti_stats = {}
+        
+        # DeepDarkCTI stats
+        try:
+            ddc_repo_exists = github_repo_manager.repo_exists()
+            ddc_category_info = github_repo_manager.get_category_info()
+            if ddc_repo_exists:
+                categories = github_repo_manager.fetch_all_categories()
+                cti_stats['deepdarkcti'] = {
+                    'available': True,
+                    'categories_count': len(categories) if categories else 0,
+                    'last_update': ddc_category_info.get('last_update') if ddc_category_info else None
+                }
+            else:
+                cti_stats['deepdarkcti'] = {
+                    'available': False,
+                    'categories_count': 0,
+                    'last_update': None
+                }
+        except Exception as e:
+            logger.error(f"Error fetching DeepDarkCTI stats: {e}")
+            cti_stats['deepdarkcti'] = {
+                'available': False,
+                'categories_count': 0,
+                'last_update': None
+            }
+        
+        # Ransomware Tool Matrix stats
+        try:
+            rtm_repo_exists = rtm_repo_manager.repo_exists()
+            rtm_category_info = rtm_repo_manager.get_category_info()
+            if rtm_repo_exists:
+                tools = rtm_repo_manager.fetch_tools()
+                threat_intel = rtm_repo_manager.fetch_threat_intel()
+                group_profiles = rtm_repo_manager.fetch_group_profiles()
+                community_reports = rtm_repo_manager.fetch_community_reports()
+                cti_stats['ransomware_matrix'] = {
+                    'available': True,
+                    'tools_count': sum(len(tool_data.get('tools', [])) for tool_data in tools.values()) if tools else 0,
+                    'threat_intel_count': sum(len(intel_list) for intel_list in threat_intel.values()) if threat_intel else 0,
+                    'group_profiles_count': len(group_profiles) if group_profiles else 0,
+                    'community_reports_count': len(community_reports) if community_reports else 0,
+                    'last_update': rtm_category_info.get('last_update') if rtm_category_info else None
+                }
+            else:
+                cti_stats['ransomware_matrix'] = {
+                    'available': False,
+                    'tools_count': 0,
+                    'threat_intel_count': 0,
+                    'group_profiles_count': 0,
+                    'community_reports_count': 0,
+                    'last_update': None
+                }
+        except Exception as e:
+            logger.error(f"Error fetching Ransomware Tool Matrix stats: {e}")
+            cti_stats['ransomware_matrix'] = {
+                'available': False,
+                'tools_count': 0,
+                'threat_intel_count': 0,
+                'group_profiles_count': 0,
+                'community_reports_count': 0,
+                'last_update': None
+            }
+        
+        return render_template('dashboard.html', stats=stats, recent_sources=recent_sources, cti_stats=cti_stats)
     except Exception as e:
         logger.error(f"Dashboard error: {e}")
         flash("Error loading dashboard", "error")
-        return render_template('dashboard.html', stats={}, recent_sources=[])
+        return render_template('dashboard.html', stats={}, recent_sources=[], cti_stats={})
 
 @app.route('/upload')
 @require_auth
 def upload():
-    """Page d'upload/import"""
+    """Upload/import page"""
     return render_template('upload.html')
 
 @app.route('/iocs')
@@ -536,7 +621,7 @@ def iocs_list():
 @app.route('/ioc/<int:ioc_id>')
 @require_auth
 def ioc_detail(ioc_id):
-    """Détail d'un IOC"""
+    """IOC detail page"""
     try:
         ioc = db.get_ioc(ioc_id)
         if not ioc:
@@ -570,19 +655,129 @@ def sources_list():
         flash("Error loading sources", "error")
         return render_template('sources_list.html', sources=[], all_groups=[])
 
+@app.route('/api/pdf/list', methods=['GET'])
+@require_auth
+def api_pdf_list():
+    """API: Get list of all PDF analyses"""
+    try:
+        # Get all sources of type pdf_analysis
+        all_sources = db.get_all_sources(limit=1000)
+        pdf_sources = [s for s in all_sources if s.get('source_type') == 'pdf_analysis']
+        
+        logger.debug(f"Found {len(pdf_sources)} PDF sources")
+        
+        # Get analysis data for each PDF
+        pdf_list = []
+        for source in pdf_sources:
+            try:
+                analysis = db.get_pdf_analysis(source['id'])
+                logger.debug(f"Source {source['id']} ({source['name']}): analysis={analysis is not None}, status={source.get('pdf_analysis_status')}")
+                if analysis:
+                    pdf_list.append({
+                        'source_id': source['id'],
+                        'name': source['name'],
+                        'context': source['context'],
+                        'original_filename': source.get('original_filename', ''),
+                        'created_at': source['created_at'],
+                        'status': source.get('status', 'unknown'),
+                        'pdf_analysis_status': source.get('pdf_analysis_status', 'unknown'),
+                        'is_suspicious': analysis.get('is_suspicious', False),
+                        'suspicious_reasons': analysis.get('suspicious_reasons', []),
+                        'yara_matches_count': len(analysis.get('yara_matches', [])),
+                        'fonts_count': len(analysis.get('font_analysis', [])),
+                        'iocs_count': len(analysis.get('extracted_iocs', [])),
+                        'has_structure': analysis.get('pdf_structure_file') is not None,
+                        'has_modifications': analysis.get('modification_history', {}).get('has_modifications', False),
+                        'analysis_metadata': analysis.get('analysis_metadata', {})
+                    })
+                else:
+                    # Include sources without analysis yet
+                    pdf_list.append({
+                        'source_id': source['id'],
+                        'name': source['name'],
+                        'context': source['context'],
+                        'original_filename': source.get('original_filename', ''),
+                        'created_at': source['created_at'],
+                        'status': source.get('status', 'unknown'),
+                        'pdf_analysis_status': source.get('pdf_analysis_status', 'pending'),
+                        'is_suspicious': False,
+                        'suspicious_reasons': [],
+                        'yara_matches_count': 0,
+                        'fonts_count': 0,
+                        'iocs_count': 0,
+                        'has_structure': False,
+                        'has_modifications': False,
+                        'analysis_metadata': {}
+                    })
+            except Exception as e:
+                # Log error but still include the source
+                logger.error(f"Error getting PDF analysis for source {source['id']}: {e}")
+                pdf_list.append({
+                    'source_id': source['id'],
+                    'name': source['name'],
+                    'context': source['context'],
+                    'original_filename': source.get('original_filename', ''),
+                    'created_at': source['created_at'],
+                    'status': source.get('status', 'unknown'),
+                    'pdf_analysis_status': source.get('pdf_analysis_status', 'error'),
+                    'is_suspicious': False,
+                    'suspicious_reasons': [],
+                    'yara_matches_count': 0,
+                    'fonts_count': 0,
+                    'iocs_count': 0,
+                    'has_structure': False,
+                    'has_modifications': False,
+                    'analysis_metadata': {}
+                })
+        
+        # Sort by created_at descending (most recent first)
+        pdf_list.sort(key=lambda x: x['created_at'], reverse=True)
+        
+        return api_success({'pdfs': pdf_list})
+    except Exception as e:
+        logger.error(f"api_pdf_list error: {e}")
+        return api_error(str(e), 500)
+
+@app.route('/pdf-analysis/<int:source_id>')
+@require_auth
+def pdf_analysis_detail(source_id):
+    """PDF Analysis detail page"""
+    try:
+        source = db.get_source(source_id)
+        if not source:
+            flash("Source not found", "error")
+            return redirect(url_for('sources_list'))
+        
+        if source.get('source_type') != 'pdf_analysis':
+            flash("This source is not a PDF analysis", "error")
+            return redirect(url_for('sources_list'))
+        
+        analysis = db.get_pdf_analysis(source_id)
+        if not analysis:
+            flash("PDF analysis not found", "error")
+            return redirect(url_for('sources_list'))
+        
+        return render_template('pdf_analysis_detail.html', source=source, analysis=analysis)
+    except Exception as e:
+        logger.error(f"PDF analysis detail error: {e}")
+        flash("Error loading PDF analysis", "error")
+        return redirect(url_for('sources_list'))
+
 @app.route('/export')
 @require_auth
 def export():
-    """Page d'export"""
+    """Export page"""
     try:
         sources = db.get_all_sources()
         all_groups = db.get_all_groups()
         # Get total count without loading all IOCs
         _, total = db.get_all_iocs(limit=1, offset=0)
-        return render_template('export.html', sources=sources, all_groups=all_groups, total_iocs=total)
+        # Get unique IOC types for filtering
+        unique_types = db.get_unique_ioc_types()
+        return render_template('export.html', sources=sources, all_groups=all_groups, total_iocs=total, unique_types=unique_types)
     except Exception as e:
         logger.error(f"Export error: {e}")
-        return render_template('export.html', sources=[], all_groups=[], total_iocs=0)
+        return render_template('export.html', sources=[], all_groups=[], total_iocs=0, unique_types=[])
 
 @app.route('/settings')
 @require_auth
@@ -591,9 +786,10 @@ def settings():
     return render_template('settings.html')
 
 @app.route('/cti-resources')
+@app.route('/cti-resources/deepdarkcti')
 @require_auth
 def cti_resources():
-    """CTI Resources page
+    """CTI Resources page - Main page with resource selector
     
     IMPORTANT: This route ONLY reads existing repository data.
     It does NOT trigger automatic download. Download must be done
@@ -614,12 +810,152 @@ def cti_resources():
                              categories=categories, 
                              category_info=category_info)
     except Exception as e:
-        logger.error(f"CTI Resources error: {e}")
-        flash("Error loading CTI Resources data", "error")
+        logger.error(f"DeepDarkCTI error: {e}")
+        flash("Error loading DeepDarkCTI data", "error")
         return render_template('deepdarkcti.html', 
                              repo_exists=False,
                              categories={}, 
                              category_info={})
+
+@app.route('/cti-resources/ransomware-matrix')
+@require_auth
+def cti_resources_ransomware_matrix():
+    """Ransomware Tool Matrix page within CTI Resources
+    
+    IMPORTANT: This route ONLY reads existing repository data.
+    It does NOT trigger automatic download. Download must be done
+    explicitly via /api/ransomware-tools/download or /api/ransomware-tools/update endpoints.
+    """
+    try:
+        repo_exists = rtm_repo_manager.repo_exists()
+        
+        # Always try to load data, even if repo_exists is False (in case repo was just downloaded)
+        tools = {}
+        threat_intel = {}
+        group_profiles = []
+        community_reports = []
+        
+        if repo_exists:
+            try:
+                tools = rtm_repo_manager.fetch_tools()
+            except Exception as e:
+                logger.error(f"Error fetching tools: {e}")
+            
+            try:
+                threat_intel = rtm_repo_manager.fetch_threat_intel()
+            except Exception as e:
+                logger.error(f"Error fetching threat intel: {e}")
+            
+            try:
+                group_profiles = rtm_repo_manager.fetch_group_profiles()
+            except Exception as e:
+                logger.error(f"Error fetching group profiles: {e}")
+            
+            try:
+                community_reports = rtm_repo_manager.fetch_community_reports()
+            except Exception as e:
+                logger.error(f"Error fetching community reports: {e}")
+        
+        # Re-check repo_exists after loading data (in case it was just downloaded)
+        repo_exists = rtm_repo_manager.repo_exists()
+        
+        # Get category info (includes last_update from cache)
+        category_info = rtm_repo_manager.get_category_info()
+        
+        return render_template('ransomware_tools.html', 
+                             repo_exists=repo_exists,
+                             tools=tools,
+                             threat_intel=threat_intel,
+                             group_profiles=group_profiles,
+                             community_reports=community_reports,
+                             category_info=category_info)
+    except Exception as e:
+        logger.error(f"Ransomware Tools error: {e}", exc_info=True)
+        flash("Error loading Ransomware Tool Matrix data", "error")
+        # Try to return with empty data but still show the page
+        try:
+            repo_exists = rtm_repo_manager.repo_exists()
+            category_info = rtm_repo_manager.get_category_info()
+        except:
+            repo_exists = False
+            category_info = {}
+        return render_template('ransomware_tools.html', 
+                             repo_exists=repo_exists,
+                             tools={},
+                             threat_intel={},
+                             group_profiles=[],
+                             community_reports=[],
+                             category_info=category_info)
+
+@app.route('/ransomware-tools')
+@require_auth
+def ransomware_tools():
+    """Ransomware Tool Matrix page
+    
+    IMPORTANT: This route ONLY reads existing repository data.
+    It does NOT trigger automatic download. Download must be done
+    explicitly via /api/ransomware-tools/download or /api/ransomware-tools/update endpoints.
+    """
+    try:
+        repo_exists = rtm_repo_manager.repo_exists()
+        
+        # Always try to load data, even if repo_exists is False (in case repo was just downloaded)
+        tools = {}
+        threat_intel = {}
+        group_profiles = []
+        community_reports = []
+        
+        if repo_exists:
+            try:
+                tools = rtm_repo_manager.fetch_tools()
+            except Exception as e:
+                logger.error(f"Error fetching tools: {e}")
+            
+            try:
+                threat_intel = rtm_repo_manager.fetch_threat_intel()
+            except Exception as e:
+                logger.error(f"Error fetching threat intel: {e}")
+            
+            try:
+                group_profiles = rtm_repo_manager.fetch_group_profiles()
+            except Exception as e:
+                logger.error(f"Error fetching group profiles: {e}")
+            
+            try:
+                community_reports = rtm_repo_manager.fetch_community_reports()
+            except Exception as e:
+                logger.error(f"Error fetching community reports: {e}")
+        
+        # Re-check repo_exists after loading data (in case it was just downloaded)
+        repo_exists = rtm_repo_manager.repo_exists()
+        
+        # Get category info (includes last_update from cache)
+        category_info = rtm_repo_manager.get_category_info()
+        
+        return render_template('ransomware_tools.html', 
+                             repo_exists=repo_exists,
+                             tools=tools,
+                             threat_intel=threat_intel,
+                             group_profiles=group_profiles,
+                             community_reports=community_reports,
+                             category_info=category_info)
+    except Exception as e:
+        logger.error(f"Ransomware Tools error: {e}", exc_info=True)
+        flash("Error loading Ransomware Tool Matrix data", "error")
+        # Try to return with empty data but still show the page
+        try:
+            repo_exists = rtm_repo_manager.repo_exists()
+            category_info = rtm_repo_manager.get_category_info()
+        except:
+            repo_exists = False
+            category_info = {}
+        return render_template('ransomware_tools.html', 
+                             repo_exists=repo_exists,
+                             tools={},
+                             threat_intel={},
+                             group_profiles=[],
+                             community_reports=[],
+                             category_info=category_info)
 
 # ========== ROUTES API ==========
 
@@ -913,6 +1249,58 @@ def api_export_csv():
         return send_file(str(output_file), as_attachment=True, download_name=f"iocs_export_{timestamp}.csv")
     except Exception as e:
         logger.error(f"api_export_csv error: {e}", exc_info=True)
+        return api_error(str(e), 500)
+
+@app.route('/api/export/txt-simple', methods=['POST'])
+@require_auth
+def api_export_txt_simple():
+    """API: Export TXT - values only (Firewall/EDR compatible)"""
+    try:
+        data = request.get_json()
+        output_file = export_txt_simple(db, data, OUTPUT_FOLDER)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return send_file(str(output_file), as_attachment=True, download_name=f"iocs_export_simple_{timestamp}.txt")
+    except Exception as e:
+        logger.error(f"api_export_txt_simple error: {e}")
+        return api_error(str(e), 500)
+
+@app.route('/api/export/csv-firewall', methods=['POST'])
+@require_auth
+def api_export_csv_firewall():
+    """API: Export CSV - simplified format (Firewall/EDR compatible)"""
+    try:
+        data = request.get_json()
+        output_file = export_csv_firewall(db, data, OUTPUT_FOLDER)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return send_file(str(output_file), as_attachment=True, download_name=f"iocs_export_firewall_{timestamp}.csv")
+    except Exception as e:
+        logger.error(f"api_export_csv_firewall error: {e}")
+        return api_error(str(e), 500)
+
+@app.route('/api/export/json-simple', methods=['POST'])
+@require_auth
+def api_export_json_simple():
+    """API: Export JSON - simplified format grouped by type"""
+    try:
+        data = request.get_json()
+        output_file = export_json_simple(db, data, OUTPUT_FOLDER)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return send_file(str(output_file), as_attachment=True, download_name=f"iocs_export_simple_{timestamp}.json")
+    except Exception as e:
+        logger.error(f"api_export_json_simple error: {e}")
+        return api_error(str(e), 500)
+
+@app.route('/api/export/xlsx', methods=['POST'])
+@require_auth
+def api_export_xlsx():
+    """API: Export XLSX with elegant formatting"""
+    try:
+        data = request.get_json()
+        output_file = export_xlsx(db, data, OUTPUT_FOLDER)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return send_file(str(output_file), as_attachment=True, download_name=f"iocs_export_{timestamp}.xlsx")
+    except Exception as e:
+        logger.error(f"api_export_xlsx error: {e}")
         return api_error(str(e), 500)
 
 @app.route('/api/export/stix', methods=['POST'])
@@ -2312,14 +2700,14 @@ def api_settings_outputs_download(filepath):
         logger.error(f"api_settings_outputs_download error: {e}")
         return api_error(str(e), 500)
 
-# ========== ROUTES API CTI RESOURCES ==========
+# ========== ROUTES API DeepDarkCTI ==========
 
 @app.route('/api/cti-resources/download', methods=['POST'])
 @require_auth
 def api_cti_resources_download():
-    """API: Download CTI Resources repository"""
+    """API: Download deepdarkcti repository"""
     try:
-        logger.info("Downloading CTI Resources repository...")
+        logger.info("Downloading DeepDarkCTI repository...")
         
         success = github_repo_manager.download_repo()
         
@@ -2336,7 +2724,7 @@ def api_cti_resources_download():
 def api_cti_resources_update():
     """API: Update repository (deletes cache + old repo + downloads new one)"""
     try:
-        logger.info("Updating CTI Resources repository...")
+        logger.info("Updating DeepDarkCTI repository...")
         
         success = github_repo_manager.update_repo()
         
@@ -2405,6 +2793,64 @@ def api_cti_resources_add_manual_source():
             return api_error("This URL already exists", 400)
     except Exception as e:
         logger.error(f"api_cti_resources_add_manual_source error: {e}")
+        return api_error(str(e), 500)
+
+@app.route('/api/ransomware-tools/download', methods=['POST'])
+@require_auth
+def api_ransomware_tools_download():
+    """API: Download Ransomware Tool Matrix repository"""
+    try:
+        logger.info("Downloading Ransomware Tool Matrix repository...")
+        
+        success = rtm_repo_manager.download_repo()
+        
+        if success:
+            return api_success({'message': 'Repository downloaded successfully'})
+        else:
+            return api_error("Repository download error", 500)
+    except Exception as e:
+        logger.error(f"api_ransomware_tools_download error: {e}", exc_info=True)
+        return api_error(str(e), 500)
+
+@app.route('/api/ransomware-tools/update', methods=['POST'])
+@require_auth
+def api_ransomware_tools_update():
+    """API: Update repository (deletes cache + old repo + downloads new one)"""
+    try:
+        logger.info("Updating Ransomware Tool Matrix repository...")
+        
+        success = rtm_repo_manager.update_repo()
+        
+        if success:
+            return api_success({'message': 'Repository updated successfully'})
+        else:
+            return api_error("Repository update failed. Please check the logs for details.", 500)
+    except RuntimeError as e:
+        logger.error(f"Error api_ransomware_tools_update: {e}", exc_info=True)
+        return api_error(str(e), 500)
+    except Exception as e:
+        logger.error(f"Error api_ransomware_tools_update: {e}", exc_info=True)
+        return api_error(f"Repository update error: {str(e)}", 500)
+
+@app.route('/api/ransomware-tools/favorite/toggle', methods=['POST'])
+@require_auth
+def api_ransomware_tools_toggle_favorite():
+    """API: Add/remove a source from favorites"""
+    try:
+        data = request.get_json()
+        url = data.get('url')
+        
+        if not url:
+            return api_error("URL required", 400)
+        
+        is_favorite = rtm_repo_manager.toggle_favorite(url)
+        
+        return api_success({
+            'message': 'Favorite updated successfully',
+            'is_favorite': is_favorite
+        })
+    except Exception as e:
+        logger.error(f"api_ransomware_tools_toggle_favorite error: {e}")
         return api_error(str(e), 500)
 
 @app.route('/api/cti-resources/favorite/toggle', methods=['POST'])
@@ -2485,6 +2931,480 @@ def api_iocs_add_manual():
         logger.error(f"api_iocs_add_manual error: {e}")
         return api_error(str(e), 500)
 
+# ========== ROUTES API PDF ANALYSIS ==========
+
+@app.route('/api/pdf/analyze', methods=['POST'])
+@require_auth
+def api_pdf_analyze():
+    """API: PDF upload and analysis"""
+    try:
+        if 'file' not in request.files:
+            return api_error('No file provided', 400)
+        
+        file = request.files['file']
+        if file.filename == '':
+            return api_error('No file selected', 400)
+        
+        # Check if it's a PDF
+        if not file.filename.lower().endswith('.pdf'):
+            return api_error('File must be a PDF', 400)
+        
+        name = request.form.get('name', '').strip()
+        context = request.form.get('context', '').strip()
+        options_json = request.form.get('options', '{}')
+        
+        if not name:
+            return api_error('Source name is required', 400)
+        
+        # Parse options
+        try:
+            options = json.loads(options_json)
+        except:
+            options = {
+                'detect_suspicious': True,
+                'extract_iocs': True,
+                'generate_structure': True,
+                'analyze_fonts': True,
+                'scan_yara': True,
+                'generate_summary': True
+            }
+        
+        # Auto-generate context if empty
+        if not context:
+            context = generate_default_context('pdf_analysis')
+        
+        if not PDFALYZER_AVAILABLE:
+            return api_error('pdfalyzer is not available', 503)
+        
+        # Save file
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_filename = f"{timestamp}_{filename}"
+        file_path = UPLOAD_FOLDER / unique_filename
+        file.save(str(file_path))
+        
+        # Validate MIME type
+        if not validate_file_mime(file_path):
+            try:
+                file_path.unlink()
+            except Exception as e:
+                logger.warning(f"Failed to delete invalid file {file_path}: {e}")
+            return api_error('File type validation failed: MIME type not allowed', 400)
+        
+        # Create source in database
+        source_id = db.create_source(
+            name=name,
+            context=context,
+            source_type='pdf_analysis',
+            file_path=str(file_path),
+            original_filename=filename
+        )
+        
+        # Check if auto-rotation is enabled and apply if needed
+        check_and_apply_auto_rotation(db)
+        
+        # Update status
+        db.update_source_status(source_id, 'processing')
+        db.update_pdf_analysis_status(source_id, 'analyzing')
+        
+        # Start progress tracking
+        progress_tracker.start_task(f"source_{source_id}", "pdf_analysis", total_steps=100)
+        progress_tracker.update_progress(f"source_{source_id}", percentage=10, message="PDF uploaded, starting analysis...")
+        
+        # Analyze PDF in background
+        def _analyze_pdf_background():
+            try:
+                progress_tracker.update_progress(f"source_{source_id}", percentage=20, message="Analyzing PDF structure...")
+                
+                # Initialize pdfalyzer once
+                from pdfalyzer.pdfalyzer import Pdfalyzer
+                from pdfalyzer.util.exceptions import PdfWalkError
+                
+                try:
+                    pdfalyzer = Pdfalyzer(str(file_path))
+                except PdfWalkError as walk_error:
+                    # PDF structure parsing error - try partial analysis
+                    logger.warning(f"PDF structure parsing error (PdfWalkError): {walk_error}")
+                    logger.info("Attempting partial analysis without full PDF tree...")
+                    
+                    progress_tracker.update_progress(f"source_{source_id}", percentage=30, message="PDF structure error detected, performing partial analysis...")
+                    
+                    # Use analyze_pdf which will handle PdfWalkError and return partial analysis
+                    analysis_options = options.copy()
+                    analysis_options['generate_structure'] = False
+                    analysis_results = analyze_pdf(str(file_path), options=analysis_options, pdfalyzer_instance=None)
+                    
+                    # Mark analysis as completed but with error status
+                    db.update_pdf_analysis_status(source_id, 'completed')
+                    db.create_pdf_analysis(source_id, analysis_results)
+                    
+                    # Add suspicious tag since PDF is malformed
+                    all_tags = db.get_all_tags()
+                    suspicious_tag = next((t for t in all_tags if t['name'] == 'Potentially Malicious'), None)
+                    if not suspicious_tag:
+                        suspicious_tag_id = db.create_tag('Potentially Malicious', category='status', color='#DC2626')
+                    else:
+                        suspicious_tag_id = suspicious_tag['id']
+                    
+                    # Tag any IOCs found
+                    source_iocs = db.get_iocs_by_source(source_id)
+                    for ioc in source_iocs:
+                        db.add_tag_to_ioc(ioc['id'], suspicious_tag_id)
+                    
+                    db.update_source_status(source_id, 'completed')
+                    progress_tracker.complete_task(f"source_{source_id}", "PDF analysis completed (partial - structure parsing error)")
+                    return
+                
+                # Run analysis (without structure generation first)
+                analysis_options = options.copy()
+                analysis_options['generate_structure'] = False
+                analysis_results = analyze_pdf(str(file_path), options=analysis_options, pdfalyzer_instance=pdfalyzer)
+                
+                progress_tracker.update_progress(f"source_{source_id}", percentage=60, message="Extracting IOCs and generating structure...")
+                
+                # Generate structure if requested
+                pdf_structure_file = None
+                if options.get('generate_structure', True):
+                    from modules.pdfalyzer_wrapper import generate_pdf_structure
+                    pdf_output_dir = OUTPUT_FOLDER / "pdf_analysis"
+                    pdf_structure_file = generate_pdf_structure(pdfalyzer, pdf_output_dir, format_type='html')
+                    if pdf_structure_file:
+                        analysis_results['pdf_structure_file'] = str(pdf_structure_file)
+                
+                # Store analysis results in database
+                analysis_id = db.create_pdf_analysis(source_id, analysis_results)
+                
+                # Extract and create IOCs if requested
+                iocs_created = 0
+                if options.get('extract_iocs', True) and analysis_results.get('extracted_iocs'):
+                    progress_tracker.update_progress(f"source_{source_id}", percentage=80, message=f"Creating {len(analysis_results['extracted_iocs'])} IOCs...")
+                    
+                    source_info = db.get_source(source_id)
+                    for ioc_type, ioc_value, raw_value, offset in analysis_results['extracted_iocs']:
+                        duplicate_id = db.check_duplicate(ioc_type, ioc_value, source_id)
+                        if not duplicate_id:
+                            db.create_ioc(source_id, ioc_type, ioc_value, raw_value, source_info=source_info)
+                            iocs_created += 1
+                    
+                    # Add PDF Analysis tag to IOCs
+                    all_tags = db.get_all_tags()
+                    pdf_tag = next((t for t in all_tags if t['name'] == 'PDF Analysis'), None)
+                    if not pdf_tag:
+                        pdf_tag_id = db.create_tag('PDF Analysis', category='source')
+                    else:
+                        pdf_tag_id = pdf_tag['id']
+                    
+                    # Get IOCs for this source and tag them
+                    source_iocs = db.get_iocs_by_source(source_id)
+                    for ioc in source_iocs:
+                        db.add_tag_to_ioc(ioc['id'], pdf_tag_id)
+                
+                # Add suspicious tags if needed
+                if analysis_results.get('is_suspicious'):
+                    all_tags = db.get_all_tags()
+                    suspicious_tag = next((t for t in all_tags if t['name'] == 'Potentially Malicious'), None)
+                    if not suspicious_tag:
+                        suspicious_tag_id = db.create_tag('Potentially Malicious', category='status', color='#DC2626')
+                    else:
+                        suspicious_tag_id = suspicious_tag['id']
+                    
+                    # Tag source IOCs
+                    source_iocs = db.get_iocs_by_source(source_id)
+                    for ioc in source_iocs:
+                        db.add_tag_to_ioc(ioc['id'], suspicious_tag_id)
+                
+                # Add YARA match tags
+                for yara_match in analysis_results.get('yara_matches', []):
+                    rule_name = yara_match.get('rule_name', 'Unknown')
+                    tag_name = f"YARA_Match_{rule_name}"
+                    all_tags = db.get_all_tags()
+                    yara_tag = next((t for t in all_tags if t['name'] == tag_name), None)
+                    if not yara_tag:
+                        yara_tag_id = db.create_tag(tag_name, category='detection', color='#F59E0B')
+                    else:
+                        yara_tag_id = yara_tag['id']
+                    
+                    # Tag source IOCs
+                    source_iocs = db.get_iocs_by_source(source_id)
+                    for ioc in source_iocs:
+                        db.add_tag_to_ioc(ioc['id'], yara_tag_id)
+                
+                db.update_source_status(source_id, 'completed')
+                db.update_pdf_analysis_status(source_id, 'completed')
+                
+                progress_tracker.complete_task(f"source_{source_id}", f"PDF analysis completed: {iocs_created} IOCs extracted")
+                
+            except Exception as e:
+                # Check if it's a PdfWalkError that wasn't caught earlier
+                from pdfalyzer.util.exceptions import PdfWalkError
+                if isinstance(e, PdfWalkError):
+                    logger.warning(f"PDF structure parsing error (PdfWalkError): {e}")
+                    logger.info("Attempting partial analysis without full PDF tree...")
+                    
+                    try:
+                        # Try partial analysis
+                        analysis_options = options.copy()
+                        analysis_options['generate_structure'] = False
+                        analysis_results = analyze_pdf(str(file_path), options=analysis_options, pdfalyzer_instance=None)
+                        
+                        # Store partial analysis
+                        db.create_pdf_analysis(source_id, analysis_results)
+                        db.update_source_status(source_id, 'completed')
+                        db.update_pdf_analysis_status(source_id, 'completed')
+                        progress_tracker.complete_task(f"source_{source_id}", "PDF analysis completed (partial - structure parsing error)")
+                    except Exception as partial_error:
+                        logger.error(f"Partial analysis also failed: {partial_error}", exc_info=True)
+                        db.update_source_status(source_id, 'error')
+                        db.update_pdf_analysis_status(source_id, 'error')
+                        progress_tracker.error_task(f"source_{source_id}", f"Error: PDF structure parsing failed and partial analysis failed: {str(partial_error)}")
+                else:
+                    logger.error(f"PDF analysis error: {e}", exc_info=True)
+                    db.update_source_status(source_id, 'error')
+                    db.update_pdf_analysis_status(source_id, 'error')
+                    progress_tracker.error_task(f"source_{source_id}", f"Error: {str(e)}")
+        
+        thread = threading.Thread(target=_analyze_pdf_background, daemon=True)
+        thread.start()
+        
+        return api_success(
+            {'source_id': source_id},
+            'PDF uploaded successfully, analysis in progress...'
+        )
+    
+    except RequestEntityTooLarge:
+        return api_error('File too large', 413)
+    except Exception as e:
+        logger.error(f"api_pdf_analyze error: {e}")
+        return api_error(str(e), 500)
+
+@app.route('/api/pdf/<int:source_id>', methods=['GET'])
+@require_auth
+def api_pdf_get_analysis(source_id):
+    """API: Get PDF analysis results"""
+    try:
+        source = db.get_source(source_id)
+        if not source or source.get('source_type') != 'pdf_analysis':
+            return api_not_found('PDF Source')
+        
+        analysis = db.get_pdf_analysis(source_id)
+        logger.debug(f"api_pdf_get_analysis: source_id={source_id}, analysis={analysis is not None}")
+        
+        if not analysis:
+            logger.debug(f"api_pdf_get_analysis: No analysis found for source_id={source_id}, status={source.get('pdf_analysis_status')}")
+            return api_success({
+                'source': source,
+                'analysis': None,
+                'status': 'pending'
+            })
+        
+        # Get IOCs count
+        source_iocs = db.get_iocs_by_source(source_id)
+        
+        logger.debug(f"api_pdf_get_analysis: Returning analysis with {len(source_iocs)} IOCs")
+        
+        return api_success({
+            'source': source,
+            'analysis': analysis,
+            'iocs_count': len(source_iocs),
+            'status': 'completed'
+        })
+    except Exception as e:
+        logger.error(f"api_pdf_get_analysis error: {e}")
+        return api_error(str(e), 500)
+
+@app.route('/api/pdf/<int:source_id>/structure', methods=['GET'])
+@require_auth
+def api_pdf_structure(source_id):
+    """API: Download PDF structure file in specified format (svg, html, txt)"""
+    try:
+        analysis = db.get_pdf_analysis(source_id)
+        if not analysis:
+            return api_not_found('PDF Analysis')
+        
+        # Get format from query parameter (default: html)
+        format_type = request.args.get('format', 'html').lower()
+        if format_type not in ['svg', 'html', 'txt']:
+            format_type = 'html'
+        
+        # Get source to access PDF file
+        source = db.get_source(source_id)
+        if not source:
+            return api_not_found('Source')
+        
+        file_path = Path(source.get('file_path', ''))
+        if not file_path.exists():
+            return api_error('PDF file not found on filesystem', 404)
+        
+        # Generate structure in requested format
+        pdf_output_dir = OUTPUT_FOLDER / "pdf_analysis"
+        from modules.pdfalyzer_wrapper import generate_pdf_structure
+        from pdfalyzer.pdfalyzer import Pdfalyzer
+        from pdfalyzer.util.exceptions import PdfWalkError
+        
+        try:
+            pdfalyzer = Pdfalyzer(str(file_path))
+            structure_file = generate_pdf_structure(pdfalyzer, pdf_output_dir, format_type=format_type)
+            
+            if structure_file and structure_file.exists():
+                return send_file(str(structure_file), as_attachment=True, download_name=structure_file.name)
+            else:
+                return api_error(f'Failed to generate {format_type.upper()} structure file', 500)
+        except PdfWalkError as e:
+            logger.warning(f"PDF structure parsing error: {e}")
+            return api_error(f'PDF structure parsing error: {str(e)}', 400)
+        
+    except Exception as e:
+        logger.error(f"api_pdf_structure error: {e}")
+        return api_error(str(e), 500)
+
+@app.route('/api/pdf/<int:source_id>/fonts', methods=['GET'])
+@require_auth
+def api_pdf_fonts(source_id):
+    """API: Get font analysis results"""
+    try:
+        analysis = db.get_pdf_analysis(source_id)
+        if not analysis:
+            return api_not_found('PDF Analysis')
+        
+        return api_success({'fonts': analysis.get('font_analysis', [])})
+    except Exception as e:
+        logger.error(f"api_pdf_fonts error: {e}")
+        return api_error(str(e), 500)
+
+@app.route('/api/pdf/<int:source_id>/yara', methods=['GET'])
+@require_auth
+def api_pdf_yara(source_id):
+    """API: Get YARA scan results"""
+    try:
+        analysis = db.get_pdf_analysis(source_id)
+        if not analysis:
+            return api_not_found('PDF Analysis')
+        
+        return api_success({'yara_matches': analysis.get('yara_matches', [])})
+    except Exception as e:
+        logger.error(f"api_pdf_yara error: {e}")
+        return api_error(str(e), 500)
+
+@app.route('/api/pdf/<int:source_id>/binary-search', methods=['POST'])
+@require_auth
+def api_pdf_binary_search(source_id):
+    """API: Search for binary patterns in PDF"""
+    try:
+        data = request.get_json()
+        patterns = data.get('patterns', [])
+        
+        if not patterns:
+            return api_error('No patterns provided', 400)
+        
+        source = db.get_source(source_id)
+        if not source or source.get('source_type') != 'pdf_analysis':
+            return api_error('Source is not a PDF analysis', 400)
+        
+        file_path = source.get('file_path')
+        if not file_path or not Path(file_path).exists():
+            return api_error('PDF file not found', 404)
+        
+        if not PDFALYZER_AVAILABLE:
+            return api_error('pdfalyzer is not available', 503)
+        
+        # Re-analyze to get pdfalyzer instance
+        from pdfalyzer.pdfalyzer import Pdfalyzer
+        from pdfalyzer.util.exceptions import PdfWalkError
+        
+        try:
+            pdfalyzer = Pdfalyzer(file_path)
+        except PdfWalkError as walk_error:
+            logger.warning(f"PDF structure parsing error in binary search: {walk_error}")
+            return api_error('PDF structure parsing error - cannot perform binary pattern search on malformed PDF', 400)
+        
+        from modules.pdfalyzer_wrapper import search_binary_patterns
+        results = search_binary_patterns(pdfalyzer, patterns)
+        
+        return api_success({'matches': results})
+    except Exception as e:
+        logger.error(f"api_pdf_binary_search error: {e}")
+        return api_error(str(e), 500)
+
+@app.route('/api/pdf/<int:source_id>/reanalyze', methods=['POST'])
+@require_auth
+def api_pdf_reanalyze(source_id):
+    """API: Re-analyze a PDF"""
+    try:
+        source = db.get_source(source_id)
+        if not source or source.get('source_type') != 'pdf_analysis':
+            return api_error('Source is not a PDF analysis', 400)
+        
+        file_path = source.get('file_path')
+        if not file_path or not Path(file_path).exists():
+            return api_error('PDF file not found', 404)
+        
+        if not PDFALYZER_AVAILABLE:
+            return api_error('pdfalyzer is not available', 503)
+        
+        # Get options from request or use defaults
+        data = request.get_json() or {}
+        options = data.get('options', {
+            'detect_suspicious': True,
+            'extract_iocs': True,
+            'generate_structure': True,
+            'analyze_fonts': True,
+            'scan_yara': True
+        })
+        
+        # Update status
+        db.update_pdf_analysis_status(source_id, 'analyzing')
+        
+        # Run analysis in background
+        def _reanalyze_background():
+            try:
+                analysis_results = analyze_pdf(str(file_path), options=options)
+                
+                # Generate structure if requested
+                if options.get('generate_structure', True):
+                    pdf_output_dir = OUTPUT_FOLDER / "pdf_analysis"
+                    from modules.pdfalyzer_wrapper import generate_pdf_structure
+                    from pdfalyzer.pdfalyzer import Pdfalyzer
+                    from pdfalyzer.util.exceptions import PdfWalkError
+                    
+                    try:
+                        pdfalyzer = Pdfalyzer(str(file_path))
+                        pdf_structure_file = generate_pdf_structure(pdfalyzer, pdf_output_dir)
+                        if pdf_structure_file:
+                            analysis_results['pdf_structure_file'] = str(pdf_structure_file)
+                    except PdfWalkError as walk_error:
+                        logger.warning(f"PDF structure parsing error during reanalysis: {walk_error}")
+                        # Structure generation failed, but analysis_results already contains partial analysis
+                
+                # Update analysis in database
+                db.create_pdf_analysis(source_id, analysis_results)
+                db.update_pdf_analysis_status(source_id, 'completed')
+                
+            except Exception as e:
+                # Check if it's a PdfWalkError
+                from pdfalyzer.util.exceptions import PdfWalkError
+                if isinstance(e, PdfWalkError):
+                    logger.warning(f"PDF structure parsing error during reanalysis: {e}")
+                    # analyze_pdf should have already handled it and returned partial analysis
+                    try:
+                        # Try to get partial analysis results
+                        analysis_results = analyze_pdf(str(file_path), options=options, pdfalyzer_instance=None)
+                        db.create_pdf_analysis(source_id, analysis_results)
+                        db.update_pdf_analysis_status(source_id, 'completed')
+                    except Exception as partial_error:
+                        logger.error(f"Partial analysis also failed: {partial_error}", exc_info=True)
+                        db.update_pdf_analysis_status(source_id, 'error')
+                else:
+                    logger.error(f"PDF reanalysis error: {e}", exc_info=True)
+                    db.update_pdf_analysis_status(source_id, 'error')
+        
+        thread = threading.Thread(target=_reanalyze_background, daemon=True)
+        thread.start()
+        
+        return api_success({'message': 'PDF reanalysis started'})
+    except Exception as e:
+        logger.error(f"api_pdf_reanalyze error: {e}")
+        return api_error(str(e), 500)
+
 # ========== ERROR HANDLERS ==========
 
 @app.errorhandler(413)
@@ -2524,6 +3444,7 @@ if __name__ == '__main__':
     logger.info(f"Starting Odysafe CTI Platform application on {HOST}:{PORT}")
     logger.info(f"iocsearcher available: {IOCSEARCHER_AVAILABLE}")
     logger.info(f"txt2stix available: {TXT2STIX_AVAILABLE}")
+    logger.info(f"pdfalyzer available: {PDFALYZER_AVAILABLE}")
     
     # Check SSL configuration
     ssl_context = None
@@ -2532,14 +3453,54 @@ if __name__ == '__main__':
             ssl_context = (str(SSL_CERT_FILE), str(SSL_KEY_FILE))
             logger.info(f"SSL enabled - Certificate: {SSL_CERT_FILE}")
             logger.info(f"Interface accessible at: https://0.0.0.0:{PORT} or https://localhost:{PORT}")
+            logger.info("IMPORTANT: Use HTTPS in your browser (https://localhost:5001)")
+            logger.info("HTTP connections are not supported when SSL is enabled")
         else:
-            logger.warning(f"SSL enabled but certificates not found at {SSL_CERT_FILE} and {SSL_KEY_FILE}")
-            logger.warning("Running without SSL. Generate certificates with: generate-ssl-cert.sh")
-            logger.info(f"Interface accessible at: http://0.0.0.0:{PORT} or http://localhost:{PORT}")
+            logger.error(f"SSL enabled but certificates not found!")
+            logger.error(f"Certificate file: {SSL_CERT_FILE} (exists: {SSL_CERT_FILE.exists()})")
+            logger.error(f"Key file: {SSL_KEY_FILE} (exists: {SSL_KEY_FILE.exists()})")
+            logger.error("Cannot start with SSL enabled without certificates.")
+            logger.error("Generate certificates with: generate-ssl-cert.sh")
+            logger.error("Or disable SSL by setting CTI_USE_SSL=false")
+            exit(1)
     else:
-        logger.info(f"SSL disabled - Interface accessible at: http://0.0.0.0:{PORT} or http://localhost:{PORT}")
+        logger.warning("SSL is disabled. For security, SSL should be enabled in production.")
+        logger.info(f"Interface accessible at: http://0.0.0.0:{PORT} or http://localhost:{PORT}")
+        logger.info("To enable SSL, set CTI_USE_SSL=true and ensure certificates exist")
     
-    app.run(host=HOST, port=PORT, debug=DEBUG, ssl_context=ssl_context)
+    # Enable SO_REUSEADDR to allow immediate port reuse on restart
+    # This prevents "Address already in use" errors when restarting the service
+    # We patch socket.socket to always enable SO_REUSEADDR for new sockets
+    original_socket = socket.socket
+    
+    class SocketWithReuseAddr(original_socket):
+        """Socket class that automatically enables SO_REUSEADDR"""
+        def __init__(self, family=socket.AF_INET, type=socket.SOCK_STREAM, proto=0, fileno=None):
+            super().__init__(family, type, proto, fileno)
+            # Enable SO_REUSEADDR for all new sockets
+            try:
+                self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            except (OSError, AttributeError):
+                # If setsockopt fails (e.g., socket already closed), continue anyway
+                pass
+    
+    # Temporarily replace socket.socket with our version
+    socket.socket = SocketWithReuseAddr
+    
+    try:
+        # Use run_simple which will now create sockets with SO_REUSEADDR enabled
+        run_simple(
+            hostname=HOST,
+            port=PORT,
+            application=app,
+            use_reloader=False,  # Disable reloader in production
+            use_debugger=DEBUG,
+            ssl_context=ssl_context,
+            threaded=True
+        )
+    finally:
+        # Restore original socket class
+        socket.socket = original_socket
 
 
 

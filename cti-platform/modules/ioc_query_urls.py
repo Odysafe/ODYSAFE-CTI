@@ -19,6 +19,26 @@ Module pour générer les URLs de requête par type d'IOC
 """
 import base64
 import urllib.parse
+import re
+
+
+def _parse_mitre_attack_technique(technique_id: str) -> tuple:
+    """
+    Parse MITRE ATT&CK technique ID to separate main technique from sub-technique.
+    
+    Args:
+        technique_id: MITRE ATT&CK technique ID (e.g., 'T1070.004' or 'T1070')
+        
+    Returns:
+        Tuple of (main_technique, subtechnique) where subtechnique is None if not present
+    """
+    # Match pattern like T####.### or T####
+    match = re.match(r'^(T\d{4})(?:\.(\d{3}))?$', technique_id.upper())
+    if match:
+        main_technique = match.group(1)
+        subtechnique = match.group(2) if match.group(2) else None
+        return main_technique, subtechnique
+    return technique_id, None
 
 
 def get_query_urls(ioc_type: str, ioc_value: str) -> list:
@@ -39,11 +59,6 @@ def get_query_urls(ioc_type: str, ioc_value: str) -> list:
     
     # Indicateurs réseau et web
     if ioc_type_upper == 'URL' or ioc_type_lower == 'url':
-        # URLhaus
-        urls.append({
-            'name': 'URLhaus',
-            'url': f'https://urlhaus.abuse.ch/url/{ioc_value_clean}/'
-        })
         # VirusTotal
         try:
             url_base64 = base64.urlsafe_b64encode(ioc_value_clean.encode()).decode().rstrip('=')
@@ -54,6 +69,27 @@ def get_query_urls(ioc_type: str, ioc_value: str) -> list:
         except Exception:
             # Ignore errors when generating VirusTotal URL
             pass
+        # URLScan.io
+        url_encoded = urllib.parse.quote(ioc_value_clean, safe='')
+        urls.append({
+            'name': 'URLScan.io',
+            'url': f'https://urlscan.io/search/#{url_encoded}'
+        })
+        # Hybrid Analysis
+        urls.append({
+            'name': 'Hybrid Analysis',
+            'url': f'https://www.hybrid-analysis.com/search?query={url_encoded}'
+        })
+        # AlienVault OTX
+        urls.append({
+            'name': 'AlienVault OTX',
+            'url': f'https://otx.alienvault.com/indicator/url/{url_encoded}'
+        })
+        # Pulsedive
+        urls.append({
+            'name': 'Pulsedive',
+            'url': f'https://pulsedive.com/indicator/?q={url_encoded}'
+        })
     
     elif ioc_type_upper in ['FQDN', 'DOMAIN', 'DOMAINE'] or ioc_type_lower == 'fqdn':
         # URLhaus
@@ -66,7 +102,22 @@ def get_query_urls(ioc_type: str, ioc_value: str) -> list:
             'name': 'VirusTotal',
             'url': f'https://www.virustotal.com/gui/domain/{ioc_value_clean}'
         })
-        # ThreatFox
+        # URLScan.io
+        urls.append({
+            'name': 'URLScan.io',
+            'url': f'https://urlscan.io/domain/{ioc_value_clean}'
+        })
+        # AlienVault OTX
+        urls.append({
+            'name': 'AlienVault OTX',
+            'url': f'https://otx.alienvault.com/indicator/domain/{ioc_value_clean}'
+        })
+        # Pulsedive
+        urls.append({
+            'name': 'Pulsedive',
+            'url': f'https://pulsedive.com/indicator/?q={ioc_value_clean}'
+        })
+        # ThreatFox (only for domains)
         urls.append({
             'name': 'ThreatFox',
             'url': f'https://threatfox.abuse.ch/browse.php?search=ioc:{ioc_value_clean}'
@@ -83,36 +134,34 @@ def get_query_urls(ioc_type: str, ioc_value: str) -> list:
             'name': 'VirusTotal',
             'url': f'https://www.virustotal.com/gui/ip-address/{ioc_value_clean}'
         })
-        # ThreatFox
+        # AlienVault OTX
         urls.append({
-            'name': 'ThreatFox',
-            'url': f'https://threatfox.abuse.ch/browse.php?search=ioc:{ioc_value_clean}'
+            'name': 'AlienVault OTX',
+            'url': f'https://otx.alienvault.com/indicator/ip/{ioc_value_clean}'
+        })
+        # Pulsedive
+        urls.append({
+            'name': 'Pulsedive',
+            'url': f'https://pulsedive.com/indicator/?q={ioc_value_clean}'
+        })
+        # Shodan
+        urls.append({
+            'name': 'Shodan',
+            'url': f'https://www.shodan.io/host/{ioc_value_clean}'
         })
         # Shodan InternetDB
         urls.append({
             'name': 'Shodan InternetDB',
             'url': f'https://internetdb.shodan.io/{ioc_value_clean}'
         })
-    
-    # Hashs cryptographiques
-    elif ioc_type_upper == 'MD5' or ioc_type_lower == 'md5':
-        # VirusTotal
-        urls.append({
-            'name': 'VirusTotal',
-            'url': f'https://www.virustotal.com/gui/file/{ioc_value_clean}'
-        })
-        # MalwareBazaar
-        urls.append({
-            'name': 'MalwareBazaar',
-            'url': f'https://bazaar.abuse.ch/sample/{ioc_value_clean}/'
-        })
-        # ThreatFox
+        # ThreatFox (only for IPs)
         urls.append({
             'name': 'ThreatFox',
             'url': f'https://threatfox.abuse.ch/browse.php?search=ioc:{ioc_value_clean}'
         })
     
-    elif ioc_type_upper == 'SHA1' or ioc_type_lower == 'sha1':
+    # Hashs cryptographiques
+    elif ioc_type_upper in ['MD5', 'SHA1', 'SHA256'] or ioc_type_lower in ['md5', 'sha1', 'sha256']:
         # VirusTotal
         urls.append({
             'name': 'VirusTotal',
@@ -123,19 +172,28 @@ def get_query_urls(ioc_type: str, ioc_value: str) -> list:
             'name': 'MalwareBazaar',
             'url': f'https://bazaar.abuse.ch/sample/{ioc_value_clean}/'
         })
-    
-    elif ioc_type_upper == 'SHA256' or ioc_type_lower == 'sha256':
-        # VirusTotal
+        # Hybrid Analysis (only for SHA256)
+        if ioc_type_upper == 'SHA256' or ioc_type_lower == 'sha256':
+            urls.append({
+                'name': 'Hybrid Analysis',
+                'url': f'https://www.hybrid-analysis.com/sample/{ioc_value_clean}'
+            })
+        # AlienVault OTX
         urls.append({
-            'name': 'VirusTotal',
-            'url': f'https://www.virustotal.com/gui/file/{ioc_value_clean}'
+            'name': 'AlienVault OTX',
+            'url': f'https://otx.alienvault.com/indicator/file/{ioc_value_clean}'
         })
-        # MalwareBazaar
+        # Pulsedive
         urls.append({
-            'name': 'MalwareBazaar',
-            'url': f'https://bazaar.abuse.ch/sample/{ioc_value_clean}/'
+            'name': 'Pulsedive',
+            'url': f'https://pulsedive.com/indicator/?q={ioc_value_clean}'
         })
-        # ThreatFox
+        # Any.run
+        urls.append({
+            'name': 'Any.run',
+            'url': f'https://app.any.run/submissions/#filehash:{ioc_value_clean}'
+        })
+        # ThreatFox (only for hashes)
         urls.append({
             'name': 'ThreatFox',
             'url': f'https://threatfox.abuse.ch/browse.php?search=ioc:{ioc_value_clean}'
@@ -152,8 +210,8 @@ def get_query_urls(ioc_type: str, ioc_value: str) -> list:
             'url': f'https://www.blockchain.com/btc/address/{ioc_value_clean}'
         })
         urls.append({
-            'name': 'BlockExplorer',
-            'url': f'https://blockexplorer.one/bitcoin/mainnet/address/{ioc_value_clean}'
+            'name': 'Blockstream',
+            'url': f'https://blockstream.info/address/{ioc_value_clean}'
         })
     
     elif ioc_type_upper == 'ETHEREUM' or ioc_type_lower == 'ethereum':
@@ -162,8 +220,8 @@ def get_query_urls(ioc_type: str, ioc_value: str) -> list:
             'url': f'https://etherscan.io/address/{ioc_value_clean}'
         })
         urls.append({
-            'name': 'BlockExplorer',
-            'url': f'https://blockexplorer.one/ethereum/mainnet/address/{ioc_value_clean}'
+            'name': 'Etherchain',
+            'url': f'https://etherchain.org/account/{ioc_value_clean}'
         })
     
     elif ioc_type_upper == 'BITCOIN_CASH' or ioc_type_lower in ['bitcoincash', 'bitcoin_cash']:
@@ -238,16 +296,36 @@ def get_query_urls(ioc_type: str, ioc_value: str) -> list:
         })
     
     elif ioc_type_upper in ['MITRE_ATTACK', 'TTP', 'ATTACK'] or ioc_type_lower == 'ttp':
-        urls.append({
-            'name': 'MITRE ATT&CK',
-            'url': f'https://attack.mitre.org/techniques/{ioc_value_clean}/'
-        })
+        # Parse MITRE ATT&CK technique to handle sub-techniques
+        main_technique, subtechnique = _parse_mitre_attack_technique(ioc_value_clean)
+        if subtechnique:
+            # Format: /techniques/T1070/004/
+            urls.append({
+                'name': 'MITRE ATT&CK',
+                'url': f'https://attack.mitre.org/techniques/{main_technique}/{subtechnique}/'
+            })
+        else:
+            # Format: /techniques/T1070/
+            urls.append({
+                'name': 'MITRE ATT&CK',
+                'url': f'https://attack.mitre.org/techniques/{main_technique}/'
+            })
     
     # Communication
     elif ioc_type_upper == 'EMAIL' or ioc_type_lower == 'email':
+        email_encoded = urllib.parse.quote(ioc_value_clean, safe='')
+        # AlienVault OTX
         urls.append({
-            'name': 'Have I Been Pwned',
-            'url': f'https://haveibeenpwned.com/account/{urllib.parse.quote(ioc_value_clean)}'
+            'name': 'AlienVault OTX',
+            'url': f'https://otx.alienvault.com/indicator/email/{email_encoded}'
+        })
+    
+    elif ioc_type_upper == 'PHONENUMBER' or ioc_type_lower == 'phonenumber':
+        # Scamcallfighters
+        phone_encoded = urllib.parse.quote(ioc_value_clean, safe='')
+        urls.append({
+            'name': 'Scamcallfighters',
+            'url': f'https://www.scamcallfighters.com/search-phone-number/{phone_encoded}'
         })
     
     # Réseaux sociaux
@@ -316,10 +394,83 @@ def get_query_urls(ioc_type: str, ioc_value: str) -> list:
     # Tor and dark web identifiers
     elif ioc_type_upper in ['TOR_V3', 'ONION'] or ioc_type_lower == 'onionaddress':
         # Les adresses Tor nécessitent le navigateur Tor
+        # Remove .onion suffix if already present
+        onion_address = ioc_value_clean
+        if not onion_address.endswith('.onion'):
+            onion_address = f'{onion_address}.onion'
         urls.append({
             'name': 'Tor Browser',
-            'url': f'http://{ioc_value_clean}.onion'
+            'url': f'http://{onion_address}'
         })
+        # Ahmia (Tor search engine)
+        urls.append({
+            'name': 'Ahmia',
+            'url': f'https://ahmia.fi/search/?q={urllib.parse.quote(onion_address)}'
+        })
+    
+    # UUID identifiers
+    elif ioc_type_upper == 'UUID' or ioc_type_lower == 'uuid':
+        # UUID.info (basic lookup)
+        urls.append({
+            'name': 'UUID.info',
+            'url': f'https://www.uuid.info/?uuid={ioc_value_clean}'
+        })
+    
+    elif ioc_type_upper == 'ARN' or ioc_type_lower == 'arn':
+        # AWS ARN lookup (basic - no direct service, but can search)
+        # AWS Console search would require login, so we provide a search link
+        arn_encoded = urllib.parse.quote(ioc_value_clean, safe='')
+        urls.append({
+            'name': 'AWS Resource',
+            'url': f'https://console.aws.amazon.com/cloudcontrol/home?region=us-east-1#/resources/{arn_encoded}'
+        })
+    
+    # IP Subnets
+    elif ioc_type_upper == 'IP4NET' or ioc_type_lower == 'ip4net':
+        # Shodan for subnet
+        urls.append({
+            'name': 'Shodan',
+            'url': f'https://www.shodan.io/search?query=net:{ioc_value_clean}'
+        })
+        # Pulsedive for subnet
+        urls.append({
+            'name': 'Pulsedive',
+            'url': f'https://pulsedive.com/indicator/?q={ioc_value_clean}'
+        })
+    
+    # Additional blockchain addresses
+    elif ioc_type_upper == 'ZCASH' or ioc_type_lower == 'zcash':
+        urls.append({
+            'name': 'Zcash Explorer',
+            'url': f'https://explorer.zcha.in/accounts/{ioc_value_clean}'
+        })
+    
+    elif ioc_type_upper == 'DASHCOIN' or ioc_type_lower == 'dashcoin':
+        urls.append({
+            'name': 'Dash Explorer',
+            'url': f'https://explorer.dash.org/address/{ioc_value_clean}'
+        })
+    
+    # WhatsApp handle
+    elif ioc_type_upper == 'WHATSAPP' or ioc_type_lower == 'whatsapphandle':
+        urls.append({
+            'name': 'WhatsApp',
+            'url': f'https://wa.me/{ioc_value_clean}'
+        })
+    
+    # YouTube Channel (different from handle)
+    elif ioc_type_upper == 'YOUTUBECHANNEL' or ioc_type_lower == 'youtubechannel':
+        # YouTube channel can be by ID or custom URL
+        if ioc_value_clean.startswith('UC') or ioc_value_clean.startswith('@'):
+            urls.append({
+                'name': 'YouTube Channel',
+                'url': f'https://www.youtube.com/{ioc_value_clean}'
+            })
+        else:
+            urls.append({
+                'name': 'YouTube Channel',
+                'url': f'https://www.youtube.com/c/{ioc_value_clean}'
+            })
     
     return urls
 

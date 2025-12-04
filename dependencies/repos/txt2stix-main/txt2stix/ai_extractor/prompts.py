@@ -167,7 +167,7 @@ For each of the technique in `<extracted_techniques>`, return [technique_id, tac
 ⚠️ Constraints:
 - Use **only** the `possible_tactics` provided with each technique.
 - Do **not** invent or infer any technique or tactic name beyond what’s given in <extracted_techniques>.
-- Ensure **every** technique in `<extracted_techniques>` appears in `tactic_selection`, even if uncertain — choose the best fit.
+- Ensure **every** technique in `<extracted_techniques>` appears in `tactic_selection`, even if uncertain - choose the best fit.
 - Technique IDs in `tactic_selection` must match exactly from <extracted_techniques> (e.g., `T1059` must match `T1059` and not `T1059.005`, `T1001.001` must match `T1001.001` and not `T1001`).
 - Must include every technique in `<extracted_techniques>`
 """, MessageRole.USER),
@@ -188,7 +188,7 @@ For each technique:
   - `position`: the step in the logical or chronological attack sequence (starting at 0)
 
 ⚠️ Constraints:
-- Use **only** technique IDs provided in `<extracted_techniques>` — do **not** invent or infer new ones
+- Use **only** technique IDs provided in `<extracted_techniques>` - do **not** invent or infer new ones
 - Ensure all included technique IDs exactly match `technique.id` from `<extracted_techniques>` (e.g., `T1059` must match `T1059` and not `T1059.005`, `T1001.001` must match `T1001.001` and not `T1001`).
 
 📤 Output Format:

@@ -12,14 +12,18 @@ It centralizes all your threat intelligence work in a simple web interface. You 
 
 The application is built to be lightweight and run on minimal Linux servers without requiring extensive resources. Perfect for small teams or resource-constrained environments.
 
-**Acknowledgments** 🙏
+**External Resources and Tools** 🔧
 
-This solution integrates the remarkable work of several open-source projects:
-- **[iocsearcher](https://github.com/malicialab/iocsearcher)** : for automatic IOC extraction from files
-- **[deepdarkCTI](https://github.com/fastfire/deepdarkCTI)** : for access to CTI resources from the deep and dark web
-- **[txt2stix](https://github.com/fastfire/txt2stix)** : for conversion to STIX 2.1 format
+This platform uses the following open-source tools and resources as dependencies:
+- **[iocsearcher](https://github.com/malicialab/iocsearcher)** : used for automatic IOC extraction from files
+- **[deepdarkCTI](https://github.com/fastfire/deepdarkCTI)** : used as a source of CTI resources from the deep and dark web
+- **[txt2stix](https://github.com/fastfire/txt2stix)** : used for conversion to STIX 2.1 format
+- **[pdfalyzer](https://github.com/michelcrypt4d4mus/pdfalyzer)** : used for PDF analysis with colors and YARA rules
+- **[Ransomware Tool Matrix](https://github.com/BushidoUK/Ransomware-Tool-Matrix)** : used as a source of comprehensive ransomware tools, groups and community reports
 
-Thank you to all contributors of these projects! 🎉
+These tools and resources are integrated into the platform to provide their respective functionalities.
+
+Odysafe CTI Platform thanks the developers and maintainers of these open-source projects for making their tools and resources available to the community.
 
 ---
 
@@ -45,6 +49,21 @@ The web interface allows you to view, filter, and manage all your IOCs easily. Y
 | Journald log rotation | ✅ |
 | Push-based third-party CTI feeds | ✕ |
 | Advanced workflow orchestration | ✕ |
+
+## 🎯 Key Capabilities
+
+| Daily Need | Solution | Status |
+|------------|----------|--------|
+| **Store identified CTI resources** | Centralized database with source management and favorites | ✅ |
+| **Quickly classify IOCs with TLP** | Built-in TLP tagging (RED, AMBER, GREEN, WHITE, CLEAR) | ✅ |
+| **Extract IOCs from DFIR reports** | Automatic extraction from PDF, Word, HTML, text files | ✅ |
+| **Organize IOCs by threat type** | Tagging system (Malware, Phishing, APT, C2, etc.) | ✅ |
+| **Track IOC validation status** | Status tags (Verified, False Positive, Under Investigation) | ✅ |
+| **Export to security tools** | Multi-format export (TXT, CSV, JSON, STIX 2.1) | ✅ |
+| **Browse CTI sources** | Integrated access to DeepDarkCTI and Ransomware Tool Matrix | ✅ |
+| **Analyze suspicious PDFs** | YARA-based detection and PDF structure visualization | ✅ |
+| **Filter and search IOCs** | Advanced filtering by type, date, tags, groups, and text search | ✅ |
+| **Maintain audit trail** | Complete history with first_seen, last_seen, and source tracking | ✅ |
 
 ---
 
@@ -90,11 +109,15 @@ Once installed, access the application:
 
 You can extract IOCs simply by pasting text into the interface. The platform automatically detects all IOC types present.
 
-![IOC Extraction](docs/images/extractor.gif)
+![IOC Extraction](docs/images/extractor--paste-url.gif)
 
-**Special thanks** 🙏
+**IOC Extraction**
 
-Automatic extraction is made possible thanks to **[iocsearcher](https://github.com/malicialab/iocsearcher)**, a powerful library that identifies IOCs in PDF, HTML, Word, and text files.
+Automatic IOC extraction is powered by **[iocsearcher](https://github.com/malicialab/iocsearcher)**, a library integrated into this platform that identifies IOCs in PDF, HTML, Word, and text files.
+
+PDF analysis features use **[pdfalyzer](https://github.com/michelcrypt4d4mus/pdfalyzer)**, a tool integrated into this platform that enables in-depth visualization of PDF tree structures and scanning for potentially malicious content using YARA rules.
+
+Odysafe CTI Platform thanks the iocsearcher and pdfalyzer projects for providing these valuable tools.
 
 ---
 
@@ -102,25 +125,64 @@ Automatic extraction is made possible thanks to **[iocsearcher](https://github.c
 
 The platform integrates access to CTI resources from the deep and dark web via the CTI Resources interface.
 
-![CTI Resources](docs/images/CTI%20RESSOURCES.png)
+![CTI Resources](docs/images/CTIRESSOURCES.gif)
 
-You can browse hundreds of CTI sources organized by categories and add them directly to your platform.
+You can browse hundreds of CTI sources organized by categories and add them directly to your platform. The interface provides access to two main resources:
 
-**Special thanks** 🙏
+- **DeepDarkCTI** : Collection of cyber threat intelligence sources from the Deep and Dark Web
+- **Ransomware Tool Matrix** : Comprehensive resources on tools, groups and community reports related to ransomware
 
-This feature uses **[deepdarkCTI](https://github.com/fastfire/deepdarkCTI)**, a project that collects and shares Cyber Threat Intelligence resources from the deep and dark web. Thank you for this valuable work!
+**CTI Resources**
+
+This feature integrates:
+- **[deepdarkCTI](https://github.com/fastfire/deepdarkCTI)**, an open-source resource that collects and shares Cyber Threat Intelligence sources from the deep and dark web
+- **[Ransomware Tool Matrix](https://github.com/BushidoUK/Ransomware-Tool-Matrix)**, an open-source resource that documents the tools used by ransomware gangs
+
+These resources are integrated into the platform to provide access to CTI sources and ransomware intelligence.
+
+Odysafe CTI Platform thanks the deepdarkCTI and Ransomware Tool Matrix projects for making these valuable resources available.
 
 ---
 
-## 🧭 ISO 27001 Alignment
+## 🏠 Home Interface
 
-The platform complies with several ISO 27001 controls:
+The home page provides a central dashboard for accessing all platform features.
 
-- **A.9 Access Control** : optional authentication, secured cookies, dedicated non-privileged service user
-- **A.12 Operations** : automatic IOC workflows, log rotation, background cleanup, storage monitoring
-- **A.14 System Acquisition & Development** : locally locked dependencies, import verification, configuration templates
-- **A.16 Incident Management** : tagging system (False Positive, Investigating, Verified), report exports
-- **A.18 Compliance** : SSL support, secret key management, log retention, documentation for audits
+![Home Interface](docs/images/home.gif)
+
+---
+
+## 📊 Export Functionality
+
+Export your IOCs in various formats including Excel (XLSX), CSV, JSON, and STIX 2.1.
+
+![Export to Excel](docs/images/exportxlsx.gif)
+
+---
+
+## 📄 PDF Analysis
+
+Analyze suspicious PDF files with YARA-based detection and visualize PDF structure.
+
+![PDF Analysis](docs/images/pdfanalysis.gif)
+
+---
+
+## 🧭 ISO 27001 & NIS2 Compliance
+
+**ISO 27001:2022 Controls:**
+- **A.9 Access Control**: Optional authentication, secured cookies, dedicated service user
+- **A.12 Operations**: Automatic IOC workflows, log rotation, background cleanup, storage monitoring
+- **A.14 System Acquisition & Development**: Locked dependencies, import verification, configuration templates
+- **A.16 Incident Management**: Tagging system (False Positive, Investigating, Verified), report exports
+- **A.18 Compliance**: SSL support, secret key management, log retention, audit documentation
+
+**NIS2 Directive Alignment:**
+- **Article 21 - Cybersecurity measures**: Centralized IOC management, threat classification, full traceability
+- **Incident management**: IOC tracking and classification (True Positive, False Positive, Verified)
+- **Threat intelligence**: Centralized IOC enrichment for rapid threat response
+- **Reporting**: Structured exports (STIX 2.1) for threat information sharing
+- **Operational resilience**: Offline operation, storage monitoring, secure data handling
 
 ---
 
@@ -133,7 +195,7 @@ Odysafe CTI Platform operates offline by default. All processing, IOC extraction
 The application connects to the Internet only in these specific cases:
 
 1. **User-provided URL processing** : only when you explicitly provide a URL
-2. **deepdarkCTI repository** : only when you click "Download" or "Update" in CTI Resources
+2. **CTI Resources repositories** : only when you click "Download" or "Update" in CTI Resources (DeepDarkCTI and Ransomware Tool Matrix)
 3. **txt2stix external APIs** : optional, disabled by default, requires explicit configuration
 
 ### Data Privacy Guarantees
@@ -148,7 +210,7 @@ The application connects to the Internet only in these specific cases:
 
 To operate in an air-gapped environment:
 
-1. Skip the deepdarkCTI download during installation
+1. Skip the CTI Resources repositories download during installation
 2. Do not use the "Download" or "Update" buttons in CTI Resources
 3. Do not use the URL import feature - use file upload or text paste instead
 4. Do not configure txt2stix external APIs or AI extractors
@@ -177,6 +239,18 @@ sudo journalctl --vacuum-size=100M
 ```
 
 The journald configuration automatically limits log size (500 MB max, 30 days retention, daily rotation).
+
+---
+
+## 🚀 Roadmap
+
+The following features are planned for future releases:
+
+- **Automatic IOC enrichment** for malicious indicators
+- **Multi-source correlation** to identify relationships between IOCs
+- **YARA and Sigma rules management** for detection rule creation, optimization, and correction
+
+These enhancements will further strengthen the platform's capabilities in threat intelligence analysis and detection rule management.
 
 ---
 

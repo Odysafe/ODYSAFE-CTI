@@ -89,12 +89,12 @@ class ExtendedHtml(Html):
                   iocs.update(self.get_identity(searcher, value))
           elif key in ["apple-itunes-app", "twitter:app:id:iphone", 
                         "al:ios:app_store_id"]:
-              match = re.search("(?:app-id=|id)?(\d+)", value)
+              match = re.search(r"(?:app-id=|id)?(\d+)", value)
               if match:
                   iocs.add(self.create_ioc("appId", match.group(1),
                                       market="AppleStore"))
           elif key in ["google-play-app", "al:android:package"]:
-              match = re.search("(?:app-id=)?([A-Za-z][A-Za-z0-9_\.]+)", value)
+              match = re.search(r"(?:app-id=)?([A-Za-z][A-Za-z0-9_\.]+)", value)
               if match:
                   iocs.add(self.create_ioc("packageName", match.group(1),
                                       market="GooglePlay"))
@@ -603,10 +603,10 @@ class ExtendedHtml(Html):
             if (not has_digit):
                 continue
             # Replace EOF with comma
-            s = re.sub('\s*\n\s*', ', ', s)
+            s = re.sub(r'\s*\n\s*', ', ', s)
             # Some cleaning
-            s = re.sub('\s+,', ',', s)
-            s = re.sub('\s+', ' ', s)
+            s = re.sub(r'\s+,', ',', s)
+            s = re.sub(r'\s+', ' ', s)
             s = re.sub(',[,]+', ',', s)
             # Create IOC
             found_ioc = self.create_ioc('physicalAddress', s)

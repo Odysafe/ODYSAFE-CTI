@@ -140,6 +140,7 @@ SOURCE_TYPE_TAGS = {
     "url": "Source:URL",
     "paste": "Source:Paste",
     "upload": "Source:Upload",
+    "pdf_analysis": "Source:PDF Analysis",
 }
 
 # Create necessary folders if they don't exist
@@ -148,6 +149,7 @@ OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
 (OUTPUT_FOLDER / "iocs").mkdir(parents=True, exist_ok=True)
 (OUTPUT_FOLDER / "stix").mkdir(parents=True, exist_ok=True)
 (OUTPUT_FOLDER / "reports").mkdir(parents=True, exist_ok=True)
+(OUTPUT_FOLDER / "pdf_analysis").mkdir(parents=True, exist_ok=True)
 (DATABASE_PATH.parent).mkdir(parents=True, exist_ok=True)
 
 

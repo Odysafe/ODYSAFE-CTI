@@ -41,6 +41,20 @@ html {
     scroll-behavior: smooth;
 }
 
+/* Optimize rendering during scroll */
+body.is-scrolling * {
+    will-change: transform;
+}
+
+body.is-scrolling .tool-card,
+body.is-scrolling .threat-intel-card,
+body.is-scrolling .profile-card,
+body.is-scrolling .report-card {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
 body {
     font-family: var(--font-body);
     color: var(--text-primary);
@@ -74,6 +88,9 @@ body::before {
     pointer-events: none;
     z-index: 0;
     filter: blur(60px);
+    will-change: opacity, transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
 @keyframes haloPulse {
@@ -85,6 +102,17 @@ body::before {
         opacity: 1;
         transform: scale(1.08) translateX(-15px) translateY(-15px);
     }
+}
+
+/* Optimize rendering during navigation */
+html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent layout shifts */
+.card, .hero-content, .roadmap-box {
+    contain: layout style paint;
 }
 
 .container {
@@ -247,6 +275,10 @@ body::before {
     border: 1px solid rgba(167, 139, 250, 0.1);
     transition: all var(--transition-medium);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    contain: layout style paint;
 }
 
 .card:hover {

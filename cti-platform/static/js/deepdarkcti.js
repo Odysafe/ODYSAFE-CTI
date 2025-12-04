@@ -1,5 +1,5 @@
 /**
- * JavaScript for CTI Resources page
+ * JavaScript for deepdarkcti page
  * Handles interactivity, refresh with progress, and link confirmation
  */
 
@@ -16,14 +16,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressMessage = document.getElementById('progressMessage');
     const progressPercentage = document.getElementById('progressPercentage');
     
-    // Confirmation modal
+    // Confirmation modal (functions are in cti_resources_common.js)
     const linkModal = document.getElementById('linkModal');
-    const modalLinkUrl = document.getElementById('modalLinkUrl');
     const copyLinkBtn = document.getElementById('copyLinkBtn');
     const openLinkBtn = document.getElementById('openLinkBtn');
     const cancelLinkBtn = document.getElementById('cancelLinkBtn');
-    
-    let currentLinkUrl = null;
     
     // Download button management
     if (downloadBtn) {
@@ -313,11 +310,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target.classList.contains('source-name')) {
             e.preventDefault();
             const url = e.target.getAttribute('href');
-            showLinkModal(url);
+            showLinkModal(url); // Function from cti_resources_common.js
         }
     });
     
-    // Modal management
+    // Modal management (functions are in cti_resources_common.js)
     if (copyLinkBtn) {
         copyLinkBtn.addEventListener('click', handleCopyLink);
     }
@@ -332,7 +329,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (linkModal) {
         linkModal.addEventListener('click', function(e) {
             if (e.target === linkModal) {
-                hideLinkModal();
+                hideLinkModal(); // Function from cti_resources_common.js
             }
         });
     }
@@ -343,7 +340,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function handleDownload() {
         // Inform user that internet connection is required
         if (!confirm('🌐 This action requires an internet connection.\n\n' +
-                     'The download will connect to GitHub to retrieve the CTI Resources repository.\n\n' +
+                     'The download will connect to GitHub to retrieve the DeepDarkCTI repository.\n\n' +
                      'Do you want to continue?')) {
             return;
         }
@@ -358,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (progressContainer) {
             progressContainer.classList.add('active');
-            updateProgress(10, 'Downloading repository from GitHub...');
+            updateProgress(10, 'Downloading repository from GitHub...'); // Function from cti_resources_common.js
         }
         
         try {
@@ -372,8 +369,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.success) {
-                updateProgress(100, 'Download completed!');
-                showNotification('Repository downloaded successfully!', 'success');
+                updateProgress(100, 'Download completed!'); // Function from cti_resources_common.js
+                showNotification('Repository downloaded successfully!', 'success'); // Function from cti_resources_common.js
                 
                 setTimeout(() => {
                     window.location.reload();
@@ -466,7 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function handleRefresh() {
         // Inform user that internet connection is required
         if (!confirm('🌐 This action requires an internet connection.\n\n' +
-                     'The update will connect to GitHub to download the latest version of the CTI Resources repository.\n\n' +
+                     'The update will connect to GitHub to download the latest version of the DeepDarkCTI repository.\n\n' +
                      'Do you want to continue?')) {
             return;
         }
@@ -481,7 +478,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (progressContainer) {
             progressContainer.classList.add('active');
-            updateProgress(10, 'Updating repository from GitHub...');
+            updateProgress(10, 'Updating repository from GitHub...'); // Function from cti_resources_common.js
         }
         
         try {
@@ -495,8 +492,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.success) {
-                updateProgress(100, 'Update completed!');
-                showNotification('Repository updated successfully!', 'success');
+                updateProgress(100, 'Update completed!'); // Function from cti_resources_common.js
+                showNotification('Repository updated successfully!', 'success'); // Function from cti_resources_common.js
                 
                 setTimeout(() => {
                     window.location.reload();
@@ -524,21 +521,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     
     /**
-     * Updates progress bar
-     */
-    function updateProgress(percentage, message) {
-        if (progressBar) {
-            progressBar.style.width = percentage + '%';
-        }
-        if (progressPercentage) {
-            progressPercentage.textContent = Math.round(percentage) + '%';
-        }
-        if (progressMessage) {
-            progressMessage.textContent = message;
-        }
-    }
-    
-    /**
      * Resets refresh button
      */
     function resetRefreshButton() {
@@ -550,69 +532,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (progressContainer) {
             progressContainer.classList.remove('active');
-        }
-    }
-    
-    /**
-     * Shows confirmation modal for a link
-     */
-    function showLinkModal(url) {
-        currentLinkUrl = url;
-        if (modalLinkUrl) {
-            modalLinkUrl.textContent = url;
-        }
-        if (linkModal) {
-            linkModal.classList.add('active');
-        }
-    }
-    
-    /**
-     * Hides confirmation modal
-     */
-    function hideLinkModal() {
-        if (linkModal) {
-            linkModal.classList.remove('active');
-        }
-        currentLinkUrl = null;
-    }
-    
-    /**
-     * Copies link to clipboard
-     */
-    async function handleCopyLink() {
-        if (!currentLinkUrl) return;
-        
-        try {
-            await navigator.clipboard.writeText(currentLinkUrl);
-            showNotification('Link copied to clipboard!', 'success');
-            hideLinkModal();
-        } catch (error) {
-            console.error('Copy error:', error);
-            // Fallback for older browsers
-            const textArea = document.createElement('textarea');
-            textArea.value = currentLinkUrl;
-            textArea.style.position = 'fixed';
-            textArea.style.opacity = '0';
-            document.body.appendChild(textArea);
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                showNotification('Link copied to clipboard!', 'success');
-                hideLinkModal();
-            } catch (err) {
-                showNotification('Copy error', 'error');
-            }
-            document.body.removeChild(textArea);
-        }
-    }
-    
-    /**
-     * Opens link in new tab
-     */
-    function handleOpenLink() {
-        if (currentLinkUrl) {
-            window.open(currentLinkUrl, '_blank', 'noopener,noreferrer');
-            hideLinkModal();
         }
     }
     
@@ -665,71 +584,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 card.style.display = 'none';
             }
         });
-    }
-    
-    /**
-     * Shows a notification
-     */
-    function showNotification(message, type = 'info') {
-        // Create notification element
-        const notification = document.createElement('div');
-        notification.className = `notification notification-${type}`;
-        notification.style.cssText = `
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            padding: 16px 24px;
-            background: ${type === 'success' ? 'rgba(34, 197, 94, 0.9)' : 'rgba(220, 38, 38, 0.9)'};
-            color: white;
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-            z-index: 10000;
-            font-weight: 500;
-            animation: slideIn 0.3s ease;
-            max-width: 400px;
-        `;
-        notification.textContent = message;
-        
-        // Add CSS animation if it doesn't exist yet
-        if (!document.getElementById('notification-styles')) {
-            const style = document.createElement('style');
-            style.id = 'notification-styles';
-            style.textContent = `
-                @keyframes slideIn {
-                    from {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                    to {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                }
-                @keyframes slideOut {
-                    from {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                    to {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-        
-        document.body.appendChild(notification);
-        
-        // Remove notification after 3 seconds
-        setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, 3000);
     }
     
     // Card appearance animation on load

@@ -268,7 +268,7 @@ class Searcher:
     def is_valid_fqdn(self, s):
         """Check if given string ends with valid TLD according to IANA"""
         # Check valid characters
-        if not re.match('^(\*\.)?[a-zA-Z0-9_\-\.]+$', s):
+        if not re.match(r'^(\*\.)?[a-zA-Z0-9_\-\.]+$', s):
             return False
         # Remove trailing dot if present
         if s[-1] == '.':
@@ -322,7 +322,7 @@ class Searcher:
         # The following local-part could in theory be valid
         # but most likely they are anonymized
         # Ignoring these ones is a trade-off
-        if re.match('^([xX\.]+|[\-]+|[_]+)$', tokens[0]):
+        if re.match(r'^([xX\.]+|[\-]+|[_]+)$', tokens[0]):
             return False
         return self.is_valid_fqdn(tokens[1])
 
@@ -483,13 +483,13 @@ class Searcher:
         """Extract entity from copyright string"""
         # Remove variations of: "All Rights Reserved", "copyright", "(c)", years
         regexp = re.compile(
-              "((?:[.\-,–;]+)?(?:[ ]+)?All Right[s]? Reserved( to|\.)?)|"
-              "((?:©|\(C\)|&copy;|\xA9)(?:\s+)?[.,\-]?)|"
-              "(@)|"
-              "([12][0-9]{3}\s?[--–—]\s?(?:[12][0-9]{3}|present)"
-                    "(?:\s+by)?(?:[\s.,\-\/]+)?)|"
-              "([12][0-9]{3}(?:\s+by)?(?:[\s.,\-\/]+)?)|"
-              "(CopyRight)",
+              r"((?:[.\-,–;]+)?(?:[ ]+)?All Right[s]? Reserved( to|\.)?)|"
+              r"((?:©|\(C\)|&copy;|\xA9)(?:\s+)?[.,\-]?)|"
+              r"(@)|"
+              r"([12][0-9]{3}\s?[--–-]\s?(?:[12][0-9]{3}|present)"
+                    r"(?:\s+by)?(?:[\s.,\-\/]+)?)|"
+              r"([12][0-9]{3}(?:\s+by)?(?:[\s.,\-\/]+)?)|"
+              r"(CopyRight)",
               re.UNICODE | re.I)
         cleaned = regexp.sub('',  s).strip()
         return cleaned
@@ -919,7 +919,7 @@ class Searcher:
         # Iterate on sections
         for sec in config.sections():
             # IOC name is section without trailing digits separated by hyphen
-            ioc_name = re.sub('\-[0-9]+$','', sec)
+            ioc_name = re.sub(r'\-[0-9]+$','', sec)
             # Read pattern
             try:
                 ioc_pattern = config.get(sec, 'pattern')

@@ -25,6 +25,9 @@ SERVICE_USER="odysafe-cti-platform"
 SERVICE_GROUP="odysafe-cti-platform"
 SERVICE_FILE="odysafe-cti-platform.service"
 
+# Port configuration (will be set dynamically)
+CTI_PORT=""
+
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -73,7 +76,7 @@ log_success() {
 }
 
 log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[INFO]${NC} $1"
 }
 
 log_error() {
@@ -89,20 +92,23 @@ log_step() {
 # ============================================================================
 
 execute_with_retry() {
-    # Execute a command with retry logic and multiple fallback methods
-    # Usage: execute_with_retry "command" [max_attempts] [retry_delay] [use_sudo]
+    # Execute a command with retry logic and exponential backoff
+    # Usage: execute_with_retry "command" [max_attempts] [initial_retry_delay] [use_sudo]
     local command="$1"
     local max_attempts="${2:-3}"
-    local retry_delay="${3:-2}"
+    local initial_retry_delay="${3:-2}"
     local use_sudo="${4:-false}"
     local attempt=1
     local output=""
     local exit_code=1
+    local retry_delay=$initial_retry_delay
     
     while [ $attempt -le $max_attempts ]; do
         if [ $attempt -gt 1 ]; then
-            log_info "Retrying command (attempt $attempt/$max_attempts)..."
+            log_info "Retrying command (attempt $attempt/$max_attempts, delay: ${retry_delay}s)..."
             sleep $retry_delay
+            # Exponential backoff: double the delay each time
+            retry_delay=$((retry_delay * 2))
         fi
         
         # Try with or without sudo based on parameter
@@ -165,7 +171,7 @@ check_venv_prerequisites() {
     
     # Check if Python can import venv module
     if ! $python_cmd -c "import venv" 2>/dev/null; then
-        log_warning "Python venv module not available, will need to install python3-venv"
+        log_info "Python venv module not available, will be installed during setup"
         issues=$((issues + 1))
     else
         log_info "Python venv module: available"
@@ -207,6 +213,151 @@ check_venv_prerequisites() {
 # ENVIRONMENT DETECTION
 # ============================================================================
 
+detect_os_enhanced() {
+    # Enhanced OS detection with multiple methods
+    DISTRO=""
+    DISTRO_VERSION=""
+    DISTRO_VERSION_MINOR=""
+    
+    # Method 1: /etc/os-release (most reliable, POSIX standard)
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        DISTRO="$ID"
+        DISTRO_VERSION="$VERSION_ID"
+        
+        # Handle ID_LIKE for better compatibility
+        if [ -n "$ID_LIKE" ]; then
+            case "$ID_LIKE" in
+                *debian*)
+                    if [ "$ID" != "debian" ] && [ "$ID" != "ubuntu" ]; then
+                        log_info "Distribution $ID is Debian-like"
+                    fi
+                    ;;
+                *rhel*|*fedora*)
+                    if [ "$ID" != "rhel" ] && [ "$ID" != "centos" ] && [ "$ID" != "rocky" ] && [ "$ID" != "almalinux" ] && [ "$ID" != "fedora" ]; then
+                        log_info "Distribution $ID is RHEL-like"
+                    fi
+                    ;;
+            esac
+        fi
+        
+        # Extract major and minor version numbers
+        if [ -n "$VERSION_ID" ]; then
+            DISTRO_VERSION_MINOR=$(echo "$VERSION_ID" | cut -d'.' -f1,2)
+        fi
+        
+        # Handle special cases for RHEL-based
+        if [ "$ID" = "rhel" ] || [ "$ID" = "centos" ] || [ "$ID" = "rocky" ] || [ "$ID" = "almalinux" ]; then
+            if [ -f /etc/redhat-release ]; then
+                # Extract version from redhat-release for better accuracy
+                DISTRO_VERSION=$(grep -oE '[0-9]+\.[0-9]+' /etc/redhat-release | head -1 || echo "$VERSION_ID")
+                DISTRO_VERSION_MINOR=$(echo "$DISTRO_VERSION" | cut -d'.' -f1)
+            fi
+        fi
+        
+        # Handle Ubuntu codenames (convert to version if needed)
+        if [ "$ID" = "ubuntu" ] && [ -n "$VERSION_CODENAME" ]; then
+            log_info "Ubuntu codename: $VERSION_CODENAME"
+        fi
+        
+        log_info "Distribution detected (os-release): $DISTRO (version: ${DISTRO_VERSION:-unknown})"
+        return 0
+    fi
+    
+    # Method 2: lsb_release (if available)
+    if command -v lsb_release &> /dev/null; then
+        DISTRO=$(lsb_release -si 2>/dev/null | tr '[:upper:]' '[:lower:]' || echo "")
+        DISTRO_VERSION=$(lsb_release -sr 2>/dev/null || echo "")
+        if [ -n "$DISTRO" ] && [ -n "$DISTRO_VERSION" ]; then
+            DISTRO_VERSION_MINOR=$(echo "$DISTRO_VERSION" | cut -d'.' -f1,2)
+            log_info "Distribution detected (lsb_release): $DISTRO (version: $DISTRO_VERSION)"
+            return 0
+        fi
+    fi
+    
+    # Method 3: hostnamectl (systemd)
+    if command -v hostnamectl &> /dev/null; then
+        local hctl_os=$(hostnamectl 2>/dev/null | grep -i "operating system" | cut -d':' -f2 | sed 's/^[[:space:]]*//' | tr '[:upper:]' '[:lower:]' || echo "")
+        if [ -n "$hctl_os" ]; then
+            if echo "$hctl_os" | grep -qi "debian"; then
+                DISTRO="debian"
+            elif echo "$hctl_os" | grep -qi "ubuntu"; then
+                DISTRO="ubuntu"
+            elif echo "$hctl_os" | grep -qi "centos"; then
+                DISTRO="centos"
+            elif echo "$hctl_os" | grep -qi "rocky"; then
+                DISTRO="rocky"
+            elif echo "$hctl_os" | grep -qi "almalinux"; then
+                DISTRO="almalinux"
+            elif echo "$hctl_os" | grep -qi "fedora"; then
+                DISTRO="fedora"
+            fi
+            if [ -n "$DISTRO" ]; then
+                log_info "Distribution detected (hostnamectl): $DISTRO"
+                # Try to get version from other methods
+                if [ -z "$DISTRO_VERSION" ]; then
+                    if [ -f /etc/debian_version ]; then
+                        DISTRO_VERSION=$(cat /etc/debian_version)
+                    elif [ -f /etc/redhat-release ]; then
+                        DISTRO_VERSION=$(grep -oE '[0-9]+\.[0-9]+' /etc/redhat-release | head -1 || grep -oE '[0-9]+' /etc/redhat-release | head -1)
+                    fi
+                fi
+                return 0
+            fi
+        fi
+    fi
+    
+    # Method 4: /etc/debian_version
+    if [ -f /etc/debian_version ]; then
+        DISTRO="debian"
+        DISTRO_VERSION=$(cat /etc/debian_version)
+        DISTRO_VERSION_MINOR=$(echo "$DISTRO_VERSION" | cut -d'.' -f1)
+        log_info "Distribution detected (debian_version): Debian (version: $DISTRO_VERSION)"
+        return 0
+    fi
+    
+    # Method 5: /etc/redhat-release
+    if [ -f /etc/redhat-release ]; then
+        local rh_content=$(cat /etc/redhat-release)
+        if echo "$rh_content" | grep -qi "centos"; then
+            DISTRO="centos"
+        elif echo "$rh_content" | grep -qi "rocky"; then
+            DISTRO="rocky"
+        elif echo "$rh_content" | grep -qi "almalinux"; then
+            DISTRO="almalinux"
+        elif echo "$rh_content" | grep -qi "fedora"; then
+            DISTRO="fedora"
+        else
+            DISTRO="rhel"
+        fi
+        DISTRO_VERSION=$(grep -oE '[0-9]+\.[0-9]+' /etc/redhat-release | head -1 || grep -oE '[0-9]+' /etc/redhat-release | head -1)
+        DISTRO_VERSION_MINOR=$(echo "$DISTRO_VERSION" | cut -d'.' -f1)
+        log_info "Distribution detected (redhat-release): $DISTRO (version: $DISTRO_VERSION)"
+        return 0
+    fi
+    
+    # Method 6: /etc/fedora-release
+    if [ -f /etc/fedora-release ]; then
+        DISTRO="fedora"
+        DISTRO_VERSION=$(grep -oE '[0-9]+' /etc/fedora-release | head -1)
+        log_info "Distribution detected (fedora-release): Fedora (version: $DISTRO_VERSION)"
+        return 0
+    fi
+    
+    # Method 7: /etc/amazon-linux-release
+    if [ -f /etc/amazon-linux-release ]; then
+        DISTRO="amzn"
+        DISTRO_VERSION=$(grep -oE '[0-9]+' /etc/amazon-linux-release | head -1)
+        log_info "Distribution detected (amazon-linux-release): Amazon Linux (version: $DISTRO_VERSION)"
+        return 0
+    fi
+    
+    # Fallback: unknown
+    DISTRO="unknown"
+    log_warning "Could not detect distribution with any method, assuming Debian/Ubuntu"
+    return 1
+}
+
 detect_environment() {
     log_step "Detecting environment..."
     
@@ -227,60 +378,9 @@ detect_environment() {
         fi
     fi
     
-    # Detect distribution with comprehensive support
-    DISTRO=""
-    DISTRO_VERSION=""
-    DISTRO_VERSION_MINOR=""
-    
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        DISTRO="$ID"
-        DISTRO_VERSION="$VERSION_ID"
-        
-        # Extract major and minor version numbers
-        if [ -n "$VERSION_ID" ]; then
-            DISTRO_VERSION_MINOR=$(echo "$VERSION_ID" | cut -d'.' -f1,2)
-        fi
-        
-        # Handle special cases
-        if [ "$ID" = "rhel" ] || [ "$ID" = "centos" ] || [ "$ID" = "rocky" ] || [ "$ID" = "almalinux" ]; then
-            if [ -f /etc/redhat-release ]; then
-                # Extract version from redhat-release for better accuracy
-                DISTRO_VERSION=$(grep -oE '[0-9]+\.[0-9]+' /etc/redhat-release | head -1 || echo "$VERSION_ID")
-            fi
-        fi
-        
-        log_info "Distribution detected: $DISTRO (version: ${DISTRO_VERSION:-unknown})"
-    elif [ -f /etc/debian_version ]; then
-        DISTRO="debian"
-        DISTRO_VERSION=$(cat /etc/debian_version)
-        DISTRO_VERSION_MINOR=$(echo "$DISTRO_VERSION" | cut -d'.' -f1)
-        log_info "Distribution detected: Debian (version: $DISTRO_VERSION)"
-    elif [ -f /etc/redhat-release ]; then
-        # Parse redhat-release file
-        if grep -qi "centos" /etc/redhat-release; then
-            DISTRO="centos"
-        elif grep -qi "rocky" /etc/redhat-release; then
-            DISTRO="rocky"
-        elif grep -qi "almalinux" /etc/redhat-release; then
-            DISTRO="almalinux"
-        else
-        DISTRO="rhel"
-        fi
-        DISTRO_VERSION=$(grep -oE '[0-9]+\.[0-9]+' /etc/redhat-release | head -1 || grep -oE '[0-9]+' /etc/redhat-release | head -1)
-        DISTRO_VERSION_MINOR=$(echo "$DISTRO_VERSION" | cut -d'.' -f1)
-        log_info "Distribution detected: $DISTRO (version: $DISTRO_VERSION)"
-    elif [ -f /etc/fedora-release ]; then
-        DISTRO="fedora"
-        DISTRO_VERSION=$(grep -oE '[0-9]+' /etc/fedora-release | head -1)
-        log_info "Distribution detected: Fedora (version: $DISTRO_VERSION)"
-    elif [ -f /etc/amazon-linux-release ]; then
-        DISTRO="amzn"
-        DISTRO_VERSION=$(grep -oE '[0-9]+' /etc/amazon-linux-release | head -1)
-        log_info "Distribution detected: Amazon Linux (version: $DISTRO_VERSION)"
-    else
-        DISTRO="unknown"
-        log_warning "Could not detect distribution, assuming Debian/Ubuntu"
+    # Detect distribution with enhanced method
+    if ! detect_os_enhanced; then
+        log_warning "OS detection had issues, but continuing with best guess..."
     fi
     
     # Detect package manager based on distribution
@@ -341,10 +441,119 @@ detect_environment() {
 # PYTHON DETECTION
 # ============================================================================
 
+detect_all_python_versions() {
+    # Detect all available Python 3 versions and return them sorted by version
+    local available_versions=()
+    local py_cmd=""
+    local version_str=""
+    local major=0
+    local minor=0
+    
+    # Check common Python 3 commands
+    local python_commands=("python3.13" "python3.12" "python3.11" "python3.10" "python3.9" "python3.8" "python3.7" "python3.6" "python3")
+    
+    for py_cmd in "${python_commands[@]}"; do
+        if command -v "$py_cmd" &> /dev/null; then
+            version_str=$($py_cmd --version 2>&1 | cut -d' ' -f2)
+            major=$(echo "$version_str" | cut -d'.' -f1)
+            minor=$(echo "$version_str" | cut -d'.' -f2)
+            
+            # Only include Python 3.8+
+            if [ "$major" -eq 3 ] && [ "$minor" -ge 8 ]; then
+                available_versions+=("$py_cmd|$version_str|$major|$minor")
+            fi
+        fi
+    done
+    
+    # Also check /usr/bin/python3* directly
+    if [ -d /usr/bin ]; then
+        for py_bin in /usr/bin/python3.*; do
+            if [ -x "$py_bin" ] && [ -f "$py_bin" ]; then
+                py_cmd=$(basename "$py_bin")
+                if ! echo "${python_commands[@]}" | grep -q "$py_cmd"; then
+                    version_str=$("$py_bin" --version 2>&1 | cut -d' ' -f2)
+                    major=$(echo "$version_str" | cut -d'.' -f1)
+                    minor=$(echo "$version_str" | cut -d'.' -f2)
+                    if [ "$major" -eq 3 ] && [ "$minor" -ge 8 ]; then
+                        available_versions+=("$py_bin|$version_str|$major|$minor")
+                    fi
+                fi
+            fi
+        done
+    fi
+    
+    # Return versions (will be sorted by select_best_python)
+    printf '%s\n' "${available_versions[@]}"
+}
+
+select_best_python() {
+    # Select the best Python version from available versions
+    # Prefers: highest version, then python3 over python3.X, then shortest path
+    local best_cmd=""
+    local best_version=""
+    local best_major=0
+    local best_minor=0
+    local best_path=""
+    
+    while IFS='|' read -r py_cmd version_str major minor; do
+        # Skip if version is too old
+        if [ "$major" -lt 3 ] || ([ "$major" -eq 3 ] && [ "$minor" -lt 8 ]); then
+            continue
+        fi
+        
+        # Test if this Python actually works
+        if ! $py_cmd -c "import sys; sys.exit(0)" 2>/dev/null; then
+            continue
+        fi
+        
+        # Prefer higher version
+        if [ "$major" -gt "$best_major" ] || ([ "$major" -eq "$best_major" ] && [ "$minor" -gt "$best_minor" ]); then
+            best_cmd="$py_cmd"
+            best_version="$version_str"
+            best_major="$major"
+            best_minor="$minor"
+            best_path="$py_cmd"
+        elif [ "$major" -eq "$best_major" ] && [ "$minor" -eq "$best_minor" ]; then
+            # Same version: prefer "python3" over "python3.X"
+            if [ "$py_cmd" = "python3" ] && [ "$best_cmd" != "python3" ]; then
+                best_cmd="$py_cmd"
+                best_version="$version_str"
+                best_path="$py_cmd"
+            fi
+        fi
+    done < <(detect_all_python_versions | sort -t'|' -k3,3nr -k4,4nr)
+    
+    if [ -n "$best_cmd" ]; then
+        PYTHON_CMD="$best_cmd"
+        PYTHON_VERSION="$best_version"
+        PYTHON_MAJOR="$best_major"
+        PYTHON_MINOR="$best_minor"
+        return 0
+    fi
+    
+    return 1
+}
+
 detect_python() {
     log_step "Detecting Python installation..."
     
-    # Try to find Python 3 (check multiple versions)
+    # First try to select best Python from all available
+    if select_best_python; then
+        log_info "Python found: $PYTHON_CMD (version $PYTHON_VERSION)"
+        
+        # Verify pip compatibility
+        if $PYTHON_CMD -m pip --version &> /dev/null; then
+            log_success "Python $PYTHON_VERSION detected and compatible (pip available)"
+            return 0
+        else
+            log_info "Python $PYTHON_VERSION detected but pip not available, will install pip"
+            log_success "Python $PYTHON_VERSION detected and compatible"
+            return 0
+        fi
+    fi
+    
+    # Fallback to original method if select_best_python failed
+    log_warning "Advanced Python detection failed, trying fallback method..."
     PYTHON_VERSIONS=("python3.13" "python3.12" "python3.11" "python3.10" "python3.9" "python3.8" "python3.7" "python3.6" "python3")
     
     for py_cmd in "${PYTHON_VERSIONS[@]}"; do
@@ -373,6 +582,70 @@ detect_python() {
     return 1
 }
 
+install_pip_robust() {
+    # Install pip with multiple fallback methods
+    # $1 = python command to use
+    local python_cmd="${1:-$PYTHON_CMD}"
+    local pip_installed=false
+    
+    if [ -z "$python_cmd" ]; then
+        log_error "No Python command provided for pip installation"
+        return 1
+    fi
+    
+    log_info "Installing pip for $python_cmd..."
+    
+    # Method 1: Try ensurepip (built-in, Python 3.4+)
+    if $python_cmd -m ensurepip --upgrade 2>/dev/null; then
+        log_success "pip installed via ensurepip"
+        pip_installed=true
+    fi
+    
+    # Method 2: Try get-pip.py via curl
+    if [ "$pip_installed" = false ] && command -v curl &>/dev/null; then
+        log_info "Trying to install pip via get-pip.py (curl)..."
+        if curl -sS --max-time 30 --connect-timeout 10 https://bootstrap.pypa.io/get-pip.py 2>/dev/null | $python_cmd 2>/dev/null; then
+            log_success "pip installed via get-pip.py (curl)"
+            pip_installed=true
+        fi
+    fi
+    
+    # Method 3: Try get-pip.py via wget
+    if [ "$pip_installed" = false ] && command -v wget &>/dev/null; then
+        log_info "Trying to install pip via get-pip.py (wget)..."
+        if wget -qO- --timeout=30 --tries=2 https://bootstrap.pypa.io/get-pip.py 2>/dev/null | $python_cmd 2>/dev/null; then
+            log_success "pip installed via get-pip.py (wget)"
+            pip_installed=true
+        fi
+    fi
+    
+    # Method 4: Try installing python3-pip package
+    if [ "$pip_installed" = false ]; then
+        log_info "Trying to install pip via system package manager..."
+        if [ "$PKG_MANAGER" = "apt" ] || [ "$PKG_MANAGER" = "apt-get" ]; then
+            if execute_with_retry "$INSTALL_CMD python3-pip" 2 3 false; then
+                pip_installed=true
+            fi
+        elif [ "$PKG_MANAGER" = "dnf" ] || [ "$PKG_MANAGER" = "yum" ]; then
+            if execute_with_retry "$INSTALL_CMD python3-pip" 2 3 false; then
+                pip_installed=true
+            fi
+        fi
+    fi
+    
+    if [ "$pip_installed" = true ]; then
+        # Verify pip is now available
+        if $python_cmd -m pip --version &> /dev/null; then
+            PIP_CMD="$python_cmd -m pip"
+            log_success "pip verified and ready: $PIP_CMD"
+            return 0
+        fi
+    fi
+    
+    log_error "Failed to install pip with all available methods"
+    return 1
+}
+
 detect_pip() {
     log_step "Detecting pip installation..."
     
@@ -386,18 +659,36 @@ detect_pip() {
     fi
     
     if command -v pip3 &> /dev/null; then
-        PIP_CMD="pip3"
-        log_success "pip found: pip3"
-        return 0
+        # Verify this pip3 works with our Python
+        if [ -n "$PYTHON_CMD" ]; then
+            if pip3 --version &> /dev/null && pip3 --python "$PYTHON_CMD" --version &> /dev/null 2>&1; then
+                PIP_CMD="pip3"
+                log_success "pip found: pip3 (compatible with $PYTHON_CMD)"
+                return 0
+            fi
+        else
+            PIP_CMD="pip3"
+            log_success "pip found: pip3"
+            return 0
+        fi
     fi
     
     if command -v pip &> /dev/null; then
-        PIP_CMD="pip"
-        log_success "pip found: pip"
-        return 0
+        # Verify this pip works with our Python
+        if [ -n "$PYTHON_CMD" ]; then
+            if pip --version &> /dev/null && pip --python "$PYTHON_CMD" --version &> /dev/null 2>&1; then
+                PIP_CMD="pip"
+                log_success "pip found: pip (compatible with $PYTHON_CMD)"
+                return 0
+            fi
+        else
+            PIP_CMD="pip"
+            log_success "pip found: pip"
+            return 0
+        fi
     fi
     
-    log_warning "pip not found"
+    log_warning "pip not found, will attempt to install"
     return 1
 }
 
@@ -552,10 +843,32 @@ check_prerequisites() {
                 MISSING_PACKAGES+=("python3-dev")
             fi
             # Check libmagic (required for python-magic)
-                if ! dpkg-query -W -f='${Status}' libmagic1 2>/dev/null | grep -q "install ok installed"; then
+            # Use multiple methods to verify libmagic1 is installed
+            libmagic1_installed=false
+            if dpkg-query -W -f='${Status}' libmagic1 2>/dev/null | grep -q "install ok installed"; then
+                libmagic1_installed=true
+            elif dpkg -l 2>/dev/null | grep -q "^ii.*libmagic1"; then
+                libmagic1_installed=true
+            elif [ -f "/usr/lib/x86_64-linux-gnu/libmagic.so.1" ] || [ -f "/usr/lib/libmagic.so.1" ] || [ -f "/lib/x86_64-linux-gnu/libmagic.so.1" ]; then
+                libmagic1_installed=true
+            elif command -v file >/dev/null 2>&1 && file --version >/dev/null 2>&1; then
+                # If file command works, libmagic1 is likely installed
+                libmagic1_installed=true
+            fi
+            
+            if [ "$libmagic1_installed" = false ]; then
                 MISSING_PACKAGES+=("libmagic1")
             fi
-                if ! dpkg-query -W -f='${Status}' libmagic-dev 2>/dev/null | grep -q "install ok installed"; then
+            
+            # Check libmagic-dev
+            libmagic_dev_installed=false
+            if dpkg-query -W -f='${Status}' libmagic-dev 2>/dev/null | grep -q "install ok installed"; then
+                libmagic_dev_installed=true
+            elif dpkg -l 2>/dev/null | grep -q "^ii.*libmagic-dev"; then
+                libmagic_dev_installed=true
+            fi
+            
+            if [ "$libmagic_dev_installed" = false ]; then
                 MISSING_PACKAGES+=("libmagic-dev")
             fi
             # Check libxml2 and libxslt (required for lxml)
@@ -585,9 +898,21 @@ check_prerequisites() {
                 if ! dpkg -l 2>/dev/null | grep -q "^ii.*python3-dev"; then
                     MISSING_PACKAGES+=("python3-dev")
                 fi
-                if ! dpkg -l 2>/dev/null | grep -q "^ii.*libmagic1"; then
+                # Check libmagic1 with multiple methods
+                libmagic1_installed=false
+                if dpkg -l 2>/dev/null | grep -q "^ii.*libmagic1"; then
+                    libmagic1_installed=true
+                elif [ -f "/usr/lib/x86_64-linux-gnu/libmagic.so.1" ] || [ -f "/usr/lib/libmagic.so.1" ] || [ -f "/lib/x86_64-linux-gnu/libmagic.so.1" ]; then
+                    libmagic1_installed=true
+                elif command -v file >/dev/null 2>&1 && file --version >/dev/null 2>&1; then
+                    libmagic1_installed=true
+                fi
+                
+                if [ "$libmagic1_installed" = false ]; then
                     MISSING_PACKAGES+=("libmagic1")
                 fi
+                
+                # Check libmagic-dev
                 if ! dpkg -l 2>/dev/null | grep -q "^ii.*libmagic-dev"; then
                     MISSING_PACKAGES+=("libmagic-dev")
                 fi
@@ -709,6 +1034,93 @@ display_missing() {
     log_info "Proceeding with installation..."
 }
 
+get_package_name_for_os() {
+    # Get the correct package name for a given package and OS/version
+    # $1 = generic package name
+    # Returns: OS-specific package name(s) to try
+    local generic_pkg="$1"
+    local pkg_names=()
+    
+    case "$generic_pkg" in
+        python3)
+            pkg_names=("python3")
+            ;;
+        python3-pip)
+            if [[ "$DISTRO" == "debian" || "$DISTRO" == "ubuntu" ]]; then
+                pkg_names=("python3-pip" "python-pip3")
+            elif [[ "$DISTRO" == "rhel" || "$DISTRO" == "centos" || "$DISTRO" == "rocky" || "$DISTRO" == "almalinux" ]]; then
+                pkg_names=("python3-pip" "python3-pip3")
+            elif [[ "$DISTRO" == "fedora" ]]; then
+                pkg_names=("python3-pip")
+            elif [[ "$DISTRO" == "amzn" ]]; then
+                pkg_names=("python3-pip" "python3-pip3")
+            else
+                pkg_names=("python3-pip")
+            fi
+            ;;
+        python3-venv|python3-dev|build-essential|libmagic1)
+            # These are handled in check_prerequisites with OS-specific logic
+            pkg_names=("$generic_pkg")
+            ;;
+        git)
+            pkg_names=("git")
+            ;;
+        *)
+            pkg_names=("$generic_pkg")
+            ;;
+    esac
+    
+    printf '%s\n' "${pkg_names[@]}"
+}
+
+install_system_package_robust() {
+    # Install a system package with multiple fallback names
+    # $1 = generic package name
+    local generic_pkg="$1"
+    local installed=false
+    local pkg_name=""
+    
+    # Get OS-specific package names to try
+    local pkg_names=()
+    while IFS= read -r pkg_name; do
+        pkg_names+=("$pkg_name")
+    done < <(get_package_name_for_os "$generic_pkg")
+    
+    # Check if already installed
+    for pkg_name in "${pkg_names[@]}"; do
+        if [[ "$PKG_MANAGER" == "apt" || "$PKG_MANAGER" == "apt-get" ]]; then
+            if dpkg -l 2>/dev/null | grep -q "^ii.*${pkg_name}"; then
+                log_info "$generic_pkg is already installed (as $pkg_name)"
+                return 0
+            fi
+        elif [[ "$PKG_MANAGER" == "dnf" || "$PKG_MANAGER" == "yum" ]]; then
+            if rpm -q "$pkg_name" &>/dev/null; then
+                log_info "$generic_pkg is already installed (as $pkg_name)"
+                return 0
+            fi
+        fi
+    done
+    
+    # Try to install with each package name
+    for pkg_name in "${pkg_names[@]}"; do
+        log_info "Attempting to install $generic_pkg as: $pkg_name"
+        if execute_with_retry "$INSTALL_CMD $pkg_name" 2 3 false; then
+            log_success "$generic_pkg installed successfully (as $pkg_name)"
+            installed=true
+            break
+        else
+            log_warning "Failed to install $pkg_name, trying next alternative..."
+        fi
+    done
+    
+    if [ "$installed" = false ]; then
+        log_error "Failed to install $generic_pkg with all package name alternatives: ${pkg_names[*]}"
+        return 1
+    fi
+    
+    return 0
+}
+
 install_prerequisites() {
     if [ ${#MISSING_PACKAGES[@]} -eq 0 ]; then
         return 0
@@ -725,37 +1137,30 @@ install_prerequisites() {
     elif [ "$PKG_MANAGER" = "dnf" ] || [ "$PKG_MANAGER" = "yum" ]; then
         # For RHEL-based, update is usually not needed but can help
         log_info "Checking package manager..."
+        # Try to enable EPEL if available (helps with some packages)
+        if [ "$PKG_MANAGER" = "yum" ] && [ "$DISTRO" != "fedora" ]; then
+            if ! rpm -q epel-release &>/dev/null; then
+                log_info "EPEL repository not found, but continuing..."
+            fi
+        fi
     fi
     
-    # Install packages with retry
+    # Install packages one by one with robust method
     log_info "Installing packages: ${MISSING_PACKAGES[*]}"
-    local install_attempt=1
-    local max_install_attempts=3
-    local install_success=false
+    local failed_packages=()
     
-    while [ $install_attempt -le $max_install_attempts ] && [ "$install_success" = false ]; do
-        if [ $install_attempt -gt 1 ]; then
-            log_info "Retrying package installation (attempt $install_attempt/$max_install_attempts)..."
-            sleep 5
+    for pkg in "${MISSING_PACKAGES[@]}"; do
+        if ! install_system_package_robust "$pkg"; then
+            failed_packages+=("$pkg")
+            log_warning "Failed to install $pkg, but continuing with other packages..."
         fi
-        
-        if [ "$IS_ROOT" = true ]; then
-            if $PKG_MANAGER install -y "${MISSING_PACKAGES[@]}" 2>&1; then
-                install_success=true
-            fi
-        else
-            if sudo $PKG_MANAGER install -y "${MISSING_PACKAGES[@]}" 2>&1; then
-                install_success=true
-            fi
-        fi
-        
-        install_attempt=$((install_attempt + 1))
     done
     
-    if [ "$install_success" = false ]; then
-        log_error "Failed to install prerequisites after $max_install_attempts attempts"
-        log_error "Please install manually: $INSTALL_CMD ${MISSING_PACKAGES[*]}"
-        exit 1
+    if [ ${#failed_packages[@]} -gt 0 ]; then
+        log_error "Failed to install some prerequisites: ${failed_packages[*]}"
+        log_error "Please install manually: $INSTALL_CMD ${failed_packages[*]}"
+        # Don't exit immediately, continue to see if we can work without them
+        log_warning "Continuing installation, but some features may not work..."
     fi
     
     # Re-detect Python and pip after installation
@@ -765,8 +1170,11 @@ install_prerequisites() {
     fi
     
     if ! detect_pip; then
-        log_error "pip installation failed"
-        exit 1
+        log_info "pip not found, attempting to install..."
+        if ! install_pip_robust "$PYTHON_CMD"; then
+            log_error "pip installation failed"
+            exit 1
+        fi
     fi
     
     log_success "Prerequisites installed successfully"
@@ -896,17 +1304,38 @@ install_files() {
         fi
     fi
     
-    # Copy new files with error handling
+    # Copy new files with error handling (use rsync if available for incremental copy)
     log_info "Copying application files..."
-    if ! cp -r "$SCRIPT_DIR/cti-platform" "$INSTALL_DIR/" 2>/dev/null; then
-        if [ "$IS_ROOT" = false ]; then
-            if ! sudo cp -r "$SCRIPT_DIR/cti-platform" "$INSTALL_DIR/" 2>/dev/null; then
-                log_error "Failed to copy cti-platform directory"
+    if command -v rsync &>/dev/null; then
+        # Use rsync for incremental copy (only changed files)
+        log_info "Using rsync for efficient file copying..."
+        if [ "$IS_ROOT" = true ]; then
+            rsync -a --update --delete "$SCRIPT_DIR/cti-platform/" "$INSTALL_DIR/cti-platform/" 2>/dev/null || {
+                log_error "Failed to copy cti-platform directory with rsync"
                 exit 1
+            }
+        else
+            sudo rsync -a --update --delete "$SCRIPT_DIR/cti-platform/" "$INSTALL_DIR/cti-platform/" 2>/dev/null || {
+                log_error "Failed to copy cti-platform directory with rsync"
+                exit 1
+            }
+        fi
+    else
+        # Fallback to cp if rsync not available
+        if [ ! -d "$INSTALL_DIR/cti-platform" ] || [ "$PRESERVE_DATA" = true ]; then
+            if ! cp -r "$SCRIPT_DIR/cti-platform" "$INSTALL_DIR/" 2>/dev/null; then
+                if [ "$IS_ROOT" = false ]; then
+                    if ! sudo cp -r "$SCRIPT_DIR/cti-platform" "$INSTALL_DIR/" 2>/dev/null; then
+                        log_error "Failed to copy cti-platform directory"
+                        exit 1
+                    fi
+                else
+                    log_error "Failed to copy cti-platform directory"
+                    exit 1
+                fi
             fi
         else
-            log_error "Failed to copy cti-platform directory"
-            exit 1
+            log_info "cti-platform directory already exists, skipping copy"
         fi
     fi
     
@@ -923,28 +1352,52 @@ install_files() {
         }
     fi
     
-    if ! cp -r "$SCRIPT_DIR/dependencies/repos" "$INSTALL_DIR/dependencies/" 2>/dev/null; then
-        if [ "$IS_ROOT" = false ]; then
-            if ! sudo cp -r "$SCRIPT_DIR/dependencies/repos" "$INSTALL_DIR/dependencies/" 2>/dev/null; then
-                log_error "Failed to copy repos directory"
+    # Copy dependencies/repos (use rsync if available)
+    if command -v rsync &>/dev/null; then
+        if [ "$IS_ROOT" = true ]; then
+            rsync -a --update "$SCRIPT_DIR/dependencies/repos/" "$INSTALL_DIR/dependencies/repos/" 2>/dev/null || {
+                log_error "Failed to copy repos directory with rsync"
                 exit 1
+            }
+        else
+            sudo rsync -a --update "$SCRIPT_DIR/dependencies/repos/" "$INSTALL_DIR/dependencies/repos/" 2>/dev/null || {
+                log_error "Failed to copy repos directory with rsync"
+                exit 1
+            }
+        fi
+    else
+        if [ ! -d "$INSTALL_DIR/dependencies/repos" ] || [ "$PRESERVE_DATA" = true ]; then
+            if ! cp -r "$SCRIPT_DIR/dependencies/repos" "$INSTALL_DIR/dependencies/" 2>/dev/null; then
+                if [ "$IS_ROOT" = false ]; then
+                    if ! sudo cp -r "$SCRIPT_DIR/dependencies/repos" "$INSTALL_DIR/dependencies/" 2>/dev/null; then
+                        log_error "Failed to copy repos directory"
+                        exit 1
+                    fi
+                else
+                    log_error "Failed to copy repos directory"
+                    exit 1
+                fi
             fi
         else
-            log_error "Failed to copy repos directory"
-            exit 1
+            log_info "dependencies/repos directory already exists, skipping copy"
         fi
     fi
     
-    if ! cp "$SCRIPT_DIR/requirements.txt" "$INSTALL_DIR/" 2>/dev/null; then
-        if [ "$IS_ROOT" = false ]; then
-            if ! sudo cp "$SCRIPT_DIR/requirements.txt" "$INSTALL_DIR/" 2>/dev/null; then
+    # Copy requirements.txt only if different or missing
+    if [ ! -f "$INSTALL_DIR/requirements.txt" ] || ! cmp -s "$SCRIPT_DIR/requirements.txt" "$INSTALL_DIR/requirements.txt" 2>/dev/null; then
+        if ! cp "$SCRIPT_DIR/requirements.txt" "$INSTALL_DIR/" 2>/dev/null; then
+            if [ "$IS_ROOT" = false ]; then
+                if ! sudo cp "$SCRIPT_DIR/requirements.txt" "$INSTALL_DIR/" 2>/dev/null; then
+                    log_error "Failed to copy requirements.txt"
+                    exit 1
+                fi
+            else
                 log_error "Failed to copy requirements.txt"
                 exit 1
             fi
-        else
-            log_error "Failed to copy requirements.txt"
-            exit 1
         fi
+    else
+        log_info "requirements.txt is up to date, skipping copy"
     fi
     
     # Restore data if this was a reinstallation
@@ -1014,6 +1467,81 @@ install_files() {
 # ============================================================================
 # PYTHON ENVIRONMENT SETUP
 # ============================================================================
+
+check_venv_validity() {
+    # Check if virtual environment exists and is valid
+    local venv_path="$1"
+    
+    if [ ! -d "$venv_path" ] || [ ! -f "$venv_path/bin/python" ]; then
+        return 1  # Venv doesn't exist
+    fi
+    
+    # Check if Python works
+    if ! "$venv_path/bin/python" --version &>/dev/null; then
+        return 1  # Python doesn't work
+    fi
+    
+    # Check essential packages
+    if ! "$venv_path/bin/python" -c "import flask" 2>/dev/null; then
+        return 1  # Flask not installed
+    fi
+    
+    if ! "$venv_path/bin/python" -c "import iocsearcher" 2>/dev/null; then
+        return 1  # iocsearcher not installed
+    fi
+    
+    # Check txt2stix (optional but recommended)
+    if ! "$venv_path/bin/python" -c "import txt2stix" 2>/dev/null; then
+        log_info "txt2stix not found in venv, will be installed during setup"
+    fi
+    
+    # Check pdfalyzer (optional)
+    if ! "$venv_path/bin/python" -c "from pdfalyzer.pdfalyzer import Pdfalyzer" 2>/dev/null; then
+        log_info "pdfalyzer not found in venv, will be installed during setup"
+    fi
+    
+    return 0  # Venv is valid
+}
+
+check_packages_installed() {
+    # Check if packages from requirements.txt are installed
+    local venv_path="$1"
+    local requirements_file="$2"
+    
+    if [ ! -f "$requirements_file" ]; then
+        return 1
+    fi
+    
+    if [ ! -f "$venv_path/bin/pip" ]; then
+        return 1
+    fi
+    
+    # Get list of installed packages
+    local installed_packages=$("$venv_path/bin/pip" list --format=freeze 2>/dev/null | cut -d'=' -f1 | tr '[:upper:]' '[:lower:]')
+    
+    # Check if main packages from requirements.txt are installed
+    local missing_packages=0
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Skip comments and empty lines
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${line// }" ]] && continue
+        
+        # Extract package name (before ==, >=, <=, etc.)
+        local pkg_name=$(echo "$line" | sed -E 's/[[:space:]]*([^<>=!]+).*/\1/' | tr '[:upper:]' '[:lower:]' | xargs)
+        
+        if [ -n "$pkg_name" ]; then
+            if ! echo "$installed_packages" | grep -q "^${pkg_name}$"; then
+                missing_packages=$((missing_packages + 1))
+            fi
+        fi
+    done < "$requirements_file"
+    
+    if [ $missing_packages -eq 0 ]; then
+        return 0  # All packages installed
+    else
+        return 1  # Some packages missing
+    fi
+}
 
 create_venv_robust() {
     # Create virtual environment with multiple fallback methods
@@ -1155,12 +1683,112 @@ create_venv_robust() {
         fi
     fi
     
+    # Method 5: Try with virtualenv if available
+    log_info "Method 5: Trying virtualenv package..."
+    if command -v virtualenv &> /dev/null; then
+        log_info "virtualenv command found, using it..."
+        output=$(virtualenv -p "$python_cmd" "$venv_path" 2>&1)
+        exit_code=$?
+        if [ $exit_code -eq 0 ]; then
+            log_success "Virtual environment created (Method 5: virtualenv)"
+            # Fix ownership if needed
+            if [ "$IS_ROOT" = true ] && id "$service_user" &>/dev/null; then
+                chown -R "$service_user:$SERVICE_GROUP" "$venv_path" 2>/dev/null || true
+            elif [ "$IS_ROOT" = false ] && id "$service_user" &>/dev/null; then
+                sudo chown -R "$service_user:$SERVICE_GROUP" "$venv_path" 2>/dev/null || true
+            fi
+            return 0
+        else
+            log_warning "Method 5 (virtualenv) failed"
+        fi
+    else
+        log_info "virtualenv not available, trying to install..."
+        # Try to install virtualenv
+        if [ "$PKG_MANAGER" = "apt" ] || [ "$PKG_MANAGER" = "apt-get" ]; then
+            if execute_with_retry "$INSTALL_CMD virtualenv" 2 3 false; then
+                if virtualenv -p "$python_cmd" "$venv_path" 2>/dev/null; then
+                    log_success "Virtual environment created (Method 5: virtualenv after install)"
+                    # Fix ownership if needed
+                    if [ "$IS_ROOT" = true ] && id "$service_user" &>/dev/null; then
+                        chown -R "$service_user:$SERVICE_GROUP" "$venv_path" 2>/dev/null || true
+                    elif [ "$IS_ROOT" = false ] && id "$service_user" &>/dev/null; then
+                        sudo chown -R "$service_user:$SERVICE_GROUP" "$venv_path" 2>/dev/null || true
+                    fi
+                    return 0
+                fi
+            fi
+        elif [ "$PKG_MANAGER" = "dnf" ] || [ "$PKG_MANAGER" = "yum" ]; then
+            if execute_with_retry "$INSTALL_CMD python3-virtualenv" 2 3 false; then
+                if virtualenv -p "$python_cmd" "$venv_path" 2>/dev/null; then
+                    log_success "Virtual environment created (Method 5: virtualenv after install)"
+                    # Fix ownership if needed
+                    if [ "$IS_ROOT" = true ] && id "$service_user" &>/dev/null; then
+                        chown -R "$service_user:$SERVICE_GROUP" "$venv_path" 2>/dev/null || true
+                    elif [ "$IS_ROOT" = false ] && id "$service_user" &>/dev/null; then
+                        sudo chown -R "$service_user:$SERVICE_GROUP" "$venv_path" 2>/dev/null || true
+                    fi
+                    return 0
+                fi
+            fi
+        fi
+    fi
+    
     # All methods failed
     log_error "Failed to create virtual environment with all methods"
     echo "$output" | while IFS= read -r line; do
             log_error "$line"
         done
     return 1
+}
+
+test_venv_after_creation() {
+    # Test that venv was created correctly and is functional
+    local venv_path="$1"
+    local python_cmd="$2"
+    local test_passed=true
+    
+    log_info "Testing virtual environment..."
+    
+    # Test 1: Check venv directory exists
+    if [ ! -d "$venv_path" ]; then
+        log_error "Venv directory does not exist: $venv_path"
+        test_passed=false
+    fi
+    
+    # Test 2: Check Python executable exists
+    if [ ! -f "$venv_path/bin/python" ]; then
+        log_error "Python executable not found in venv: $venv_path/bin/python"
+        test_passed=false
+    fi
+    
+    # Test 3: Test Python can run
+    if ! "$venv_path/bin/python" --version &>/dev/null; then
+        log_error "Python in venv cannot execute --version"
+        test_passed=false
+    fi
+    
+    # Test 4: Test pip exists and works
+    if [ ! -f "$venv_path/bin/pip" ]; then
+        log_warning "pip not found in venv, will need to install"
+    elif ! "$venv_path/bin/pip" --version &>/dev/null; then
+        log_warning "pip in venv cannot execute --version"
+    else
+        log_info "pip verified in venv"
+    fi
+    
+    # Test 5: Test basic import
+    if ! "$venv_path/bin/python" -c "import sys; sys.exit(0)" 2>/dev/null; then
+        log_error "Python in venv cannot execute basic imports"
+        test_passed=false
+    fi
+    
+    if [ "$test_passed" = true ]; then
+        log_success "Virtual environment tests passed"
+        return 0
+    else
+        log_error "Virtual environment tests failed"
+        return 1
+    fi
 }
 
 install_python_venv_package() {
@@ -1285,10 +1913,44 @@ setup_python_environment() {
         exit 1
     }
     
-    # Remove existing venv if present
+    # Check if venv exists and is valid
     if [ -d "venv" ]; then
-        log_info "Removing existing virtual environment..."
-        rm -rf venv
+        log_info "Checking existing virtual environment..."
+        if check_venv_validity "$INSTALL_DIR/venv"; then
+            log_success "Existing virtual environment is valid"
+            
+            # Check if packages are up to date
+            if check_packages_installed "$INSTALL_DIR/venv" "$INSTALL_DIR/requirements.txt"; then
+                log_success "All required packages are installed"
+                log_info "Skipping venv creation and package installation"
+                
+                # Still check and install optional packages if needed
+                if ! "$INSTALL_DIR/venv/bin/python" -c "import txt2stix" 2>/dev/null; then
+                    log_info "Installing txt2stix..."
+                    install_txt2stix_optional "$INSTALL_DIR/venv/bin/pip"
+                fi
+                
+                if ! "$INSTALL_DIR/venv/bin/python" -c "from pdfalyzer.pdfalyzer import Pdfalyzer" 2>/dev/null; then
+                    log_info "Installing pdfalyzer..."
+                    install_pdfalyzer_optional "$INSTALL_DIR/venv/bin/pip"
+                fi
+                
+                # Set ownership
+                if [ "$IS_ROOT" = true ]; then
+                    chown -R "$SERVICE_USER:$SERVICE_GROUP" venv 2>/dev/null || true
+                else
+                    sudo chown -R "$SERVICE_USER:$SERVICE_GROUP" venv 2>/dev/null || true
+                fi
+                
+                log_success "Python environment setup complete (using existing venv)"
+                return 0
+            else
+                log_info "Some packages are missing, will update venv"
+            fi
+        else
+            log_info "Existing virtual environment is invalid, will recreate"
+            rm -rf venv
+        fi
     fi
     
     # Check prerequisites
@@ -1317,6 +1979,21 @@ setup_python_environment() {
         exit 1
     fi
     
+    # Test venv after creation
+    if ! test_venv_after_creation "$INSTALL_DIR/venv" "$PYTHON_CMD"; then
+        log_error "Virtual environment validation failed"
+        log_error "Attempting to clean up and retry..."
+        rm -rf "$INSTALL_DIR/venv"
+        if ! create_venv_robust "$INSTALL_DIR/venv" "$PYTHON_CMD" "$SERVICE_USER"; then
+            log_error "Failed to recreate virtual environment after validation failure"
+            exit 1
+        fi
+        if ! test_venv_after_creation "$INSTALL_DIR/venv" "$PYTHON_CMD"; then
+            log_error "Virtual environment still fails validation after retry"
+            exit 1
+        fi
+    fi
+    
     # Activate virtual environment
     source venv/bin/activate || {
         log_error "Failed to activate virtual environment"
@@ -1332,14 +2009,12 @@ setup_python_environment() {
         exit 1
     fi
     
-    # Install main dependencies with retry
+    # Install main dependencies with flexible method
     log_info "Installing main dependencies from requirements.txt..."
-    if ! execute_with_retry "$PIP_CMD install -r requirements.txt --quiet" 3 5 false; then
-        log_warning "Failed to install dependencies with retry, trying without --quiet for diagnostics..."
-        $PIP_CMD install -r requirements.txt 2>&1 | tail -30
+    install_requirements_flexible "$PIP_CMD" "requirements.txt" || {
         log_error "Failed to install main dependencies"
         exit 1
-    fi
+    }
     
     # Configure iocsearcher from local repository (already included in package)
     if [ -d "dependencies/repos/iocsearcher-main" ]; then
@@ -1352,52 +2027,33 @@ setup_python_environment() {
             fi
         fi
         log_success "iocsearcher configured"
+        
+        # Fix SyntaxWarnings in iocsearcher (invalid escape sequences)
+        log_info "Fixing SyntaxWarnings in iocsearcher..."
+        IOCSEARCHER_DIR="$INSTALL_DIR/dependencies/repos/iocsearcher-main"
+        if [ -f "$IOCSEARCHER_DIR/fix_syntax_warnings.py" ]; then
+            if $PYTHON_CMD "$IOCSEARCHER_DIR/fix_syntax_warnings.py" 2>/dev/null; then
+                log_success "SyntaxWarnings fixes applied to iocsearcher"
+            else
+                log_warning "Failed to apply SyntaxWarnings fixes (non-critical)"
+            fi
+        else
+            log_warning "fix_syntax_warnings.py not found, skipping SyntaxWarnings fixes"
+        fi
     else
         log_error "iocsearcher repository not found in dependencies/repos/iocsearcher-main"
         log_error "The package is incomplete. Please ensure dependencies/repos/iocsearcher-main is present."
         exit 1
     fi
     
-    # Configure txt2stix from local repository (already included in package)
-    if [ -d "dependencies/repos/txt2stix-main" ]; then
-        log_info "Configuring txt2stix from local repository..."
-        
-        # Install txt2stix dependencies first if requirements.txt exists
-        if [ -f "dependencies/repos/txt2stix-main/requirements.txt" ]; then
-            if ! execute_with_retry "$PIP_CMD install -r dependencies/repos/txt2stix-main/requirements.txt --quiet" 3 3 false; then
-                log_warning "Failed to install txt2stix dependencies with retry, trying without --quiet..."
-                execute_with_retry "$PIP_CMD install -r dependencies/repos/txt2stix-main/requirements.txt" 2 3 false || {
-                    log_error "Failed to install txt2stix dependencies"
-                    exit 1
-                }
-            fi
-        fi
-        
-        # Install txt2stix from its directory (needed for includes path resolution)
-        # Change to txt2stix directory so includes/ is found correctly
-        TXT2STIX_DIR="$INSTALL_DIR/dependencies/repos/txt2stix-main"
-        cd "$TXT2STIX_DIR" || {
-            log_error "Cannot change to txt2stix directory: $TXT2STIX_DIR"
-            exit 1
-        }
-        if ! execute_with_retry "$PIP_CMD install -e . --quiet" 3 3 false; then
-            log_warning "Failed to install txt2stix with retry, trying without --quiet..."
-            if ! execute_with_retry "$PIP_CMD install -e ." 2 3 false; then
-                log_error "Failed to install txt2stix"
-        cd "$INSTALL_DIR"
-                exit 1
-            fi
-        fi
-        cd "$INSTALL_DIR" || {
-            log_error "Cannot return to installation directory"
-            exit 1
-        }
-        log_success "txt2stix configured"
-    else
-        log_error "txt2stix repository not found in dependencies/repos/txt2stix-main"
-        log_error "The package is incomplete. Please ensure dependencies/repos/txt2stix-main is present."
+    # Configure txt2stix and pdfalyzer from local repository (already included in package)
+    install_txt2stix_optional "$PIP_CMD" || {
+        log_error "Failed to install txt2stix"
         exit 1
-    fi
+    }
+    install_pdfalyzer_optional "$PIP_CMD" || {
+        log_warning "pdfalyzer installation failed, PDF analysis features will not be available"
+    }
     
     # Set ownership
     if [ "$IS_ROOT" = true ]; then
@@ -1407,6 +2063,99 @@ setup_python_environment() {
     fi
     
     log_success "Python environment setup complete"
+}
+
+install_txt2stix_optional() {
+    # Install txt2stix if not already installed
+    # $1 = pip command to use (should be venv/bin/pip)
+    local pip_cmd="${1:-$PIP_CMD}"
+    
+    if [ -d "$INSTALL_DIR/dependencies/repos/txt2stix-main" ]; then
+        # Check if already installed
+        if "$INSTALL_DIR/venv/bin/python" -c "import txt2stix" 2>/dev/null; then
+            log_info "txt2stix already installed, skipping"
+            return 0
+        fi
+        
+        log_info "Configuring txt2stix from local repository..."
+        
+        # Install txt2stix dependencies first if requirements.txt exists
+        if [ -f "$INSTALL_DIR/dependencies/repos/txt2stix-main/requirements.txt" ]; then
+            local current_dir_before=$(pwd)
+            cd "$INSTALL_DIR" || {
+                log_error "Cannot change to installation directory"
+                return 1
+            }
+            if ! execute_with_retry "$pip_cmd install -r dependencies/repos/txt2stix-main/requirements.txt --quiet" 3 3 false; then
+                log_warning "Failed to install txt2stix dependencies with retry, trying without --quiet..."
+                execute_with_retry "$pip_cmd install -r dependencies/repos/txt2stix-main/requirements.txt" 2 3 false || {
+                    log_error "Failed to install txt2stix dependencies"
+                    cd "$current_dir_before" || true
+                    return 1
+                }
+            fi
+            cd "$current_dir_before" || true
+        fi
+        
+        # Install txt2stix from its directory (needed for includes path resolution)
+        TXT2STIX_DIR="$INSTALL_DIR/dependencies/repos/txt2stix-main"
+        local current_dir=$(pwd)
+        cd "$TXT2STIX_DIR" || {
+            log_error "Cannot change to txt2stix directory: $TXT2STIX_DIR"
+            return 1
+        }
+        if ! execute_with_retry "$pip_cmd install -e . --quiet" 3 3 false; then
+            log_warning "Failed to install txt2stix with retry, trying without --quiet..."
+            if ! execute_with_retry "$pip_cmd install -e ." 2 3 false; then
+                log_error "Failed to install txt2stix"
+                cd "$current_dir"
+                return 1
+            fi
+        fi
+        cd "$current_dir" || true
+        log_success "txt2stix configured"
+    else
+        log_warning "txt2stix repository not found in dependencies/repos/txt2stix-main"
+        return 1
+    fi
+}
+
+install_pdfalyzer_optional() {
+    # Install pdfalyzer if not already installed
+    # $1 = pip command to use (should be venv/bin/pip)
+    local pip_cmd="${1:-$PIP_CMD}"
+    
+    if [ -d "$INSTALL_DIR/dependencies/repos/pdfalyzer-main" ]; then
+        # Check if already installed
+        if "$INSTALL_DIR/venv/bin/python" -c "from pdfalyzer.pdfalyzer import Pdfalyzer" 2>/dev/null; then
+            log_info "pdfalyzer already installed, skipping"
+            return 0
+        fi
+        
+        log_info "Configuring pdfalyzer from local repository..."
+        
+        # Install pdfalyzer from its directory
+        PDFALYZER_DIR="$INSTALL_DIR/dependencies/repos/pdfalyzer-main"
+        local current_dir=$(pwd)
+        cd "$PDFALYZER_DIR" || {
+            log_error "Cannot change to pdfalyzer directory: $PDFALYZER_DIR"
+            return 1
+        }
+        if ! execute_with_retry "$pip_cmd install -e . --quiet" 3 3 false; then
+            log_warning "Failed to install pdfalyzer with retry, trying without --quiet..."
+            if ! execute_with_retry "$pip_cmd install -e ." 2 3 false; then
+                log_warning "Failed to install pdfalyzer"
+                cd "$current_dir"
+                return 1
+            fi
+        fi
+        cd "$current_dir" || true
+        log_success "pdfalyzer configured"
+    else
+        log_warning "pdfalyzer repository not found in dependencies/repos/pdfalyzer-main"
+        log_warning "PDF analysis features will not be available."
+        return 1
+    fi
 }
 
 # ============================================================================
@@ -1421,24 +2170,42 @@ create_directories() {
         exit 1
     }
     
-    # Create directories with error handling
-    local dirs=("uploads" "outputs/iocs" "outputs/stix" "outputs/reports" "database" "modules/cache" "ssl")
+    # Create directories with error handling (only if they don't exist)
+    local dirs=("uploads" "outputs/iocs" "outputs/stix" "outputs/reports" "outputs/pdf_analysis" "database" "modules/cache" "ssl")
     local dir_created=true
+    local dirs_created=0
+    local dirs_skipped=0
     
     for dir in "${dirs[@]}"; do
+        if [ -d "$dir" ]; then
+            dirs_skipped=$((dirs_skipped + 1))
+            continue
+        fi
+        
         if ! mkdir -p "$dir" 2>/dev/null; then
             log_warning "Failed to create directory: $dir, trying with sudo..."
             if [ "$IS_ROOT" = false ]; then
                 if ! sudo mkdir -p "$dir" 2>/dev/null; then
                     log_error "Failed to create directory: $dir"
                     dir_created=false
+                else
+                    dirs_created=$((dirs_created + 1))
                 fi
             else
                 log_error "Failed to create directory: $dir"
                 dir_created=false
             fi
+        else
+            dirs_created=$((dirs_created + 1))
         fi
     done
+    
+    if [ $dirs_skipped -gt 0 ]; then
+        log_info "$dirs_skipped directories already exist, skipped"
+    fi
+    if [ $dirs_created -gt 0 ]; then
+        log_info "$dirs_created directories created"
+    fi
     
     if [ "$dir_created" = false ]; then
         log_error "Some directories could not be created"
@@ -1469,16 +2236,23 @@ create_directories() {
 # ============================================================================
 
 download_deepdarkcti() {
-    # This function is kept for backward compatibility but is no longer called automatically
-    # The repository should be downloaded manually via the web interface (Download or Refresh button)
-    log_step "Downloading deepdarkCTI repository..."
+    log_step "Downloading DeepDarkCTI repository..."
     
     DEEPDARKCTI_REPO_URL="https://github.com/fastfire/deepdarkCTI.git"
     DEEPDARKCTI_DIR="$INSTALL_DIR/cti-platform/modules/deepdarkCTI-main"
     
-    if [ -d "$DEEPDARKCTI_DIR" ]; then
-        log_info "Removing existing deepdarkCTI repository..."
-        rm -rf "$DEEPDARKCTI_DIR"
+    # Skip if already exists
+    if [ -d "$DEEPDARKCTI_DIR" ] && [ -d "$DEEPDARKCTI_DIR/.git" ]; then
+        log_info "DeepDarkCTI repository already exists, skipping download"
+        log_info "Use the web interface to update it if needed"
+        return 0
+    fi
+    
+    # Create parent directory
+    if [ "$IS_ROOT" = true ]; then
+        mkdir -p "$(dirname "$DEEPDARKCTI_DIR")" 2>/dev/null || true
+    else
+        sudo mkdir -p "$(dirname "$DEEPDARKCTI_DIR")" 2>/dev/null || true
     fi
     
     # Download as service user
@@ -1486,24 +2260,93 @@ download_deepdarkcti() {
         # If root, use su instead of sudo -u
         if id "$SERVICE_USER" &>/dev/null; then
             if su -s /bin/bash -c "git clone \"$DEEPDARKCTI_REPO_URL\" \"$DEEPDARKCTI_DIR\"" "$SERVICE_USER" 2>/dev/null; then
-            log_success "deepdarkCTI repository downloaded"
+                log_success "DeepDarkCTI repository downloaded"
+            else
+                log_info "DeepDarkCTI repository will be downloaded during installation or can be downloaded later via the web interface."
+            fi
         else
-            log_warning "Unable to download deepdarkCTI repository. It can be downloaded later via the web interface."
-        fi
-    else
             # Service user doesn't exist, download as root
             if git clone "$DEEPDARKCTI_REPO_URL" "$DEEPDARKCTI_DIR" 2>/dev/null; then
-                log_success "deepdarkCTI repository downloaded"
+                log_success "DeepDarkCTI repository downloaded"
             else
-                log_warning "Unable to download deepdarkCTI repository. It can be downloaded later via the web interface."
+                log_info "DeepDarkCTI repository will be downloaded during installation or can be downloaded later via the web interface."
             fi
         fi
     else
         # Not root, use sudo -u
         if sudo -u "$SERVICE_USER" git clone "$DEEPDARKCTI_REPO_URL" "$DEEPDARKCTI_DIR" 2>/dev/null; then
-            log_success "deepdarkCTI repository downloaded"
+            log_success "DeepDarkCTI repository downloaded"
         else
-            log_warning "Unable to download deepdarkCTI repository. It can be downloaded later via the web interface."
+            log_info "DeepDarkCTI repository will be downloaded during installation or can be downloaded later via the web interface."
+        fi
+    fi
+    
+    # Set ownership
+    if [ -d "$DEEPDARKCTI_DIR" ]; then
+        if [ "$IS_ROOT" = true ]; then
+            chown -R "$SERVICE_USER:$SERVICE_GROUP" "$DEEPDARKCTI_DIR" 2>/dev/null || true
+        else
+            sudo chown -R "$SERVICE_USER:$SERVICE_GROUP" "$DEEPDARKCTI_DIR" 2>/dev/null || true
+        fi
+    fi
+}
+
+# ============================================================================
+# DOWNLOAD RANSOMWARE TOOL MATRIX
+# ============================================================================
+
+download_ransomware_matrix() {
+    log_step "Downloading Ransomware Tool Matrix repository..."
+    
+    RTM_REPO_URL="https://github.com/BushidoUK/Ransomware-Tool-Matrix.git"
+    RTM_DIR="$INSTALL_DIR/cti-platform/modules/Ransomware-Tool-Matrix-main"
+    
+    # Skip if already exists
+    if [ -d "$RTM_DIR" ] && [ -d "$RTM_DIR/.git" ]; then
+        log_info "Ransomware Tool Matrix repository already exists, skipping download"
+        log_info "Use the web interface to update it if needed"
+        return 0
+    fi
+    
+    # Create parent directory
+    if [ "$IS_ROOT" = true ]; then
+        mkdir -p "$(dirname "$RTM_DIR")" 2>/dev/null || true
+    else
+        sudo mkdir -p "$(dirname "$RTM_DIR")" 2>/dev/null || true
+    fi
+    
+    # Download as service user
+    if [ "$IS_ROOT" = true ]; then
+        # If root, use su instead of sudo -u
+        if id "$SERVICE_USER" &>/dev/null; then
+            if su -s /bin/bash -c "git clone \"$RTM_REPO_URL\" \"$RTM_DIR\"" "$SERVICE_USER" 2>/dev/null; then
+                log_success "Ransomware Tool Matrix repository downloaded"
+            else
+                log_info "Ransomware Tool Matrix repository will be downloaded during installation or can be downloaded later via the web interface."
+            fi
+        else
+            # Service user doesn't exist, download as root
+            if git clone "$RTM_REPO_URL" "$RTM_DIR" 2>/dev/null; then
+                log_success "Ransomware Tool Matrix repository downloaded"
+            else
+                log_info "Ransomware Tool Matrix repository will be downloaded during installation or can be downloaded later via the web interface."
+            fi
+        fi
+    else
+        # Not root, use sudo -u
+        if sudo -u "$SERVICE_USER" git clone "$RTM_REPO_URL" "$RTM_DIR" 2>/dev/null; then
+            log_success "Ransomware Tool Matrix repository downloaded"
+        else
+            log_info "Ransomware Tool Matrix repository will be downloaded during installation or can be downloaded later via the web interface."
+        fi
+    fi
+    
+    # Set ownership
+    if [ -d "$RTM_DIR" ]; then
+        if [ "$IS_ROOT" = true ]; then
+            chown -R "$SERVICE_USER:$SERVICE_GROUP" "$RTM_DIR" 2>/dev/null || true
+        else
+            sudo chown -R "$SERVICE_USER:$SERVICE_GROUP" "$RTM_DIR" 2>/dev/null || true
         fi
     fi
 }
@@ -1526,7 +2369,24 @@ generate_ssl_certificate() {
     CERT_FILE="$SSL_DIR/cert.pem"
     KEY_FILE="$SSL_DIR/key.pem"
     
-    # Check if certificate already exists
+    # Remove old certificates to regenerate them
+    log_info "Removing old certificates if they exist..."
+    if [ -f "$CERT_FILE" ]; then
+        if [ "$IS_ROOT" = true ]; then
+            rm -f "$CERT_FILE" 2>/dev/null || true
+        else
+            sudo rm -f "$CERT_FILE" 2>/dev/null || true
+        fi
+    fi
+    if [ -f "$KEY_FILE" ]; then
+        if [ "$IS_ROOT" = true ]; then
+            rm -f "$KEY_FILE" 2>/dev/null || true
+        else
+            sudo rm -f "$KEY_FILE" 2>/dev/null || true
+        fi
+    fi
+    
+    # Check if certificate already exists (should not after removal above)
     if [ -f "$CERT_FILE" ] && [ -f "$KEY_FILE" ]; then
         # Check certificate expiration
         EXPIRY_DATE=$(openssl x509 -in "$CERT_FILE" -noout -enddate 2>/dev/null | cut -d= -f2)
@@ -1806,6 +2666,10 @@ configure_log_rotation() {
 install_service() {
     log_step "Installing systemd service..."
     
+    # Force port 5001 (no port checking)
+    CTI_PORT=5001
+    SELECTED_PORT=5001
+    
     # Check if service file exists
     if [ ! -f "$SCRIPT_DIR/$SERVICE_FILE" ]; then
         log_error "Service file not found: $SCRIPT_DIR/$SERVICE_FILE"
@@ -1813,12 +2677,38 @@ install_service() {
         exit 1
     fi
     
-    # Copy service file with error handling
+    # Create service file with dynamic port
+    log_info "Creating systemd service with port $SELECTED_PORT..."
     if [ "$IS_ROOT" = true ]; then
-        if ! cp "$SCRIPT_DIR/$SERVICE_FILE" "/etc/systemd/system/$SERVICE_FILE" 2>/dev/null; then
-            log_error "Failed to copy service file to /etc/systemd/system/"
-            exit 1
-        fi
+        cat > "/etc/systemd/system/$SERVICE_FILE" << EOF
+[Unit]
+Description=Odysafe CTI Platform - Cyber Threat Intelligence Platform
+After=network.target
+
+[Service]
+Type=simple
+User=$SERVICE_USER
+Group=$SERVICE_GROUP
+WorkingDirectory=$INSTALL_DIR/cti-platform
+Environment="PATH=$INSTALL_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="CTI_PORT=$SELECTED_PORT"
+ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/cti-platform/app.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=odysafe-cti-platform
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=$INSTALL_DIR/cti-platform/uploads $INSTALL_DIR/cti-platform/outputs $INSTALL_DIR/cti-platform/database $INSTALL_DIR/cti-platform/modules $INSTALL_DIR/cti-platform/ssl
+
+[Install]
+WantedBy=multi-user.target
+EOF
         if ! systemctl daemon-reload 2>/dev/null; then
             log_error "Failed to reload systemd daemon"
             exit 1
@@ -1828,10 +2718,40 @@ install_service() {
             exit 1
         fi
     else
-        if ! sudo cp "$SCRIPT_DIR/$SERVICE_FILE" "/etc/systemd/system/$SERVICE_FILE" 2>/dev/null; then
+        cat > "/tmp/$SERVICE_FILE" << EOF
+[Unit]
+Description=Odysafe CTI Platform - Cyber Threat Intelligence Platform
+After=network.target
+
+[Service]
+Type=simple
+User=$SERVICE_USER
+Group=$SERVICE_GROUP
+WorkingDirectory=$INSTALL_DIR/cti-platform
+Environment="PATH=$INSTALL_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="CTI_PORT=$SELECTED_PORT"
+ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/cti-platform/app.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=odysafe-cti-platform
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=$INSTALL_DIR/cti-platform/uploads $INSTALL_DIR/cti-platform/outputs $INSTALL_DIR/cti-platform/database $INSTALL_DIR/cti-platform/modules $INSTALL_DIR/cti-platform/ssl
+
+[Install]
+WantedBy=multi-user.target
+EOF
+        if ! sudo cp "/tmp/$SERVICE_FILE" "/etc/systemd/system/$SERVICE_FILE" 2>/dev/null; then
             log_error "Failed to copy service file to /etc/systemd/system/"
             exit 1
         fi
+        rm -f "/tmp/$SERVICE_FILE" 2>/dev/null || true
         if ! sudo systemctl daemon-reload 2>/dev/null; then
             log_error "Failed to reload systemd daemon"
             exit 1
@@ -1842,7 +2762,77 @@ install_service() {
         fi
     fi
     
-    log_success "Systemd service installed and enabled"
+    log_success "Systemd service installed and enabled (port: $SELECTED_PORT)"
+}
+
+# ============================================================================
+# FIND FREE PORT
+# ============================================================================
+
+# Port checking function removed - using fixed port 5001
+
+# ============================================================================
+# CLEANUP EXISTING PROCESSES AND DATABASE
+# ============================================================================
+
+cleanup_before_start() {
+    log_info "Cleaning up existing processes..."
+    
+    # Stop and remove old service completely
+    if [ "$IS_ROOT" = true ]; then
+        if systemctl is-active --quiet "$SERVICE_FILE" 2>/dev/null || systemctl is-failed --quiet "$SERVICE_FILE" 2>/dev/null || systemctl is-enabled --quiet "$SERVICE_FILE" 2>/dev/null; then
+            log_info "Stopping and removing old service..."
+            systemctl stop "$SERVICE_FILE" 2>/dev/null || true
+            systemctl disable "$SERVICE_FILE" 2>/dev/null || true
+            systemctl reset-failed "$SERVICE_FILE" 2>/dev/null || true
+            rm -f "/etc/systemd/system/$SERVICE_FILE" 2>/dev/null || true
+            systemctl daemon-reload 2>/dev/null || true
+            sleep 2
+        fi
+    else
+        if sudo systemctl is-active --quiet "$SERVICE_FILE" 2>/dev/null || sudo systemctl is-failed --quiet "$SERVICE_FILE" 2>/dev/null || sudo systemctl is-enabled --quiet "$SERVICE_FILE" 2>/dev/null; then
+            log_info "Stopping and removing old service..."
+            sudo systemctl stop "$SERVICE_FILE" 2>/dev/null || true
+            sudo systemctl disable "$SERVICE_FILE" 2>/dev/null || true
+            sudo systemctl reset-failed "$SERVICE_FILE" 2>/dev/null || true
+            sudo rm -f "/etc/systemd/system/$SERVICE_FILE" 2>/dev/null || true
+            sudo systemctl daemon-reload 2>/dev/null || true
+            sleep 2
+        fi
+    fi
+    
+    # Kill any orphaned Python processes running app.py
+    if [ "$IS_ROOT" = true ]; then
+        PYTHON_PIDS=$(ps aux 2>/dev/null | grep "[p]ython.*app.py" | awk '{print $2}' || true)
+    else
+        PYTHON_PIDS=$(sudo ps aux 2>/dev/null | grep "[p]ython.*app.py" | awk '{print $2}' || true)
+    fi
+    if [ -n "$PYTHON_PIDS" ]; then
+        log_info "Killing orphaned Python processes: $PYTHON_PIDS"
+        for PID in $PYTHON_PIDS; do
+            if [ -n "$PID" ]; then
+                if [ "$IS_ROOT" = true ]; then
+                    kill -9 "$PID" 2>/dev/null || true
+                else
+                    sudo kill -9 "$PID" 2>/dev/null || true
+                fi
+            fi
+        done
+        sleep 1
+    fi
+    
+    # NOTE: Database is NOT deleted here - it should only be deleted during uninstall
+    # Ensure database directory exists with correct permissions
+    DB_DIR="$INSTALL_DIR/cti-platform/database"
+    if [ "$IS_ROOT" = true ]; then
+        mkdir -p "$DB_DIR"
+        chown -R "$SERVICE_USER:$SERVICE_GROUP" "$DB_DIR"
+    else
+        sudo mkdir -p "$DB_DIR"
+        sudo chown -R "$SERVICE_USER:$SERVICE_GROUP" "$DB_DIR"
+    fi
+    
+    log_success "Cleanup completed"
 }
 
 # ============================================================================
@@ -1852,30 +2842,161 @@ install_service() {
 start_service() {
     log_step "Starting Odysafe CTI Platform service..."
     
+    # Cleanup before starting
+    cleanup_before_start
+    
+    # Reinstall service file with correct port (it was removed during cleanup)
+    log_info "Reinstalling systemd service file..."
+    
+    # Force port 5001 (no port checking)
+    CTI_PORT=5001
+    SELECTED_PORT=5001
+    
+    # Create service file with dynamic port (same as in install_service)
+    log_info "Creating systemd service with port $SELECTED_PORT..."
     if [ "$IS_ROOT" = true ]; then
-        systemctl start "$SERVICE_FILE"
+        cat > "/etc/systemd/system/$SERVICE_FILE" << EOF
+[Unit]
+Description=Odysafe CTI Platform - Cyber Threat Intelligence Platform
+After=network.target
+
+[Service]
+Type=simple
+User=$SERVICE_USER
+Group=$SERVICE_GROUP
+WorkingDirectory=$INSTALL_DIR/cti-platform
+Environment="PATH=$INSTALL_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="CTI_PORT=$SELECTED_PORT"
+ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/cti-platform/app.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=odysafe-cti-platform
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=$INSTALL_DIR/cti-platform/uploads $INSTALL_DIR/cti-platform/outputs $INSTALL_DIR/cti-platform/database $INSTALL_DIR/cti-platform/modules $INSTALL_DIR/cti-platform/ssl
+
+[Install]
+WantedBy=multi-user.target
+EOF
     else
-        sudo systemctl start "$SERVICE_FILE"
+        cat > "/tmp/$SERVICE_FILE" << EOF
+[Unit]
+Description=Odysafe CTI Platform - Cyber Threat Intelligence Platform
+After=network.target
+
+[Service]
+Type=simple
+User=$SERVICE_USER
+Group=$SERVICE_GROUP
+WorkingDirectory=$INSTALL_DIR/cti-platform
+Environment="PATH=$INSTALL_DIR/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="CTI_PORT=$SELECTED_PORT"
+ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/cti-platform/app.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=odysafe-cti-platform
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=$INSTALL_DIR/cti-platform/uploads $INSTALL_DIR/cti-platform/outputs $INSTALL_DIR/cti-platform/database $INSTALL_DIR/cti-platform/modules $INSTALL_DIR/cti-platform/ssl
+
+[Install]
+WantedBy=multi-user.target
+EOF
+        if ! sudo cp "/tmp/$SERVICE_FILE" "/etc/systemd/system/$SERVICE_FILE" 2>/dev/null; then
+            log_error "Failed to copy service file to /etc/systemd/system/"
+            exit 1
+        fi
+        rm -f "/tmp/$SERVICE_FILE" 2>/dev/null || true
     fi
     
-    # Wait a moment for service to start
-    sleep 2
+    # Verify service file was copied successfully
+    if [ ! -f "/etc/systemd/system/$SERVICE_FILE" ]; then
+        log_error "Service file was not copied successfully to /etc/systemd/system/$SERVICE_FILE"
+        exit 1
+    fi
     
-    # Check service status
+    # Reload systemd daemon to ensure service file is up to date
     if [ "$IS_ROOT" = true ]; then
-        if systemctl is-active --quiet "$SERVICE_FILE"; then
-            log_success "Odysafe CTI Platform service started successfully"
-        else
-            log_error "Service failed to start. Check status with: systemctl status $SERVICE_FILE"
-            systemctl status "$SERVICE_FILE" || true
+        if ! systemctl daemon-reload 2>/dev/null; then
+            log_error "Failed to reload systemd daemon"
             exit 1
         fi
     else
-        if sudo systemctl is-active --quiet "$SERVICE_FILE"; then
+        if ! sudo systemctl daemon-reload 2>/dev/null; then
+            log_error "Failed to reload systemd daemon"
+            exit 1
+        fi
+    fi
+    
+    # Enable service before starting
+    if [ "$IS_ROOT" = true ]; then
+        if ! systemctl enable "$SERVICE_FILE" 2>/dev/null; then
+            log_error "Failed to enable service: $SERVICE_FILE"
+            exit 1
+        fi
+    else
+        if ! sudo systemctl enable "$SERVICE_FILE" 2>/dev/null; then
+            log_error "Failed to enable service: $SERVICE_FILE"
+            exit 1
+        fi
+    fi
+    
+    # Start service (port is already configured in the service file)
+    log_info "Starting service on port 5001..."
+    if [ "$IS_ROOT" = true ]; then
+        if ! systemctl start "$SERVICE_FILE" 2>&1; then
+            log_error "Failed to start service: $SERVICE_FILE"
+            log_info "Checking service status..."
+            systemctl status "$SERVICE_FILE" --no-pager -l || true
+            exit 1
+        fi
+    else
+        if ! sudo systemctl start "$SERVICE_FILE" 2>&1; then
+            log_error "Failed to start service: $SERVICE_FILE"
+            log_info "Checking service status..."
+            sudo systemctl status "$SERVICE_FILE" --no-pager -l || true
+            exit 1
+        fi
+    fi
+    
+    # Wait a moment for service to start
+    sleep 5
+    
+    # Check service status with detailed diagnostics
+    if [ "$IS_ROOT" = true ]; then
+        if systemctl is-active --quiet "$SERVICE_FILE" 2>/dev/null; then
             log_success "Odysafe CTI Platform service started successfully"
         else
-            log_error "Service failed to start. Check status with: sudo systemctl status $SERVICE_FILE"
-            sudo systemctl status "$SERVICE_FILE" || true
+            log_error "Service failed to start or stopped immediately"
+            log_info "Service status:"
+            systemctl status "$SERVICE_FILE" --no-pager -l || true
+            log_info "Recent service logs:"
+            journalctl -u "$SERVICE_FILE" -n 30 --no-pager || true
+            log_error "Service is not running. Please check the logs above for errors."
+            exit 1
+        fi
+    else
+        if sudo systemctl is-active --quiet "$SERVICE_FILE" 2>/dev/null; then
+            log_success "Odysafe CTI Platform service started successfully"
+        else
+            log_error "Service failed to start or stopped immediately"
+            log_info "Service status:"
+            sudo systemctl status "$SERVICE_FILE" --no-pager -l || true
+            log_info "Recent service logs:"
+            sudo journalctl -u "$SERVICE_FILE" -n 30 --no-pager || true
+            log_error "Service is not running. Please check the logs above for errors."
             exit 1
         fi
     fi
@@ -2018,85 +3139,97 @@ main() {
     generate_ssl_certificate
     setup_certificate_renewal
     download_deepdarkcti
+    download_ransomware_matrix
     configure_log_rotation
     install_service
     start_service
     verify_installation
     
+    # Port is always 5001
+    FINAL_PORT=5001
+    
     echo ""
-    log_success "=========================================="
-    log_success "Installation completed successfully!"
-    log_success "=========================================="
-    echo ""
-    log_info "Special thanks to all contributors and maintainers of the open-source"
-    log_info "projects that make this platform possible. Your dedication and hard work"
-    log_info "are greatly appreciated!"
-    echo ""
-    log_info "Odysafe CTI Platform is now running as a systemd service"
-    log_info "Service name: $SERVICE_FILE"
-    log_info "Installation directory: $INSTALL_DIR"
-    echo ""
-    log_info "Useful commands:"
-    if [ "$IS_ROOT" = true ]; then
-        echo "  - Check status:   systemctl status $SERVICE_FILE"
-        echo "  - View logs:      journalctl -u $SERVICE_FILE -f"
-        echo "  - Restart:        systemctl restart $SERVICE_FILE"
-        echo "  - Stop:           systemctl stop $SERVICE_FILE"
-    else
-        echo "  - Check status:   sudo systemctl status $SERVICE_FILE"
-        echo "  - View logs:      sudo journalctl -u $SERVICE_FILE -f"
-        echo "  - Restart:        sudo systemctl restart $SERVICE_FILE"
-        echo "  - Stop:           sudo systemctl stop $SERVICE_FILE"
-    fi
-    echo ""
-    log_info "The application should be accessible at:"
-    log_info "  - http://localhost:5001"
-    log_info "  - http://<SERVER_IP>:5001"
+    echo -e "${GREEN}${BOLD}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}${BOLD}║${NC}  ${GREEN}${BOLD}✓ Installation completed successfully!${NC}                          ${GREEN}${BOLD}║${NC}"
+    echo -e "${GREEN}${BOLD}╚════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     
-    # SSL Certificate information
+    # Service Information Section
+    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}${BOLD}  SERVICE INFORMATION${NC}"
+    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "  ${BOLD}Service name:${NC}     $SERVICE_FILE"
+    echo -e "  ${BOLD}Installation:${NC}     $INSTALL_DIR"
+    echo -e "  ${BOLD}Port:${NC}             $FINAL_PORT"
+    echo ""
+    
+    # Access Information Section
+    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}${BOLD}  ACCESS INFORMATION${NC}"
+    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "  ${BOLD}Local access:${NC}     ${GREEN}https://localhost:$FINAL_PORT${NC}"
+    echo -e "  ${BOLD}Network access:${NC}   ${GREEN}https://<SERVER_IP>:$FINAL_PORT${NC}"
+    echo ""
+    echo -e "  ${YELLOW}⚠${NC}  ${YELLOW}Use HTTPS (not HTTP) to access the application${NC}"
+    echo -e "  ${YELLOW}⚠${NC}  ${YELLOW}Browsers will show a security warning for self-signed certificates${NC}"
+    echo -e "  ${YELLOW}⚠${NC}  ${YELLOW}Click 'Advanced' → 'Proceed to localhost' to continue${NC}"
+    echo ""
+    
+    # SSL Certificate Information Section
     SSL_DIR="$INSTALL_DIR/cti-platform/ssl"
     CERT_FILE="$SSL_DIR/cert.pem"
     KEY_FILE="$SSL_DIR/key.pem"
     
     if [ -f "$CERT_FILE" ] && [ -f "$KEY_FILE" ]; then
+        echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${CYAN}${BOLD}  SSL CERTIFICATE${NC}"
+        echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         echo ""
-        log_info "=========================================="
-        log_info "SSL Certificate Information"
-        log_info "=========================================="
+        echo -e "  ${BOLD}Certificate:${NC}   $CERT_FILE"
+        echo -e "  ${BOLD}Private key:${NC}   $KEY_FILE"
         echo ""
-        log_info "A self-signed SSL certificate has been generated for HTTPS access."
-        log_info "Certificate location:"
-        log_info "  - Certificate: $CERT_FILE"
-        log_info "  - Private key:  $KEY_FILE"
-        echo ""
-        log_warning "This is a self-signed certificate. Browsers will show a security warning."
-        log_warning "For production use, replace it with your own certificate."
-        echo ""
-        log_info "To replace with your own certificate:"
-        log_info "  1. Copy your certificate file to: $CERT_FILE"
-        log_info "  2. Copy your private key file to: $KEY_FILE"
-        log_info "  3. Set correct permissions:"
-        if [ "$IS_ROOT" = true ]; then
-            echo "     chmod 600 $KEY_FILE"
-            echo "     chmod 644 $CERT_FILE"
-            echo "     chown $SERVICE_USER:$SERVICE_GROUP $CERT_FILE $KEY_FILE"
-        else
-            echo "     sudo chmod 600 $KEY_FILE"
-            echo "     sudo chmod 644 $CERT_FILE"
-            echo "     sudo chown $SERVICE_USER:$SERVICE_GROUP $CERT_FILE $KEY_FILE"
-        fi
-        if [ "$IS_ROOT" = true ]; then
-            echo "  4. Restart the service: systemctl restart $SERVICE_FILE"
-        else
-            echo "  4. Restart the service: sudo systemctl restart $SERVICE_FILE"
-        fi
+        echo -e "  ${YELLOW}Note:${NC} This is a self-signed certificate for development/testing."
+        echo -e "       For production, replace it with your own certificate."
         echo ""
     else
         log_warning "SSL certificate was not generated. HTTPS will not be available."
         log_info "You can generate it later with: $INSTALL_DIR/generate-ssl-cert.sh"
         echo ""
     fi
+    
+    # Management Commands Section
+    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}${BOLD}  MANAGEMENT COMMANDS${NC}"
+    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    if [ "$IS_ROOT" = true ]; then
+        echo -e "  ${BOLD}Check status:${NC}  ${GREEN}systemctl status $SERVICE_FILE${NC}"
+        echo -e "  ${BOLD}View logs:${NC}     ${GREEN}journalctl -u $SERVICE_FILE -f${NC}"
+        echo -e "  ${BOLD}Restart:${NC}       ${GREEN}systemctl restart $SERVICE_FILE${NC}"
+        echo -e "  ${BOLD}Stop:${NC}          ${GREEN}systemctl stop $SERVICE_FILE${NC}"
+    else
+        echo -e "  ${BOLD}Check status:${NC}  ${GREEN}sudo systemctl status $SERVICE_FILE${NC}"
+        echo -e "  ${BOLD}View logs:${NC}     ${GREEN}sudo journalctl -u $SERVICE_FILE -f${NC}"
+        echo -e "  ${BOLD}Restart:${NC}       ${GREEN}sudo systemctl restart $SERVICE_FILE${NC}"
+        echo -e "  ${BOLD}Stop:${NC}          ${GREEN}sudo systemctl stop $SERVICE_FILE${NC}"
+    fi
+    echo ""
+    
+    # External Resources Section (less prominent)
+    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}${BOLD}  EXTERNAL RESOURCES${NC}"
+    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "  This platform integrates the following open-source tools"
+    echo -e "  and resources: iocsearcher, deepdarkCTI, txt2stix,"
+    echo -e "  pdfalyzer, and Ransomware Tool Matrix."
+    echo ""
+    echo -e "  Odysafe CTI Platform thanks the developers and maintainers"
+    echo -e "  of these projects for making their tools and resources"
+    echo -e "  available to the community."
+    echo ""
 }
 
 # Run main function

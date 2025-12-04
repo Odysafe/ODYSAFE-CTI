@@ -45,6 +45,13 @@
                         <div style="font-size: 14px; color: var(--text-secondary); margin-top: 4px;">
                             {{ source.context }}
                         </div>
+                        {% if source.source_type == 'pdf_analysis' %}
+                        <div style="margin-top: 8px;">
+                            <a href="{{ url_for('pdf_analysis_detail', source_id=source.id) }}" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">
+                                📄 View PDF Analysis
+                            </a>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
                 

@@ -3,6 +3,7 @@
 # ============================================================================
 # Odysafe CTI Platform Uninstallation Script
 # Complete uninstallation script for Odysafe CTI Platform
+# This script removes everything created by install.sh
 # ============================================================================
 
 # Note: We use set -e selectively. Some functions need to handle errors themselves.
@@ -18,7 +19,7 @@ MAGENTA='\033[0;35m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
-# Installation paths
+# Installation paths (must match install.sh)
 INSTALL_DIR="/opt/odysafe-cti-platform"
 SERVICE_USER="odysafe-cti-platform"
 SERVICE_GROUP="odysafe-cti-platform"
@@ -135,6 +136,24 @@ check_installation() {
         found=true
     fi
     
+    # Check for certificate renewal timer
+    if [ -f "/etc/systemd/system/$RENEWAL_TIMER_FILE" ]; then
+        log_info "Certificate renewal timer found: $RENEWAL_TIMER_FILE"
+        found=true
+    fi
+    
+    # Check for certificate renewal service
+    if [ -f "/etc/systemd/system/$RENEWAL_SERVICE_FILE" ]; then
+        log_info "Certificate renewal service found: $RENEWAL_SERVICE_FILE"
+        found=true
+    fi
+    
+    # Check for journald configuration
+    if [ -f "$JOURNALD_CONF_DIR/$JOURNALD_CONF_FILE" ]; then
+        log_info "Journald configuration found: $JOURNALD_CONF_DIR/$JOURNALD_CONF_FILE"
+        found=true
+    fi
+    
     if [ "$found" = false ]; then
         log_warning "No installation found. Nothing to uninstall."
         return 1
@@ -144,11 +163,187 @@ check_installation() {
 }
 
 # ============================================================================
+# KILL PROCESSES USING PORT 5001
+# ============================================================================
+
+kill_port_processes() {
+    log_step "Killing processes using port 5001..."
+    
+    PORT=5001
+    PIDS_TO_KILL=""
+    MAX_ATTEMPTS=5
+    ATTEMPT=0
+    
+    while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+        ATTEMPT=$((ATTEMPT + 1))
+        PIDS_TO_KILL=""
+        PORT_IN_USE=false
+        
+        # Method 1: lsof (most reliable)
+        if command -v lsof >/dev/null 2>&1; then
+            PIDS_TO_KILL=$(lsof -ti:$PORT 2>/dev/null || true)
+            if [ -n "$PIDS_TO_KILL" ]; then
+                PORT_IN_USE=true
+            fi
+        fi
+        
+        # Method 2: ss (more modern than netstat)
+        if [ -z "$PIDS_TO_KILL" ] && command -v ss >/dev/null 2>&1; then
+            PIDS_TO_KILL=$(ss -tlnp 2>/dev/null | grep ":$PORT " | grep -oP 'pid=\K[0-9]+' | head -1 || true)
+            if [ -n "$PIDS_TO_KILL" ]; then
+                PORT_IN_USE=true
+            fi
+        fi
+        
+        # Method 3: fuser
+        if [ -z "$PIDS_TO_KILL" ] && command -v fuser >/dev/null 2>&1; then
+            if [ "$IS_ROOT" = true ]; then
+                FUSER_OUT=$(fuser $PORT/tcp 2>/dev/null || true)
+            else
+                FUSER_OUT=$(sudo fuser $PORT/tcp 2>/dev/null || true)
+            fi
+            if [ -n "$FUSER_OUT" ]; then
+                PORT_IN_USE=true
+                PIDS_TO_KILL=$(echo "$FUSER_OUT" | grep -oE '[0-9]+' | tr '\n' ' ' || true)
+            fi
+        fi
+        
+        # Method 4: netstat (fallback)
+        if [ -z "$PIDS_TO_KILL" ] && command -v netstat >/dev/null 2>&1; then
+            PID=$(netstat -tlnp 2>/dev/null | grep ":$PORT " | awk '{print $7}' | cut -d'/' -f1 | head -1 || true)
+            if [ -n "$PID" ] && [ "$PID" != "-" ]; then
+                PIDS_TO_KILL="$PID"
+                PORT_IN_USE=true
+            fi
+        fi
+        
+        # Kill all found processes
+        if [ -n "$PIDS_TO_KILL" ]; then
+            log_info "Attempt $ATTEMPT: Killing process(es) using port $PORT: $PIDS_TO_KILL"
+            for PID in $PIDS_TO_KILL; do
+                if [ -n "$PID" ] && [ "$PID" != "-" ]; then
+                    if [ "$IS_ROOT" = true ]; then
+                        kill -9 "$PID" 2>/dev/null || true
+                    else
+                        sudo kill -9 "$PID" 2>/dev/null || true
+                    fi
+                fi
+            done
+            sleep 2
+        fi
+        
+        # Also kill any Python processes running app.py (orphaned processes)
+        if [ "$IS_ROOT" = true ]; then
+            PYTHON_PIDS=$(ps aux 2>/dev/null | grep "[p]ython.*app.py" | awk '{print $2}' || true)
+        else
+            PYTHON_PIDS=$(sudo ps aux 2>/dev/null | grep "[p]ython.*app.py" | awk '{print $2}' || true)
+        fi
+        if [ -n "$PYTHON_PIDS" ]; then
+            log_info "Killing orphaned Python processes: $PYTHON_PIDS"
+            for PID in $PYTHON_PIDS; do
+                if [ -n "$PID" ]; then
+                    if [ "$IS_ROOT" = true ]; then
+                        kill -9 "$PID" 2>/dev/null || true
+                    else
+                        sudo kill -9 "$PID" 2>/dev/null || true
+                    fi
+                fi
+            done
+            sleep 1
+        fi
+        
+        # Use fuser to kill anything on port 5001
+        if command -v fuser >/dev/null 2>&1; then
+            if [ "$IS_ROOT" = true ]; then
+                fuser -k $PORT/tcp 2>/dev/null || true
+            else
+                sudo fuser -k $PORT/tcp 2>/dev/null || true
+            fi
+            sleep 2
+        fi
+        
+        # Check if port is now free
+        if [ "$PORT_IN_USE" = false ] || [ -z "$PIDS_TO_KILL" ]; then
+            # Verify port is actually free
+            if command -v lsof >/dev/null 2>&1; then
+                if [ -z "$(lsof -ti:$PORT 2>/dev/null || true)" ]; then
+                    log_success "Port $PORT is now free"
+                    break
+                fi
+            elif command -v ss >/dev/null 2>&1; then
+                if [ -z "$(ss -tlnp 2>/dev/null | grep ":$PORT " || true)" ]; then
+                    log_success "Port $PORT is now free"
+                    break
+                fi
+            else
+                # Assume it's free if we couldn't find any processes
+                log_info "Port $PORT should be free (no verification tools available)"
+                break
+            fi
+        fi
+        
+        if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+            log_warning "Could not free port $PORT after $MAX_ATTEMPTS attempts"
+            log_warning "Port may still be in use. Continuing anyway..."
+        fi
+    done
+}
+
+# ============================================================================
+# VERIFY PORT AVAILABILITY
+# ============================================================================
+
+verify_port_availability() {
+    log_step "Verifying port 5001 availability..."
+    
+    PORT=5001
+    PORT_FREE=true
+    
+    # Check with lsof
+    if command -v lsof >/dev/null 2>&1; then
+        if [ -n "$(lsof -ti:$PORT 2>/dev/null || true)" ]; then
+            PORT_FREE=false
+            log_warning "Port $PORT is still in use (detected via lsof)"
+        fi
+    fi
+    
+    # Check with ss
+    if command -v ss >/dev/null 2>&1; then
+        if [ -n "$(ss -tlnp 2>/dev/null | grep ":$PORT " || true)" ]; then
+            PORT_FREE=false
+            log_warning "Port $PORT is still in use (detected via ss)"
+        fi
+    fi
+    
+    # Check with netstat
+    if command -v netstat >/dev/null 2>&1; then
+        if [ -n "$(netstat -tlnp 2>/dev/null | grep ":$PORT " || true)" ]; then
+            PORT_FREE=false
+            log_warning "Port $PORT is still in use (detected via netstat)"
+        fi
+    fi
+    
+    if [ "$PORT_FREE" = true ]; then
+        log_success "Port $PORT is available"
+        return 0
+    else
+        log_warning "Port $PORT may still be in use"
+        return 1
+    fi
+}
+
+# ============================================================================
 # STOP SERVICE
 # ============================================================================
 
 stop_service() {
     log_step "Stopping Odysafe CTI Platform service..."
+    
+    # Kill processes first
+    kill_port_processes
+    
+    # Verify port is available
+    verify_port_availability
     
     if [ "$IS_ROOT" = true ]; then
         if systemctl is-active --quiet "$SERVICE_FILE" 2>/dev/null; then
@@ -170,6 +365,16 @@ stop_service() {
         else
             log_info "Service is not enabled"
         fi
+        
+        # Stop and disable certificate renewal timer
+        if systemctl is-active --quiet "$RENEWAL_TIMER_FILE" 2>/dev/null; then
+            systemctl stop "$RENEWAL_TIMER_FILE" 2>/dev/null || true
+            log_info "Certificate renewal timer stopped"
+        fi
+        if systemctl is-enabled --quiet "$RENEWAL_TIMER_FILE" 2>/dev/null; then
+            systemctl disable "$RENEWAL_TIMER_FILE" 2>/dev/null || true
+            log_info "Certificate renewal timer disabled"
+        fi
     else
         if sudo systemctl is-active --quiet "$SERVICE_FILE" 2>/dev/null; then
             if sudo systemctl stop "$SERVICE_FILE" 2>/dev/null; then
@@ -189,6 +394,16 @@ stop_service() {
             fi
         else
             log_info "Service is not enabled"
+        fi
+        
+        # Stop and disable certificate renewal timer
+        if sudo systemctl is-active --quiet "$RENEWAL_TIMER_FILE" 2>/dev/null; then
+            sudo systemctl stop "$RENEWAL_TIMER_FILE" 2>/dev/null || true
+            log_info "Certificate renewal timer stopped"
+        fi
+        if sudo systemctl is-enabled --quiet "$RENEWAL_TIMER_FILE" 2>/dev/null; then
+            sudo systemctl disable "$RENEWAL_TIMER_FILE" 2>/dev/null || true
+            log_info "Certificate renewal timer disabled"
         fi
     fi
 }
@@ -213,6 +428,8 @@ remove_systemd_components() {
             sudo rm -f "/etc/systemd/system/$RENEWAL_TIMER_FILE" 2>/dev/null || true
         fi
         log_success "Certificate renewal timer removed"
+    else
+        log_info "Certificate renewal timer not found"
     fi
     
     # Remove certificate renewal service
@@ -224,6 +441,8 @@ remove_systemd_components() {
             sudo rm -f "/etc/systemd/system/$RENEWAL_SERVICE_FILE" 2>/dev/null || true
         fi
         log_success "Certificate renewal service removed"
+    else
+        log_info "Certificate renewal service not found"
     fi
     
     # Remove main service
@@ -288,6 +507,64 @@ remove_journald_config() {
 }
 
 # ============================================================================
+# CLEAR CACHE
+# ============================================================================
+
+clear_cache() {
+    log_step "Clearing all caches..."
+    
+    local cache_cleared=false
+    
+    if [ -d "$INSTALL_DIR/cti-platform" ]; then
+        # Clear application cache (deepdarkCTI cache, favorites, etc.)
+        if [ -d "$INSTALL_DIR/cti-platform/modules/cache" ]; then
+            log_info "Clearing application cache..."
+            if [ "$IS_ROOT" = true ]; then
+                find "$INSTALL_DIR/cti-platform/modules/cache" -type f -delete 2>/dev/null && cache_cleared=true || true
+                find "$INSTALL_DIR/cti-platform/modules/cache" -type d -empty -delete 2>/dev/null || true
+            else
+                sudo find "$INSTALL_DIR/cti-platform/modules/cache" -type f -delete 2>/dev/null && cache_cleared=true || true
+                sudo find "$INSTALL_DIR/cti-platform/modules/cache" -type d -empty -delete 2>/dev/null || true
+            fi
+        fi
+        
+        # Clear Python cache (__pycache__, .pyc files)
+        log_info "Clearing Python cache files..."
+        if [ "$IS_ROOT" = true ]; then
+            find "$INSTALL_DIR/cti-platform" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null && cache_cleared=true || true
+            find "$INSTALL_DIR/cti-platform" -type f -name "*.pyc" -delete 2>/dev/null || true
+            find "$INSTALL_DIR/cti-platform" -type f -name "*.pyo" -delete 2>/dev/null || true
+        else
+            sudo find "$INSTALL_DIR/cti-platform" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null && cache_cleared=true || true
+            sudo find "$INSTALL_DIR/cti-platform" -type f -name "*.pyc" -delete 2>/dev/null || true
+            sudo find "$INSTALL_DIR/cti-platform" -type f -name "*.pyo" -delete 2>/dev/null || true
+        fi
+        
+        # Clear virtual environment cache if it exists
+        if [ -d "$INSTALL_DIR/venv" ]; then
+            log_info "Clearing virtual environment cache..."
+            if [ "$IS_ROOT" = true ]; then
+                find "$INSTALL_DIR/venv" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+                find "$INSTALL_DIR/venv" -type f -name "*.pyc" -delete 2>/dev/null || true
+                find "$INSTALL_DIR/venv" -type f -name "*.pyo" -delete 2>/dev/null || true
+            else
+                sudo find "$INSTALL_DIR/venv" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+                sudo find "$INSTALL_DIR/venv" -type f -name "*.pyc" -delete 2>/dev/null || true
+                sudo find "$INSTALL_DIR/venv" -type f -name "*.pyo" -delete 2>/dev/null || true
+            fi
+        fi
+        
+        if [ "$cache_cleared" = true ]; then
+            log_success "All caches cleared"
+        else
+            log_info "No cache files found to clear"
+        fi
+    else
+        log_info "Installation directory not found. No cache to clear."
+    fi
+}
+
+# ============================================================================
 # REMOVE DATA
 # ============================================================================
 
@@ -297,10 +574,11 @@ remove_data() {
     log_warning "This will remove all application data including:"
     log_warning "  - All IOCs (database)"
     log_warning "  - Uploaded files"
-    log_warning "  - Generated outputs (STIX, reports)"
+    log_warning "  - Generated outputs (STIX, reports, PDF analyses)"
     log_warning "  - Database files"
     log_warning "  - Cache files"
     log_warning "  - SSL certificates"
+    log_warning "  - deepdarkCTI repository"
     echo ""
     
     read -p "$(echo -e ${YELLOW}Do you want to remove all application data? [y/N]: ${NC})" -n 1 -r
@@ -314,10 +592,15 @@ remove_data() {
     if [ -d "$INSTALL_DIR/cti-platform" ]; then
         log_info "Removing application data..."
         
+        # Clear cache first
+        clear_cache
+        
         # Remove data directories
         local data_removed=false
         
+        # Remove uploads
         if [ -d "$INSTALL_DIR/cti-platform/uploads" ]; then
+            log_info "Removing uploaded files..."
             if [ "$IS_ROOT" = true ]; then
                 rm -rf "$INSTALL_DIR/cti-platform/uploads"/* 2>/dev/null && data_removed=true || true
             else
@@ -325,7 +608,9 @@ remove_data() {
             fi
         fi
         
+        # Remove outputs (iocs, stix, reports, pdf_analysis)
         if [ -d "$INSTALL_DIR/cti-platform/outputs" ]; then
+            log_info "Removing output files..."
             if [ "$IS_ROOT" = true ]; then
                 rm -rf "$INSTALL_DIR/cti-platform/outputs"/* 2>/dev/null && data_removed=true || true
             else
@@ -333,19 +618,29 @@ remove_data() {
             fi
         fi
         
+        # Remove database
         if [ -d "$INSTALL_DIR/cti-platform/database" ]; then
+            log_info "Removing database files..."
             if [ "$IS_ROOT" = true ]; then
+                rm -f "$INSTALL_DIR/cti-platform/database"/*.db 2>/dev/null || true
+                rm -f "$INSTALL_DIR/cti-platform/database"/*.db-shm 2>/dev/null || true
+                rm -f "$INSTALL_DIR/cti-platform/database"/*.db-wal 2>/dev/null || true
                 rm -rf "$INSTALL_DIR/cti-platform/database"/* 2>/dev/null && data_removed=true || true
             else
+                sudo rm -f "$INSTALL_DIR/cti-platform/database"/*.db 2>/dev/null || true
+                sudo rm -f "$INSTALL_DIR/cti-platform/database"/*.db-shm 2>/dev/null || true
+                sudo rm -f "$INSTALL_DIR/cti-platform/database"/*.db-wal 2>/dev/null || true
                 sudo rm -rf "$INSTALL_DIR/cti-platform/database"/* 2>/dev/null && data_removed=true || true
             fi
         fi
         
+        # Remove cache directory completely
         if [ -d "$INSTALL_DIR/cti-platform/modules/cache" ]; then
+            log_info "Removing cache directory..."
             if [ "$IS_ROOT" = true ]; then
-                rm -rf "$INSTALL_DIR/cti-platform/modules/cache"/* 2>/dev/null && data_removed=true || true
+                rm -rf "$INSTALL_DIR/cti-platform/modules/cache" 2>/dev/null && data_removed=true || true
             else
-                sudo rm -rf "$INSTALL_DIR/cti-platform/modules/cache"/* 2>/dev/null && data_removed=true || true
+                sudo rm -rf "$INSTALL_DIR/cti-platform/modules/cache" 2>/dev/null && data_removed=true || true
             fi
         fi
         
@@ -356,6 +651,16 @@ remove_data() {
                 rm -rf "$INSTALL_DIR/cti-platform/ssl"/* 2>/dev/null || true
             else
                 sudo rm -rf "$INSTALL_DIR/cti-platform/ssl"/* 2>/dev/null || true
+            fi
+        fi
+        
+        # Remove deepdarkCTI repository
+        if [ -d "$INSTALL_DIR/cti-platform/modules/deepdarkCTI-main" ]; then
+            log_info "Removing deepdarkCTI repository..."
+            if [ "$IS_ROOT" = true ]; then
+                rm -rf "$INSTALL_DIR/cti-platform/modules/deepdarkCTI-main" 2>/dev/null || true
+            else
+                sudo rm -rf "$INSTALL_DIR/cti-platform/modules/deepdarkCTI-main" 2>/dev/null || true
             fi
         fi
         
@@ -380,9 +685,9 @@ remove_files() {
         log_info "Removing all installation files including:"
         log_info "  - Application files (cti-platform/)"
         log_info "  - Python virtual environment (venv/)"
-        log_info "  - Repositories (iocsearcher, txt2stix)"
+        log_info "  - Repositories (iocsearcher, txt2stix, pdfalyzer)"
         log_info "  - Requirements file"
-        log_info "  - SSL certificate generation script"
+        log_info "  - SSL certificate generation script (generate-ssl-cert.sh)"
         log_info "  - All caches and temporary files"
         echo ""
         
@@ -399,6 +704,7 @@ remove_files() {
                 log_success "Installation files removed"
             else
                 log_error "Failed to remove installation directory"
+                log_warning "Some files may still exist. You may need to remove them manually."
                 return 1
             fi
         else
@@ -406,6 +712,7 @@ remove_files() {
                 log_success "Installation files removed"
             else
                 log_error "Failed to remove installation directory"
+                log_warning "Some files may still exist. You may need to remove them manually."
                 return 1
             fi
         fi
@@ -487,15 +794,41 @@ verify_uninstallation() {
         issues=$((issues + 1))
     fi
     
+    # Check if certificate renewal timer still exists
+    if [ -f "/etc/systemd/system/$RENEWAL_TIMER_FILE" ]; then
+        log_warning "Certificate renewal timer still exists: /etc/systemd/system/$RENEWAL_TIMER_FILE"
+        issues=$((issues + 1))
+    fi
+    
+    # Check if certificate renewal service still exists
+    if [ -f "/etc/systemd/system/$RENEWAL_SERVICE_FILE" ]; then
+        log_warning "Certificate renewal service still exists: /etc/systemd/system/$RENEWAL_SERVICE_FILE"
+        issues=$((issues + 1))
+    fi
+    
     # Check if installation directory still exists
     if [ -d "$INSTALL_DIR" ]; then
         log_warning "Installation directory still exists: $INSTALL_DIR"
         issues=$((issues + 1))
     fi
     
+    # Check if journald configuration still exists
+    if [ -f "$JOURNALD_CONF_DIR/$JOURNALD_CONF_FILE" ]; then
+        log_warning "Journald configuration still exists: $JOURNALD_CONF_DIR/$JOURNALD_CONF_FILE"
+        issues=$((issues + 1))
+    fi
+    
     # Check if service user still exists
     if id "$SERVICE_USER" &>/dev/null; then
         log_info "Service user still exists: $SERVICE_USER (kept by user choice)"
+    fi
+    
+    # Check port availability
+    if verify_port_availability; then
+        log_success "Port 5001 is available"
+    else
+        log_warning "Port 5001 may still be in use"
+        issues=$((issues + 1))
     fi
     
     if [ $issues -eq 0 ]; then
@@ -543,8 +876,12 @@ EOF
     log_warning "This will uninstall Odysafe CTI Platform."
     log_warning "You will be asked to confirm removal of:"
     log_warning "  - Systemd service and timers"
-    log_warning "  - Application data (IOCs, uploads, outputs)"
-    log_warning "  - Installation files"
+    log_warning "  - Certificate renewal timer and service"
+    log_warning "  - Journald configuration"
+    log_warning "  - Application data (IOCs, uploads, outputs, PDF analyses)"
+    log_warning "  - Installation files (application, venv, repositories)"
+    log_warning "  - SSL certificates and generation script"
+    log_warning "  - deepdarkCTI repository"
     log_warning "  - Service user (optional)"
     echo ""
     read -p "$(echo -e ${YELLOW}Are you sure you want to continue? [y/N]: ${NC})" -n 1 -r
@@ -557,6 +894,9 @@ EOF
     
     # Stop service first
     stop_service
+    
+    # Clear cache (always done, no confirmation needed)
+    clear_cache
     
     # Remove systemd components
     remove_systemd_components
@@ -572,6 +912,14 @@ EOF
     
     # Remove service user (with confirmation)
     remove_service_user
+    
+    # Final port verification
+    log_step "Final port verification..."
+    if verify_port_availability; then
+        log_success "Port 5001 is confirmed available"
+    else
+        log_warning "Port 5001 may still be in use. You may need to manually check and free it."
+    fi
     
     # Verify uninstallation
     verify_uninstallation

@@ -119,6 +119,9 @@
                                 </td>
                                 <td style="padding: 12px 16px; vertical-align: middle;">
                                     <span class="badge">{{ source.source_type }}</span>
+                                    {% if source.source_type == 'pdf_analysis' %}
+                                    <span class="badge" style="background: #DC2626; color: white; margin-left: 4px;">📄 PDF</span>
+                                    {% endif %}
                                 </td>
                                 <td style="padding: 12px 16px; vertical-align: middle;">
                                     {% if source.status == 'processing' %}
@@ -167,6 +170,11 @@
                                         <a href="{{ url_for('iocs_list', source=source.name) }}" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;">
                                             View
                                         </a>
+                                        {% if source.source_type == 'pdf_analysis' %}
+                                        <a href="{{ url_for('pdf_analysis_detail', source_id=source.id) }}" class="btn btn-primary" style="padding: 4px 8px; font-size: 12px;">
+                                            📄 PDF Analysis
+                                        </a>
+                                        {% endif %}
                                         <button type="button" onclick="markSourceAsTruePositive({{ source.id }})" 
                                                 style="background: rgba(16, 185, 129, 0.1); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; transition: all 0.2s;" 
                                                 onmouseover="this.style.background='rgba(16, 185, 129, 0.2)'" 

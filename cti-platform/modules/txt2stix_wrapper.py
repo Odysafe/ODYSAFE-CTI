@@ -297,15 +297,45 @@ def _convert_via_api(text_content: str, report_name: str, source_context: str,
         # Generate STIX JSON
         stix_json = bundler.to_json()
         
-        # Check and fix spec_version if necessary (STIX 2.1)
+        # Validate and fix STIX 2.1 bundle structure
         try:
             stix_data = json.loads(stix_json)
-            if stix_data.get('type') == 'bundle' and not stix_data.get('spec_version'):
+            
+            # Ensure it's a bundle
+            if stix_data.get('type') != 'bundle':
+                logger.warning("Generated STIX data is not a bundle, attempting to wrap it")
+                stix_data = {
+                    'type': 'bundle',
+                    'id': f"bundle--{uuid.uuid4()}",
+                    'spec_version': '2.1',
+                    'objects': [stix_data] if stix_data else []
+                }
+            
+            # Ensure spec_version is set to 2.1
+            if not stix_data.get('spec_version'):
                 stix_data['spec_version'] = '2.1'
-                stix_json = json.dumps(stix_data, indent=4, ensure_ascii=False)
                 logger.info("spec_version '2.1' added to STIX bundle")
+            
+            # Ensure bundle has an ID
+            if not stix_data.get('id'):
+                stix_data['id'] = f"bundle--{uuid.uuid4()}"
+                logger.info("Bundle ID added to STIX bundle")
+            
+            # Ensure objects array exists
+            if 'objects' not in stix_data:
+                stix_data['objects'] = []
+                logger.warning("Objects array missing, added empty array")
+            
+            # Re-serialize with fixes
+            stix_json = json.dumps(stix_data, indent=4, ensure_ascii=False)
+            logger.info(f"STIX 2.1 bundle validated: {len(stix_data.get('objects', []))} objects")
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in STIX bundle: {e}")
+            raise RuntimeError(f"STIX bundle validation failed: Invalid JSON")
         except Exception as e:
-            logger.warning(f"Unable to check/fix spec_version: {e}")
+            logger.warning(f"STIX bundle validation warning: {e}")
+            # Continue anyway, txt2stix should have generated valid STIX
         
         # Save file
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

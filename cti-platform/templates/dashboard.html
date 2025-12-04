@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - CTI Platform{% endblock %}
+{% block title %}Home - CTI Platform{% endblock %}
 
 {% block content %}
 <section class="section">
@@ -14,7 +14,7 @@
                 On-Premise CTI Platform
             </h1>
             <p class="hero-subtitle" style="font-size: 20px; color: var(--text-secondary); max-width: 700px; margin: 0 auto 40px;">
-                Extract, organize and enrich your IOCs from all kinds of sources
+                Extract, organize and enrich your IOCs from files, text, URLs, or CTI resources
             </p>
         </div>
 
@@ -60,6 +60,102 @@
                         {{ stats.true_positive_count or 0 }}
                     </div>
                     <div style="color: var(--text-secondary);">True Positive</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CTI Resources Statistics -->
+        <div class="card" style="margin-bottom: 40px;">
+            <h2 class="card-title" style="margin-bottom: 32px;">📚 CTI Resources</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+                <!-- DeepDarkCTI Stats -->
+                <div style="padding: 24px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 12px;">
+                    <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                        <div style="font-size: 32px; margin-right: 12px;">🌐</div>
+                        <h3 style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin: 0;">DeepDarkCTI</h3>
+                    </div>
+                    {% if cti_stats and cti_stats.deepdarkcti and cti_stats.deepdarkcti.available %}
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 28px; font-weight: 700; color: var(--violet-light); margin-bottom: 4px;">
+                            {{ cti_stats.deepdarkcti.categories_count }}
+                        </div>
+                        <div style="color: var(--text-secondary); font-size: 14px;">Categories</div>
+                    </div>
+                    {% if cti_stats.deepdarkcti.last_update %}
+                    <div style="font-size: 12px; color: var(--text-secondary);">
+                        Last update: {{ cti_stats.deepdarkcti.last_update[:10] }}
+                    </div>
+                    {% endif %}
+                    <div style="margin-top: 12px;">
+                        <a href="{{ url_for('cti_resources') }}" style="color: var(--violet-light); text-decoration: none; font-size: 14px; font-weight: 500;">
+                            View resources →
+                        </a>
+                    </div>
+                    {% else %}
+                    <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 12px;">
+                        Repository not downloaded
+                    </div>
+                    <div>
+                        <a href="{{ url_for('cti_resources') }}" style="color: var(--violet-light); text-decoration: none; font-size: 14px; font-weight: 500;">
+                            Download now →
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Ransomware Tool Matrix Stats -->
+                <div style="padding: 24px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 12px;">
+                    <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                        <div style="font-size: 32px; margin-right: 12px;">🛡️</div>
+                        <h3 style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin: 0;">Ransomware Tool Matrix</h3>
+                    </div>
+                    {% if cti_stats and cti_stats.ransomware_matrix and cti_stats.ransomware_matrix.available %}
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light); margin-bottom: 4px;">
+                                {{ cti_stats.ransomware_matrix.tools_count }}
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 12px;">Tools</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light); margin-bottom: 4px;">
+                                {{ cti_stats.ransomware_matrix.threat_intel_count }}
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 12px;">Threat Intel</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light); margin-bottom: 4px;">
+                                {{ cti_stats.ransomware_matrix.group_profiles_count }}
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 12px;">Group Profiles</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light); margin-bottom: 4px;">
+                                {{ cti_stats.ransomware_matrix.community_reports_count }}
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 12px;">Reports</div>
+                        </div>
+                    </div>
+                    {% if cti_stats.ransomware_matrix.last_update %}
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                        Last update: {{ cti_stats.ransomware_matrix.last_update[:10] }}
+                    </div>
+                    {% endif %}
+                    <div>
+                        <a href="{{ url_for('cti_resources_ransomware_matrix') }}" style="color: var(--violet-light); text-decoration: none; font-size: 14px; font-weight: 500;">
+                            View resources →
+                        </a>
+                    </div>
+                    {% else %}
+                    <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 12px;">
+                        Repository not downloaded
+                    </div>
+                    <div>
+                        <a href="{{ url_for('cti_resources_ransomware_matrix') }}" style="color: var(--violet-light); text-decoration: none; font-size: 14px; font-weight: 500;">
+                            Download now →
+                        </a>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -337,11 +433,11 @@
             <div class="roadmap-container">
                 <!-- Main Workflow Flow -->
                 <div class="roadmap-main-flow">
-                    <!-- Dashboard -->
+                    <!-- Home -->
                     <div class="roadmap-box roadmap-box-primary">
                         <a href="{{ url_for('dashboard') }}" class="roadmap-link">
-                            <div class="roadmap-icon">📊</div>
-                            <h3 class="roadmap-title">Dashboard</h3>
+                            <div class="roadmap-icon">🏠</div>
+                            <h3 class="roadmap-title">Home</h3>
                             <p class="roadmap-description">Platform overview and statistics</p>
                         </a>
                     </div>
@@ -409,7 +505,7 @@
                         <a href="{{ url_for('cti_resources') }}" class="roadmap-link">
                             <div class="roadmap-icon">🌐</div>
                             <h3 class="roadmap-title">CTI Resources</h3>
-                            <p class="roadmap-description">External CTI resources and enrichment</p>
+                            <p class="roadmap-description">Access to DeepDarkCTI and Ransomware Tool Matrix resources</p>
                         </a>
                     </div>
                     
@@ -418,7 +514,7 @@
                         <a href="{{ url_for('settings') }}" class="roadmap-link">
                             <div class="roadmap-icon">⚙️</div>
                             <h3 class="roadmap-title">Settings</h3>
-                            <p class="roadmap-description">Paramètres et configuration de l'application</p>
+                            <p class="roadmap-description">Application settings and configuration</p>
                         </a>
                     </div>
                 </div>
@@ -476,8 +572,12 @@ async function executeDeleteSource() {
                 sourceElement.style.opacity = '0';
                 setTimeout(() => sourceElement.remove(), 300);
             }
-            // Reload page to update stats
-            setTimeout(() => location.reload(), 500);
+            // Reload page to update stats (use requestAnimationFrame for smoother transition)
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
+            });
         } else {
             alert('Error: ' + (data.error || 'Unknown error'));
             btn.disabled = false;
@@ -517,6 +617,10 @@ async function executeDeleteSource() {
     width: 100%;
     transition: all 0.3s ease;
     position: relative;
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    contain: layout style paint;
 }
 
 .roadmap-box-primary {

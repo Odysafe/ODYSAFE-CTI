@@ -47,6 +47,9 @@
             <button class="tab-btn" data-tab="url" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 500;">
                 🔗 URL
             </button>
+            <button class="tab-btn" data-tab="pdf" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 500;">
+                📄 PDF Analysis
+            </button>
         </div>
 
         <!-- File tab -->
@@ -155,8 +158,97 @@
             </div>
         </div>
 
+        <!-- PDF Analysis tab -->
+        <div id="tab-pdf" class="tab-content" style="display: none;">
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+                <!-- Main area: PDF upload -->
+                <div class="card">
+                    <form id="pdf-form" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Select a PDF file</label>
+                            <div class="drop-zone" id="pdf-drop-zone" style="min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 40px;">
+                                <div class="drop-zone-icon" style="font-size: 64px; margin-bottom: 16px;">📄</div>
+                                <p style="margin-bottom: 24px; color: var(--text-secondary); font-size: 16px; text-align: center;">
+                                    Drag and drop a PDF file here or click to select
+                                </p>
+                                <input type="file" name="file" id="pdf-file-input" class="form-control" accept=".pdf,application/pdf" style="display: none;" required>
+                                <button type="button" class="btn btn-primary" onclick="document.getElementById('pdf-file-input').click()" style="padding: 12px 24px; font-size: 16px;">
+                                    Select PDF file
+                                </button>
+                                <div id="pdf-file-name" style="margin-top: 24px; color: var(--violet-light); font-weight: 500; font-size: 14px; display: none;"></div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 16px; margin-top: 16px;">
+                            Analyze PDF
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Side panel: Name, context, analysis options -->
+                <div class="card">
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 24px;">Settings</h3>
+                    <div class="form-group">
+                        <label class="form-label">Source name <span style="color: #DC2626;">*</span></label>
+                        <input type="text" name="name" id="pdf-name" class="form-control" placeholder="Ex: Suspicious PDF" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Context (optional - auto-filled if empty)</label>
+                        <textarea name="context" id="pdf-context" class="form-control" rows="4" placeholder="Auto-filled with: PDF Analysis - Date and time"></textarea>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 24px;">
+                        <label class="form-label" style="font-weight: 600; margin-bottom: 12px;">Analysis Options</label>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="checkbox" name="detect_suspicious" id="pdf-detect-suspicious" checked style="margin-right: 8px;">
+                                <span>Detect suspicious/malicious PDFs</span>
+                            </label>
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="checkbox" name="extract_iocs" id="pdf-extract-iocs" checked style="margin-right: 8px;">
+                                <span>Extract IOCs from PDF</span>
+                            </label>
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="checkbox" name="generate_structure" id="pdf-generate-structure" checked style="margin-right: 8px;">
+                                <span>Generate PDF structure visualization</span>
+                            </label>
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="checkbox" name="analyze_fonts" id="pdf-analyze-fonts" checked style="margin-right: 8px;">
+                                <span>Analyze embedded fonts</span>
+                            </label>
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="checkbox" name="scan_yara" id="pdf-scan-yara" checked style="margin-right: 8px;">
+                                <span>Run YARA scan</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Feedback area -->
         <div id="feedback" style="margin-top: 24px;"></div>
+        
+        <!-- PDF Analyses List Section -->
+        <div id="pdf-analyses-section" style="margin-top: 60px; display: none;">
+            <div style="margin-bottom: 24px; padding: 20px; background: rgba(139, 92, 246, 0.05); border-radius: 12px; border-left: 4px solid var(--violet-light);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h2 style="font-size: 28px; font-weight: 600; margin: 0;">📄 PDF Analyses</h2>
+                    <button onclick="loadPdfAnalysesList()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">🔄 Refresh</button>
+                </div>
+                <p style="color: var(--text-secondary); font-size: 14px; margin: 0;">List of all analyzed PDFs. Click on a PDF to expand/collapse its detailed analysis.</p>
+            </div>
+            <div id="pdf-analyses-list" style="display: flex; flex-direction: column; gap: 16px;">
+                <!-- PDF items will be dynamically loaded here -->
+            </div>
+            
+            <!-- External Tool Information -->
+            <div class="thank-you-message" style="background: rgba(139, 92, 246, 0.1); border-left: 4px solid var(--violet-light); padding: 20px 24px; border-radius: 12px; margin-top: 40px; font-size: 16px; line-height: 1.6;">
+                <strong style="color: var(--violet-light);">PDF Analysis Tool</strong><br>
+                PDF analysis features use <a href="https://github.com/michelcrypt4d4mus/pdfalyzer" target="_blank" style="color: var(--violet-light); text-decoration: none;">pdfalyzer</a>, an open-source tool integrated into this platform that enables in-depth visualization of PDF tree structures and scanning for potentially malicious content using YARA rules.<br><br>
+                <strong style="color: var(--violet-light);">Odysafe CTI Platform thanks the pdfalyzer project</strong> for making this valuable tool available to the community.
+            </div>
+        </div>
         
         <!-- Progress modal for long actions -->
         <div id="progress-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 10000; align-items: center; justify-content: center;">
@@ -209,6 +301,22 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
             content.style.display = 'none';
         });
         document.getElementById(`tab-${tab}`).style.display = 'block';
+        
+        // Show/hide PDF analyses section based on active tab
+        const pdfSection = document.getElementById('pdf-analyses-section');
+        if (tab === 'pdf') {
+            if (pdfSection) {
+                pdfSection.style.display = 'block';
+                // Load list when switching to PDF tab
+                if (typeof loadPdfAnalysesList === 'function') {
+                    loadPdfAnalysesList();
+                }
+            }
+        } else {
+            if (pdfSection) {
+                pdfSection.style.display = 'none';
+            }
+        }
     });
 });
 
@@ -382,9 +490,22 @@ function updateProgress(sourceId) {
                     if (progress.status === 'completed') {
                         document.getElementById('progress-modal').style.display = 'none';
                         feedback.innerHTML = `<div class="alert alert-success">Processing completed successfully</div>`;
-                        setTimeout(() => {
-                            window.location.href = '/iocs';
-                        }, 2000);
+                        
+                        // Check if we're on PDF tab - if so, don't redirect, just refresh the list
+                        const pdfTab = document.querySelector('[data-tab="pdf"]');
+                        const isPdfAnalysis = pdfTab && pdfTab.classList.contains('active');
+                        
+                        if (isPdfAnalysis) {
+                            // For PDF analysis, just refresh the list and stay on the page
+                            if (typeof loadPdfAnalysesList === 'function') {
+                                setTimeout(() => loadPdfAnalysesList(), 1000);
+                            }
+                        } else {
+                            // For other analyses (file, paste, url), redirect to IOCs page
+                            setTimeout(() => {
+                                window.location.href = '/iocs';
+                            }, 2000);
+                        }
                     } else if (progress.status === 'stopping') {
                         document.getElementById('progress-modal').style.display = 'none';
                         feedback.innerHTML = `<div class="alert alert-warning">Processing stopped by user</div>`;
@@ -585,6 +706,474 @@ async function stopUploadTask() {
         alert('Error: ' + error.message);
     }
 }
+
+// PDF Analysis tab - Drag & Drop
+const pdfDropZone = document.getElementById('pdf-drop-zone');
+const pdfFileInput = document.getElementById('pdf-file-input');
+
+if (pdfDropZone && pdfFileInput) {
+    pdfDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        pdfDropZone.classList.add('dragover');
+    });
+
+    pdfDropZone.addEventListener('dragleave', () => {
+        pdfDropZone.classList.remove('dragover');
+    });
+
+    pdfDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        pdfDropZone.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type === 'application/pdf') {
+            pdfFileInput.files = files;
+            document.getElementById('pdf-file-name').textContent = files[0].name;
+            document.getElementById('pdf-file-name').style.display = 'block';
+        }
+    });
+
+    pdfFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            const fileName = e.target.files[0].name;
+            document.getElementById('pdf-file-name').textContent = fileName;
+            document.getElementById('pdf-file-name').style.display = 'block';
+            
+            // Pre-fill name if empty
+            const nameField = document.getElementById('pdf-name');
+            if (!nameField.value) {
+                const nameWithoutExt = fileName.replace(/\.pdf$/i, '');
+                nameField.value = nameWithoutExt || fileName;
+            }
+        }
+    });
+}
+
+// PDF form submission
+const pdfForm = document.getElementById('pdf-form');
+if (pdfForm) {
+    pdfForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Auto-fill context if empty
+        autoFillContext('pdf-context', 'PDF Analysis');
+        
+        const formData = new FormData(e.target);
+        
+        // Ensure name and context are included
+        const nameField = document.getElementById('pdf-name');
+        const contextField = document.getElementById('pdf-context');
+        if (nameField) formData.set('name', nameField.value);
+        if (contextField) formData.set('context', contextField.value);
+        
+        // Get analysis options
+        const options = {
+            detect_suspicious: document.getElementById('pdf-detect-suspicious').checked,
+            extract_iocs: document.getElementById('pdf-extract-iocs').checked,
+            generate_structure: document.getElementById('pdf-generate-structure').checked,
+            analyze_fonts: document.getElementById('pdf-analyze-fonts').checked,
+            scan_yara: document.getElementById('pdf-scan-yara').checked
+        };
+        formData.set('options', JSON.stringify(options));
+        
+        const feedback = document.getElementById('feedback');
+        feedback.innerHTML = '<div class="alert alert-info">Processing PDF...</div>';
+        
+        // Initialize progress intervals storage if needed
+        if (!window.progressIntervals) {
+            window.progressIntervals = {};
+        }
+        
+        // Display progress modal immediately
+        const progressModal = document.getElementById('progress-modal');
+        progressModal.style.display = 'flex';
+        document.getElementById('progress-bar').style.width = '10%';
+        document.getElementById('progress-percentage').textContent = '10%';
+        document.getElementById('progress-message').textContent = 'Starting PDF analysis...';
+        
+        let progressInterval;
+        let sourceId = null;
+        
+        try {
+            const response = await fetch('/api/pdf/analyze', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                sourceId = result.source_id;
+                // Start polling immediately
+                progressInterval = setInterval(() => updateProgress(sourceId), 1000);
+                window.progressIntervals[sourceId] = progressInterval;
+                document.getElementById('upload-stop-btn').style.display = 'inline-block';
+                document.getElementById('upload-stop-btn').setAttribute('data-source-id', sourceId);
+                // First update immediately
+                updateProgress(sourceId);
+                // Refresh PDF list after a short delay
+                setTimeout(() => loadPdfAnalysesList(), 2000);
+            } else {
+                progressModal.style.display = 'none';
+                feedback.innerHTML = `<div class="alert alert-error">${result.error}</div>`;
+            }
+        } catch (error) {
+            progressModal.style.display = 'none';
+            feedback.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+        }
+    });
+}
+
+// ========== PDF Analyses List Management ==========
+
+let pdfAnalysesList = [];
+let expandedPdfId = null;
+
+// Load PDF analyses list
+async function loadPdfAnalysesList() {
+    try {
+        const response = await fetch('/api/pdf/list');
+        const data = await response.json();
+        
+        if (data.success && data.pdfs) {
+            pdfAnalysesList = data.pdfs;
+            renderPdfAnalysesList();
+            
+            // Show section if we're on PDF tab (always show, even if empty)
+            const section = document.getElementById('pdf-analyses-section');
+            const pdfTab = document.querySelector('[data-tab="pdf"]');
+            if (section && pdfTab && pdfTab.classList.contains('active')) {
+                section.style.display = 'block';
+            }
+        } else {
+            // Show error or empty state
+            const section = document.getElementById('pdf-analyses-section');
+            const pdfTab = document.querySelector('[data-tab="pdf"]');
+            if (section && pdfTab && pdfTab.classList.contains('active')) {
+                section.style.display = 'block';
+                const container = document.getElementById('pdf-analyses-list');
+                if (container) {
+                    container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-secondary);">No PDF analyses yet. Upload a PDF above to start analyzing.</div>';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error loading PDF analyses list:', error);
+    }
+}
+
+// Render PDF analyses list
+function renderPdfAnalysesList() {
+    const container = document.getElementById('pdf-analyses-list');
+    container.innerHTML = '';
+    
+    if (pdfAnalysesList.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 40px; color: #b0b0b0;">No PDF analyses yet</div>';
+        return;
+    }
+    
+    pdfAnalysesList.forEach((pdf, index) => {
+        const isExpanded = expandedPdfId === pdf.source_id;
+        const card = createPdfAnalysisCard(pdf, isExpanded);
+        container.appendChild(card);
+    });
+}
+
+// Create PDF analysis card
+function createPdfAnalysisCard(pdf, isExpanded) {
+    const card = document.createElement('div');
+    card.className = 'pdf-analysis-card';
+    card.style.cssText = 'background: #1e1b2e; border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.3s ease; color: #e0e0e0;';
+    card.dataset.sourceId = pdf.source_id;
+    
+    // Header (always visible)
+    const header = document.createElement('div');
+    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;';
+    
+    const headerLeft = document.createElement('div');
+    headerLeft.style.cssText = 'flex: 1;';
+    
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size: 18px; font-weight: 600; margin-bottom: 4px; color: #e0e0e0;';
+    title.textContent = pdf.name;
+    
+    const meta = document.createElement('div');
+    meta.style.cssText = 'font-size: 12px; color: #b0b0b0; display: flex; gap: 16px; flex-wrap: wrap;';
+    meta.innerHTML = `
+        <span>📄 ${pdf.original_filename || 'Unknown'}</span>
+        <span>📅 ${new Date(pdf.created_at).toLocaleString()}</span>
+        <span>Status: <strong>${pdf.pdf_analysis_status}</strong></span>
+    `;
+    
+    headerLeft.appendChild(title);
+    headerLeft.appendChild(meta);
+    
+    const headerRight = document.createElement('div');
+    headerRight.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+    
+    // Status badge
+    const statusBadge = document.createElement('span');
+    if (pdf.is_suspicious) {
+        statusBadge.className = 'badge';
+        statusBadge.style.cssText = 'background: #DC2626; color: white; padding: 4px 12px; border-radius: 6px; font-size: 12px;';
+        statusBadge.textContent = '⚠️ Potentially Malicious';
+    } else if (pdf.pdf_analysis_status === 'completed') {
+        statusBadge.className = 'badge';
+        statusBadge.style.cssText = 'background: #10B981; color: white; padding: 4px 12px; border-radius: 6px; font-size: 12px;';
+        statusBadge.textContent = '✓ Clean';
+    } else {
+        statusBadge.className = 'badge';
+        statusBadge.style.cssText = 'background: #F59E0B; color: white; padding: 4px 12px; border-radius: 6px; font-size: 12px;';
+        statusBadge.textContent = pdf.pdf_analysis_status;
+    }
+    
+    // Expand/collapse button
+    const expandBtn = document.createElement('button');
+    expandBtn.style.cssText = 'background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px 8px; color: var(--violet-light);';
+    expandBtn.textContent = isExpanded ? '▼' : '▶';
+    expandBtn.onclick = (e) => {
+        e.stopPropagation();
+        togglePdfDetails(pdf.source_id);
+    };
+    
+    headerRight.appendChild(statusBadge);
+    headerRight.appendChild(expandBtn);
+    
+    header.appendChild(headerLeft);
+    header.appendChild(headerRight);
+    
+    // Details section (collapsible)
+    const details = document.createElement('div');
+    details.className = 'pdf-details';
+    details.style.cssText = `display: ${isExpanded ? 'block' : 'none'}; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(167, 139, 250, 0.3);`;
+    
+    if (isExpanded) {
+        loadPdfDetails(pdf.source_id, details);
+    }
+    
+    card.appendChild(header);
+    card.appendChild(details);
+    
+    // Click handler for card
+    card.onclick = (e) => {
+        if (e.target !== expandBtn && !expandBtn.contains(e.target) && !statusBadge.contains(e.target)) {
+            togglePdfDetails(pdf.source_id);
+        }
+    };
+    
+    // Hover effect
+    card.onmouseenter = () => {
+        card.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.15)';
+        card.style.transform = 'translateY(-2px)';
+    };
+    card.onmouseleave = () => {
+        card.style.boxShadow = 'none';
+        card.style.transform = 'translateY(0)';
+    };
+    
+    return card;
+}
+
+// Toggle PDF details
+function togglePdfDetails(sourceId) {
+    const card = document.querySelector(`[data-source-id="${sourceId}"]`);
+    const details = card?.querySelector('.pdf-details');
+    const expandBtn = card?.querySelector('button');
+    
+    if (expandedPdfId === sourceId) {
+        // Collapse
+        expandedPdfId = null;
+        if (details) details.style.display = 'none';
+        if (expandBtn) expandBtn.textContent = '▶';
+    } else {
+        // Expand
+        if (expandedPdfId !== null) {
+            // Collapse previous
+            const prevCard = document.querySelector(`[data-source-id="${expandedPdfId}"]`);
+            const prevDetails = prevCard?.querySelector('.pdf-details');
+            const prevBtn = prevCard?.querySelector('button');
+            if (prevDetails) prevDetails.style.display = 'none';
+            if (prevBtn) prevBtn.textContent = '▶';
+        }
+        expandedPdfId = sourceId;
+        if (details) {
+            details.style.display = 'block';
+            if (!details.hasAttribute('data-loaded')) {
+                loadPdfDetails(sourceId, details);
+                details.setAttribute('data-loaded', 'true');
+            }
+        }
+        if (expandBtn) expandBtn.textContent = '▼';
+    }
+    
+    // Mark that details are open to prevent auto-refresh
+    document.body.setAttribute('data-pdf-details-open', expandedPdfId !== null ? 'true' : 'false');
+}
+
+// Load detailed PDF information
+async function loadPdfDetails(sourceId, container) {
+    container.innerHTML = '<div style="text-align: center; padding: 20px; color: #b0b0b0;">Loading details...</div>';
+    
+    try {
+        const response = await fetch(`/api/pdf/${sourceId}`);
+        const data = await response.json();
+        
+        if (data.success && data.analysis) {
+            const analysis = data.analysis;
+            const source = data.source;
+            
+            let html = '<div style="display: grid; gap: 24px;">';
+            
+            // 1. Détection de PDFs malveillants/suspects
+            const suspiciousReasons = analysis.suspicious_reasons || [];
+            html += createSection('1. Malicious/Suspicious PDF Detection', [
+                `<div><strong>Status:</strong> ${analysis.is_suspicious ? '<span style="color: #DC2626; font-weight: 600;">⚠️ Potentially Malicious</span>' : '<span style="color: #10B981; font-weight: 600;">✓ Clean</span>'}</div>`,
+                suspiciousReasons.length > 0 
+                    ? `<div style="margin-top: 12px;"><strong>Suspicious Indicators Detected:</strong><ul style="margin: 8px 0; padding-left: 20px; line-height: 1.8;">${suspiciousReasons.map(r => {
+                        // Highlight specific threat vectors
+                        let reason = r;
+                        if (r.includes('JavaScript')) reason = reason.replace('JavaScript', '<span style="color: #DC2626; font-weight: 600;">JavaScript</span>');
+                        if (r.includes('OpenAction')) reason = reason.replace('OpenAction', '<span style="color: #DC2626; font-weight: 600;">OpenAction</span>');
+                        if (r.includes('AcroForm')) reason = reason.replace('AcroForm', '<span style="color: #DC2626; font-weight: 600;">AcroForm</span>');
+                        if (r.includes('Type1') || r.includes('Type2')) reason = reason.replace(/(Type[12])/g, '<span style="color: #DC2626; font-weight: 600;">$1</span>');
+                        if (r.includes('YARA')) reason = reason.replace(/YARA/g, '<span style="color: #F59E0B; font-weight: 600;">YARA</span>');
+                        return `<li>${reason}</li>`;
+                    }).join('')}</ul></div>`
+                    : '<div style="margin-top: 8px; color: #b0b0b0;">✓ No suspicious indicators detected - PDF appears clean</div>',
+                analysis.is_suspicious ? '<div style="margin-top: 8px; padding: 8px; background: rgba(220, 38, 38, 0.1); border-radius: 6px; font-size: 12px; color: #DC2626;">⚠️ This PDF has been automatically tagged as "Potentially Malicious"</div>' : ''
+            ]);
+            
+            // 2. Extraction d'IOCs
+            html += createSection('2. IOC Extraction', [
+                `<div><strong>IOCs Extracted:</strong> ${data.iocs_count || 0}</div>`,
+                data.iocs_count > 0 
+                    ? `<div style="margin-top: 8px;"><a href="/iocs?source=${encodeURIComponent(source.name)}" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">View IOCs →</a></div>`
+                    : '<div style="margin-top: 8px; color: #b0b0b0;">No IOCs extracted</div>'
+            ]);
+            
+            // 3. Fichier de structure PDF (HTML/SVG/TXT)
+            html += createSection('3. PDF Structure File', [
+                analysis.pdf_structure_file 
+                    ? `<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <a href="/api/pdf/${sourceId}/structure?format=html" target="_blank" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">📥 HTML</a>
+                        <a href="/api/pdf/${sourceId}/structure?format=svg" target="_blank" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">📥 SVG</a>
+                        <a href="/api/pdf/${sourceId}/structure?format=txt" target="_blank" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">📥 TXT</a>
+                    </div>`
+                    : '<div style="color: #b0b0b0;">Structure file not available</div>'
+            ]);
+            
+            // 4. Analyse binaire des polices PDF
+            const fonts = analysis.font_analysis || [];
+            const suspiciousFonts = fonts.filter(f => f.is_suspicious);
+            html += createSection('4. Embedded Fonts Analysis', [
+                `<div><strong>Fonts Found:</strong> ${fonts.length}${suspiciousFonts.length > 0 ? ` <span style="color: #DC2626;">(${suspiciousFonts.length} suspicious)</span>` : ''}</div>`,
+                fonts.length > 0 
+                    ? `<div style="margin-top: 8px; overflow-x: auto;"><table class="table" style="font-size: 12px; width: 100%; color: #e0e0e0;"><thead><tr style="background: rgba(139, 92, 246, 0.2);"><th style="color: #e0e0e0;">ID</th><th style="color: #e0e0e0;">Label</th><th style="color: #e0e0e0;">Type</th><th style="color: #e0e0e0;">Base Font</th><th style="color: #e0e0e0;">Stream Length</th><th style="color: #e0e0e0;">Status</th></tr></thead><tbody>${fonts.map(f => `<tr style="${f.is_suspicious ? 'background: rgba(220, 38, 38, 0.2);' : 'background: rgba(139, 92, 246, 0.1);'}">
+                        <td>${f.id}</td>
+                        <td><code>${f.label || 'N/A'}</code></td>
+                        <td>${f.sub_type || 'Unknown'}</td>
+                        <td><code>${f.base_font || 'N/A'}</code></td>
+                        <td>${f.stream_length ? (f.stream_length + ' bytes') : 'N/A'}</td>
+                        <td>${f.is_suspicious ? '<span style="color: #DC2626;">⚠️ Suspicious</span>' : '<span style="color: #10B981;">✓ OK</span>'}</td>
+                    </tr>`).join('')}</tbody></table></div>`
+                    : '<div style="margin-top: 8px; color: #b0b0b0;">No embedded fonts found</div>'
+            ]);
+            
+            // 5. Scan YARA intégré
+            const yaraMatches = analysis.yara_matches || [];
+            html += createSection('5. YARA Scan Results', [
+                `<div><strong>YARA Matches:</strong> ${yaraMatches.length}</div>`,
+                yaraMatches.length > 0
+                    ? `<div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">${yaraMatches.map(m => {
+                        const stringsCount = m.strings ? m.strings.length : 0;
+                        const tags = m.tags && m.tags.length > 0 ? ` (Tags: ${m.tags.join(', ')})` : '';
+                        return `<div style="padding: 12px; background: rgba(245, 158, 11, 0.1); border-radius: 6px; border-left: 3px solid #F59E0B;">
+                            <div style="font-weight: 600; margin-bottom: 4px;">${m.rule_name}${tags}</div>
+                            <div style="font-size: 12px; color: #b0b0b0;">${stringsCount} string match(es) found</div>
+                            ${m.metadata && Object.keys(m.metadata).length > 0 ? `<div style="font-size: 11px; color: #b0b0b0; margin-top: 4px;">Metadata: ${JSON.stringify(m.metadata)}</div>` : ''}
+                        </div>`;
+                    }).join('')}</div>`
+                    : '<div style="margin-top: 8px; color: #b0b0b0;">No YARA matches - PDF appears clean</div>'
+            ]);
+            
+            // 6. Recherche de patterns binaires cachés
+            html += createSection('6. Binary Pattern Search', [
+                '<div>Search for custom binary patterns in PDF streams</div>',
+                '<div style="margin-top: 8px;"><a href="/pdf-analysis/' + sourceId + '#tab-patterns" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">🔎 Search Binary Patterns →</a></div>',
+                '<div style="margin-top: 8px; font-size: 12px; color: #b0b0b0;">Supports hex patterns, regex, and string searches with multi-encoding decoding</div>'
+            ]);
+            
+            // 7. Export enrichi
+            html += createSection('7. Enriched Export', [
+                '<div>PDF analysis data is included in all exports (TXT, CSV, JSON, STIX)</div>',
+                '<div style="margin-top: 8px;"><a href="/export" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">📤 Go to Export →</a></div>'
+            ]);
+            
+            // 8. Historique des modifications
+            const modHistory = analysis.modification_history || {};
+            html += createSection('8. PDF Modification History', [
+                `<div><strong>Has Modifications:</strong> ${modHistory.has_modifications ? '<span style="color: #F59E0B;">⚠️ Yes</span>' : '<span style="color: #10B981;">✓ No</span>'}</div>`,
+                modHistory.max_generation !== undefined ? `<div style="margin-top: 4px;"><strong>Max Generation:</strong> ${modHistory.max_generation}</div>` : '',
+                modHistory.total_objects !== undefined ? `<div style="margin-top: 4px;"><strong>Total Objects:</strong> ${modHistory.total_objects}</div>` : '',
+                modHistory.has_modifications ? '<div style="margin-top: 8px; color: #b0b0b0; font-size: 12px;">This PDF has been modified (incremental updates detected)</div>' : ''
+            ]);
+            
+            // Metadata
+            if (analysis.analysis_metadata) {
+                const meta = analysis.analysis_metadata;
+                html += createSection('Metadata', [
+                    meta.file_size ? `<div><strong>File Size:</strong> ${(meta.file_size / 1024).toFixed(2)} KB</div>` : '',
+                    meta.hashes ? `<div style="margin-top: 8px;"><strong>Hashes:</strong><div style="font-family: monospace; font-size: 11px; margin-top: 4px; word-break: break-all;">MD5: ${meta.hashes.md5 || 'N/A'}<br>SHA1: ${meta.hashes.sha1 || 'N/A'}<br>SHA256: ${meta.hashes.sha256 || 'N/A'}</div></div>` : ''
+                ]);
+            }
+            
+            html += '</div>';
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: #b0b0b0;">Analysis not available yet</div>';
+        }
+    } catch (error) {
+        console.error('Error loading PDF details:', error);
+        container.innerHTML = '<div style="text-align: center; padding: 20px; color: #DC2626;">Error loading details</div>';
+    }
+}
+
+// Helper function to create a section
+function createSection(title, items) {
+    return `
+        <div style="padding: 16px; background: rgba(139, 92, 246, 0.15); border-radius: 8px; border-left: 4px solid var(--violet-light); color: #e0e0e0;">
+            <h4 style="font-size: 16px; font-weight: 600; margin-bottom: 12px; color: var(--violet-light);">${title}</h4>
+            ${items.filter(item => item).map(item => `<div style="color: #e0e0e0;">${item}</div>`).join('')}
+        </div>
+    `;
+}
+
+// Load PDF analyses list on page load
+document.addEventListener('DOMContentLoaded', () => {
+    // Always show PDF analyses section if on PDF tab
+    const pdfTab = document.querySelector('[data-tab="pdf"]');
+    const pdfSection = document.getElementById('pdf-analyses-section');
+    if (pdfTab && pdfTab.classList.contains('active') && pdfSection) {
+        pdfSection.style.display = 'block';
+        if (typeof loadPdfAnalysesList === 'function') {
+            loadPdfAnalysesList();
+        }
+    }
+    
+    // Refresh list every 5 seconds if on PDF tab, but only if no details are expanded
+    setInterval(() => {
+        const pdfTab = document.querySelector('[data-tab="pdf"]');
+        if (pdfTab && pdfTab.classList.contains('active')) {
+            // Only refresh if no PDF details are currently expanded
+            const detailsOpen = document.body.getAttribute('data-pdf-details-open') === 'true';
+            const expandedCard = document.querySelector('.pdf-analysis-card .pdf-details[style*="display: block"]');
+            if (!detailsOpen && !expandedCard && typeof loadPdfAnalysesList === 'function') {
+                loadPdfAnalysesList();
+            }
+        }
+    }, 5000);
+});
+
 </script>
 {% endblock %}
 

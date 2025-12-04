@@ -18,12 +18,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 SQLite database management
 """
 import sqlite3
+import json
 import logging
 import time
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple, Iterator
+from typing import List, Dict, Optional, Tuple, Iterator, Any
 from config import DATABASE_PATH, PREDEFINED_TAGS
 
 logger = logging.getLogger(__name__)
@@ -123,6 +124,17 @@ class Database:
         
         try:
             cursor.execute("ALTER TABLE sources ADD COLUMN deleted_at TIMESTAMP NULL")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+        
+        # Migration: Add PDF analysis columns if they don't exist
+        try:
+            cursor.execute("ALTER TABLE sources ADD COLUMN pdf_analysis_status TEXT")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+        
+        try:
+            cursor.execute("ALTER TABLE sources ADD COLUMN pdf_analysis_date TIMESTAMP NULL")
         except sqlite3.OperationalError:
             pass  # Column already exists
 
@@ -310,6 +322,41 @@ class Database:
             )
         """)
 
+        # Table pdf_analyses
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pdf_analyses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_id INTEGER NOT NULL,
+                is_suspicious BOOLEAN DEFAULT 0,
+                suspicious_reasons TEXT,
+                yara_matches TEXT,
+                font_analysis TEXT,
+                pdf_structure_file TEXT,
+                binary_patterns TEXT,
+                modification_history TEXT,
+                analysis_metadata TEXT,
+                pdf_summary TEXT,
+                streams_analysis TEXT,
+                yara_detailed TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE
+            )
+        """)
+        
+        # Add new columns if they don't exist (for existing databases)
+        try:
+            cursor.execute("ALTER TABLE pdf_analyses ADD COLUMN pdf_summary TEXT")
+        except:
+            pass  # Column already exists
+        try:
+            cursor.execute("ALTER TABLE pdf_analyses ADD COLUMN streams_analysis TEXT")
+        except:
+            pass  # Column already exists
+        try:
+            cursor.execute("ALTER TABLE pdf_analyses ADD COLUMN yara_detailed TEXT")
+        except:
+            pass  # Column already exists
+
         # Index to improve performance
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_iocs_source ON iocs(source_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_iocs_type ON iocs(ioc_type)")
@@ -319,6 +366,7 @@ class Database:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_source_templates_type ON source_templates(source_type)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_source_groups_source ON source_groups(source_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_source_groups_group ON source_groups(group_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_pdf_analyses_source ON pdf_analyses(source_id)")
 
         conn.commit()
         conn.close()
@@ -884,6 +932,13 @@ class Database:
         if filters.get("ioc_type"):
             where_clause += " AND i.ioc_type = ?"
             params.append(filters["ioc_type"])
+        if filters.get("ioc_types"):
+            # Support for multiple IOC types
+            ioc_types = filters["ioc_types"]
+            if isinstance(ioc_types, list) and len(ioc_types) > 0:
+                placeholders = ','.join(['?'] * len(ioc_types))
+                where_clause += f" AND i.ioc_type IN ({placeholders})"
+                params.extend(ioc_types)
         if filters.get("search"):
             # Clean search term: remove leading/trailing spaces and decode URL encoding
             search_term = filters['search'].strip()
@@ -2705,5 +2760,136 @@ class Database:
                 count += 1
             
             return count
+
+    # ========== PDF Analysis Methods ==========
+
+    def create_pdf_analysis(self, source_id: int, analysis_data: Dict[str, Any]) -> int:
+        """Creates a PDF analysis record"""
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                INSERT INTO pdf_analyses (
+                    source_id, is_suspicious, suspicious_reasons, yara_matches,
+                    font_analysis, pdf_structure_file, binary_patterns,
+                    modification_history, analysis_metadata,
+                    pdf_summary, streams_analysis, yara_detailed
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                source_id,
+                analysis_data.get('is_suspicious', False),
+                json.dumps(analysis_data.get('suspicious_reasons', [])),
+                json.dumps(analysis_data.get('yara_matches', [])),
+                json.dumps(analysis_data.get('font_analysis', [])),
+                analysis_data.get('pdf_structure_file'),
+                json.dumps(analysis_data.get('binary_patterns', [])),
+                json.dumps(analysis_data.get('modification_history', {})),
+                json.dumps(analysis_data.get('analysis_metadata', {})),
+                json.dumps(analysis_data.get('pdf_summary', {})),
+                json.dumps(analysis_data.get('streams_analysis', [])),
+                json.dumps(analysis_data.get('yara_detailed', {}))
+            ))
+            
+            analysis_id = cursor.lastrowid
+            
+            # Update source PDF analysis status
+            cursor.execute("""
+                UPDATE sources
+                SET pdf_analysis_status = 'completed', pdf_analysis_date = LOCAL_TIMESTAMP()
+                WHERE id = ?
+            """, (source_id,))
+            
+            return analysis_id
+
+    def get_pdf_analysis(self, source_id: int) -> Optional[Dict]:
+        """Retrieves PDF analysis for a source"""
+        try:
+            with self.connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    SELECT * FROM pdf_analyses
+                    WHERE source_id = ?
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                """, (source_id,))
+                
+                row = cursor.fetchone()
+                if not row:
+                    return None
+                
+                try:
+                    # Get new columns safely (they may not exist in old databases)
+                    pdf_summary = {}
+                    streams_analysis = []
+                    yara_detailed = {}
+                    try:
+                        if 'pdf_summary' in row.keys() and row['pdf_summary']:
+                            pdf_summary = json.loads(row['pdf_summary'])
+                    except (KeyError, TypeError):
+                        pass
+                    try:
+                        if 'streams_analysis' in row.keys() and row['streams_analysis']:
+                            streams_analysis = json.loads(row['streams_analysis'])
+                    except (KeyError, TypeError):
+                        pass
+                    try:
+                        if 'yara_detailed' in row.keys() and row['yara_detailed']:
+                            yara_detailed = json.loads(row['yara_detailed'])
+                    except (KeyError, TypeError):
+                        pass
+                    
+                    return {
+                        'id': row['id'],
+                        'source_id': row['source_id'],
+                        'is_suspicious': bool(row['is_suspicious']),
+                        'suspicious_reasons': json.loads(row['suspicious_reasons']) if row['suspicious_reasons'] else [],
+                        'yara_matches': json.loads(row['yara_matches']) if row['yara_matches'] else [],
+                        'font_analysis': json.loads(row['font_analysis']) if row['font_analysis'] else [],
+                        'pdf_structure_file': row['pdf_structure_file'],
+                        'binary_patterns': json.loads(row['binary_patterns']) if row['binary_patterns'] else [],
+                        'modification_history': json.loads(row['modification_history']) if row['modification_history'] else {},
+                        'analysis_metadata': json.loads(row['analysis_metadata']) if row['analysis_metadata'] else {},
+                        'pdf_summary': pdf_summary,
+                        'streams_analysis': streams_analysis,
+                        'yara_detailed': yara_detailed,
+                        'created_at': row['created_at']
+                    }
+                except (KeyError, json.JSONDecodeError, TypeError) as e:
+                    # Fallback for old database schema or corrupted data
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Error parsing PDF analysis for source {row.get('source_id', source_id)}: {e}")
+                    return {
+                        'id': row.get('id'),
+                        'source_id': row.get('source_id'),
+                        'is_suspicious': bool(row.get('is_suspicious', False)),
+                        'suspicious_reasons': json.loads(row.get('suspicious_reasons') or '[]'),
+                        'yara_matches': json.loads(row.get('yara_matches') or '[]'),
+                        'font_analysis': json.loads(row.get('font_analysis') or '[]'),
+                        'pdf_structure_file': row.get('pdf_structure_file'),
+                        'binary_patterns': json.loads(row.get('binary_patterns') or '[]'),
+                        'modification_history': json.loads(row.get('modification_history') or '{}'),
+                        'analysis_metadata': json.loads(row.get('analysis_metadata') or '{}'),
+                        'pdf_summary': {},
+                        'streams_analysis': [],
+                        'yara_detailed': {},
+                        'created_at': row.get('created_at')
+                    }
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Unexpected error in get_pdf_analysis for source {source_id}: {e}", exc_info=True)
+            return None
+
+    def update_pdf_analysis_status(self, source_id: int, status: str):
+        """Updates PDF analysis status for a source"""
+        with self.connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE sources
+                SET pdf_analysis_status = ?
+                WHERE id = ?
+            """, (status, source_id))
 
 

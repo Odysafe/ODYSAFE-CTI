@@ -408,7 +408,7 @@ document.getElementById('auth-toggle').addEventListener('change', async function
                 alert('Error: ' + (data.error || 'Unknown error'));
                 this.checked = true; // Revert
             } else {
-                // Recharger les paramètres d'auth
+                // Reload auth settings
                 loadAuthSettings();
                 
                 // Rediriger vers le dashboard

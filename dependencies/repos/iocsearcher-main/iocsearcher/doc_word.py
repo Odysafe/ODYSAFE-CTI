@@ -62,7 +62,7 @@ class Word(Document):
             text = flatten_text(r).strip()
             # Remove figure references
             if options.get('remove_figure_refs', True):
-                text = re.sub('----media\/[a-zA-Z0-9]+\.[a-z]{3,}----',
+                text = re.sub(r'----media/[a-zA-Z0-9]+\.[a-z]{3,}----',
                               '', text)
             # Remove consecutive tabs
             if options.get('remove_consecutive_tabs', True):

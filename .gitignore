@@ -42,3 +42,9 @@ ssl/*.key
 # Temporary files
 *.tmp
 *.bak
+
+# Duplicate dependencies (use dependencies/repos/ instead)
+pdfalyzer/
+
+# Example data (not needed in repository)
+exemple/

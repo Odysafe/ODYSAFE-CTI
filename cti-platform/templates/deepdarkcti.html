@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}CTI Resources - CTI Platform{% endblock %}
+{% block title %}DeepDarkCTI - CTI Platform{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -564,16 +564,27 @@
 {% block content %}
 <section class="section">
     <div class="container">
+        <!-- Barre de sélection -->
+        <div class="resource-selector" style="display: flex; gap: 0; margin-bottom: 40px; padding: 6px; background: rgba(139, 92, 246, 0.05); border-radius: 16px; border: 1px solid rgba(167, 139, 250, 0.1); overflow-x: auto; flex-wrap: nowrap;">
+            <button class="resource-tab active" data-resource="deepdarkcti" onclick="window.location.href='/cti-resources/deepdarkcti'" style="padding: 12px 24px; background: rgba(60, 60, 80, 0.8); border: none; border-radius: 12px; color: white; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; white-space: nowrap; flex: 1; text-align: center;">
+                DeepDarkCTI
+            </button>
+            <button class="resource-tab" data-resource="ransomware-matrix" onclick="window.location.href='/cti-resources/ransomware-matrix'" style="padding: 12px 24px; background: transparent; border: none; border-radius: 12px; color: #9CA3AF; font-size: 16px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; white-space: nowrap; flex: 1; text-align: center;">
+                Ransomware Tool Matrix
+            </button>
+        </div>
+
         <!-- Hero Section -->
         <div class="deepdarkcti-hero">
-            <h1>CTI Resources</h1>
+            <h1>DeepDarkCTI</h1>
             <p>Collection of cyber threat intelligence sources from the Deep and Dark Web</p>
         </div>
 
-        <!-- Thank You Message -->
+        <!-- External Resource Information -->
         <div class="thank-you-message">
-            <strong>Thank you to the contributors!</strong><br>
-            We sincerely thank the contributors of the <a href="https://github.com/fastfire/deepdarkCTI" target="_blank" style="color: var(--violet-light); text-decoration: none;">deepdarkCTI</a> project for their invaluable work in collecting and sharing Cyber Threat Intelligence sources from the deep and dark web. Their dedication helps the security community stay informed about emerging threats and attack vectors.
+            <strong>External Resource</strong><br>
+            This section uses data from the <a href="https://github.com/fastfire/deepdarkCTI" target="_blank" style="color: var(--violet-light); text-decoration: none;">deepdarkCTI</a> project, an open-source resource that collects and shares Cyber Threat Intelligence sources from the deep and dark web. This resource is integrated into the platform to provide access to CTI sources for the security community.<br><br>
+            <strong>Odysafe CTI Platform thanks the deepdarkCTI project</strong> for making this valuable resource available to the community.
         </div>
 
         {% if not repo_exists %}
@@ -582,7 +593,7 @@
             <div style="font-size: 48px; margin-bottom: 20px;">📦</div>
             <h2 style="color: var(--text-primary); margin-bottom: 16px;">Repository not available</h2>
             <p style="color: var(--text-secondary); margin-bottom: 16px; max-width: 500px; margin-left: auto; margin-right: auto;">
-                The CTI Resources repository has not been downloaded. Click the button below to download it.
+                The DeepDarkCTI repository has not been downloaded. Click the button below to download it.
             </p>
             <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 24px; max-width: 500px; margin-left: auto; margin-right: auto;">
                 <span style="font-size: 24px;">🌐</span>
@@ -766,6 +777,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/cti_resources_common.js') }}"></script>
 <script src="{{ url_for('static', filename='js/deepdarkcti.js') }}"></script>
 {% endblock %}
 

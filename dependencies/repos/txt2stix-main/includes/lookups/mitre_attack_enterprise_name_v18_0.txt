@@ -3145,7 +3145,7 @@ Detection of Trust Relationship Modifications in Domain or Tenant Policies
 Detection Strategy for Remote System Enumeration Behavior
 Detect DHCP Spoofing Across Linux, Windows, and macOS
 Detection of Code Repositories
-Drive-by Compromise — Behavior-based, Multi-platform Detection Strategy (T1189)
+Drive-by Compromise - Behavior-based, Multi-platform Detection Strategy (T1189)
 Detection Strategy for TLS Callback Injection via PE Memory Modification and Hollowing
 Detection of DNS Server
 Detection of Abused or Compromised Cloud Accounts for Access and Persistence

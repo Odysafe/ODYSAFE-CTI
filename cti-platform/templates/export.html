@@ -14,9 +14,13 @@
                 <div class="form-group">
                     <label class="form-label">Export Format</label>
                     <select name="format" id="export-format" class="form-control" required>
-                        <option value="txt">TXT (simple list)</option>
+                        <option value="txt">TXT (with types)</option>
+                        <option value="txt-simple">TXT (values only - Firewall/EDR compatible)</option>
+                        <option value="csv">CSV (detailed with metadata)</option>
+                        <option value="csv-firewall">CSV (simplified - Firewall/EDR compatible)</option>
                         <option value="json">JSON (complete internal format)</option>
-                        <option value="csv">CSV (spreadsheet format)</option>
+                        <option value="json-simple">JSON (simplified - grouped by type)</option>
+                        <option value="xlsx">XLSX (Excel - formatted report)</option>
                         <option value="stix">STIX 2.1 (via txt2stix)</option>
                     </select>
                 </div>
@@ -55,6 +59,30 @@
                             </label>
                             {% endfor %}
                         </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Filter by IOC Types (optional - leave empty for all types)</label>
+                    <div style="max-height: 200px; overflow-y: auto; border: 1px solid rgba(167, 139, 250, 0.1); border-radius: 8px; padding: 12px; background: rgba(139, 92, 246, 0.02);">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;">
+                            {% for ioc_type in unique_types %}
+                            <label style="display: flex; align-items: center; gap: 8px; padding: 4px; cursor: pointer; font-size: 13px;">
+                                <input type="checkbox" name="ioc_types" value="{{ ioc_type }}" class="ioc-type-checkbox">
+                                <span>{{ ioc_type }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        {% if not unique_types %}
+                        <div style="text-align: center; padding: 16px; color: var(--text-secondary); font-size: 13px;">
+                            No IOC types available. Types will appear here once IOCs are added.
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div style="margin-top: 8px; display: flex; gap: 8px;">
+                        <button type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="selectAllIocTypes()">Select All</button>
+                        <button type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="deselectAllIocTypes()">Deselect All</button>
+                        <button type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="selectCommonIocTypes()">Common (IP, Domain, Hash)</button>
                     </div>
                 </div>
 
@@ -114,10 +142,11 @@
             </div>
         </div>
 
-        <!-- Thank You Message -->
+        <!-- External Tool Information -->
         <div class="thank-you-message" style="background: rgba(139, 92, 246, 0.1); border-left: 4px solid var(--violet-light); padding: 20px 24px; border-radius: 12px; margin-top: 60px; font-size: 16px; line-height: 1.6;">
-            <strong style="color: var(--violet-light);">Thank you to the contributors!</strong><br>
-            We sincerely thank the contributors of the <a href="https://github.com/muchdogesec/txt2stix" target="_blank" style="color: var(--violet-light); text-decoration: none;">txt2stix</a> project for their invaluable work in converting text-based threat intelligence into STIX 2.1 format. Their tool enables seamless integration with security tools and platforms that support the STIX standard, helping the security community share and analyze threat intelligence more effectively.
+            <strong style="color: var(--violet-light);">STIX Conversion Tool</strong><br>
+            STIX export functionality uses <a href="https://github.com/muchdogesec/txt2stix" target="_blank" style="color: var(--violet-light); text-decoration: none;">txt2stix</a>, an open-source tool integrated into this platform that converts text-based threat intelligence into STIX 2.1 format for seamless integration with security tools and platforms that support the STIX standard.<br><br>
+            <strong style="color: var(--violet-light);">Odysafe CTI Platform thanks the txt2stix project</strong> for making this valuable tool available to the community.
         </div>
     </div>
 </section>
@@ -164,6 +193,12 @@ document.getElementById('export-form').addEventListener('submit', async (e) => {
         data.group_ids = groupIds;
     }
     
+    // Get selected IOC types
+    const iocTypes = Array.from(formData.getAll('ioc_types'));
+    if (iocTypes.length > 0) {
+        data.ioc_types = iocTypes;
+    }
+    
     if (format === 'stix') {
         data.report_name = formData.get('report_name') || 'CTI Export';
         data.source_context = 'Export CTI Platform';
@@ -192,10 +227,18 @@ document.getElementById('export-form').addEventListener('submit', async (e) => {
         
         if (format === 'txt') {
             endpoint = '/api/export/txt';
+        } else if (format === 'txt-simple') {
+            endpoint = '/api/export/txt-simple';
         } else if (format === 'json') {
             endpoint = '/api/export/json';
+        } else if (format === 'json-simple') {
+            endpoint = '/api/export/json-simple';
         } else if (format === 'csv') {
             endpoint = '/api/export/csv';
+        } else if (format === 'csv-firewall') {
+            endpoint = '/api/export/csv-firewall';
+        } else if (format === 'xlsx') {
+            endpoint = '/api/export/xlsx';
         } else if (format === 'stix') {
             endpoint = '/api/export/stix';
         }
@@ -254,7 +297,14 @@ document.getElementById('export-form').addEventListener('submit', async (e) => {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            const extension = format === 'stix' ? 'json' : format;
+            let extension = format;
+            if (format === 'stix' || format === 'json-simple') {
+                extension = 'json';
+            } else if (format === 'txt-simple' || format === 'csv-firewall') {
+                extension = format.replace('-', '_');
+            } else if (format === 'xlsx') {
+                extension = 'xlsx';
+            }
             a.href = url;
             
             // Get filename from Content-Disposition header if available
@@ -330,7 +380,14 @@ document.getElementById('export-form').addEventListener('submit', async (e) => {
                                 const url = window.URL.createObjectURL(blob);
                                 const a = document.createElement('a');
                                 a.href = url;
-                                const extension = format === 'stix' ? 'json' : format;
+                                let extension = format;
+                                if (format === 'stix' || format === 'json-simple') {
+                                    extension = 'json';
+                                } else if (format === 'txt-simple' || format === 'csv-firewall') {
+                                    extension = format.replace('-', '_');
+                                } else if (format === 'xlsx') {
+                                    extension = 'xlsx';
+                                }
                                 a.download = `export_${format}_${new Date().toISOString().slice(0,10)}.${extension}`;
                                 document.body.appendChild(a);
                                 a.click();
@@ -454,6 +511,25 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// IOC Type selection helpers
+function selectAllIocTypes() {
+    document.querySelectorAll('.ioc-type-checkbox').forEach(cb => cb.checked = true);
+}
+
+function deselectAllIocTypes() {
+    document.querySelectorAll('.ioc-type-checkbox').forEach(cb => cb.checked = false);
+}
+
+function selectCommonIocTypes() {
+    deselectAllIocTypes();
+    const commonTypes = ['ip4', 'ip6', 'fqdn', 'url', 'md5', 'sha1', 'sha256'];
+    document.querySelectorAll('.ioc-type-checkbox').forEach(cb => {
+        if (commonTypes.includes(cb.value)) {
+            cb.checked = true;
+        }
+    });
 }
 
 // Function to stop an export

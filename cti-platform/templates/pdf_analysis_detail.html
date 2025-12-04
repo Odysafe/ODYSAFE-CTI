@@ -1,0 +1,635 @@
+{% extends "base.html" %}
+
+{% block title %}PDF Analysis - {{ source.name }} - CTI Platform{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <div style="margin-bottom: 32px;">
+            <a href="{{ url_for('sources_list') }}" class="btn btn-secondary" style="margin-bottom: 16px;">
+                ← Back to sources
+            </a>
+        </div>
+
+        <!-- Summary Card -->
+        <div class="card" style="margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px;">
+                <div>
+                    <h1 class="card-title" style="margin-bottom: 8px;">{{ source.name }}</h1>
+                    <div style="font-size: 14px; color: var(--text-secondary);">
+                        {{ source.context }}
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    {% if analysis.is_suspicious %}
+                    <span class="badge" style="background: #DC2626; color: white; font-size: 14px; padding: 8px 16px;">
+                        ⚠️ Potentially Malicious
+                    </span>
+                    {% else %}
+                    <span class="badge" style="background: #10B981; color: white; font-size: 14px; padding: 8px 16px;">
+                        ✓ Clean
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; margin-top: 24px;">
+                <div>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">File</div>
+                    <div style="font-size: 16px; font-weight: 500;">{{ source.original_filename }}</div>
+                </div>
+                <div>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Analysis Date</div>
+                    <div style="font-size: 16px;">{{ analysis.created_at }}</div>
+                </div>
+                <div>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">File Size</div>
+                    <div style="font-size: 16px;">
+                        {% if analysis.analysis_metadata and analysis.analysis_metadata.file_size %}
+                        {{ "%.2f"|format(analysis.analysis_metadata.file_size / 1024) }} KB
+                        {% else %}
+                        N/A
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">SHA256</div>
+                    <div style="font-size: 12px; font-family: monospace; word-break: break-all;">
+                        {% if analysis.analysis_metadata and analysis.analysis_metadata.hashes and analysis.analysis_metadata.hashes.sha256 %}
+                        {{ analysis.analysis_metadata.hashes.sha256 }}
+                        {% else %}
+                        N/A
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if analysis.suspicious_reasons %}
+            <div style="margin-top: 24px; padding: 16px; background: rgba(220, 38, 38, 0.1); border-radius: 8px; border-left: 4px solid #DC2626;">
+                <div style="font-weight: 600; margin-bottom: 8px; color: #DC2626;">Suspicious Indicators:</div>
+                <ul style="margin: 0; padding-left: 20px;">
+                    {% for reason in analysis.suspicious_reasons %}
+                    <li style="margin-bottom: 4px;">{{ reason }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Tabs -->
+        <div style="display: flex; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid rgba(167, 139, 250, 0.1);">
+            <button class="tab-btn active" data-tab="summary" style="padding: 12px 24px; background: none; border: none; color: var(--text-primary); cursor: pointer; border-bottom: 2px solid var(--violet-light); font-weight: 500;">
+                📋 Summary
+            </button>
+            <button class="tab-btn" data-tab="structure" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 500;">
+                📊 Structure
+            </button>
+            <button class="tab-btn" data-tab="fonts" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 500;">
+                🔤 Fonts
+            </button>
+            <button class="tab-btn" data-tab="yara" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 500;">
+                🛡️ YARA Matches
+            </button>
+            <button class="tab-btn" data-tab="streams" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 500;">
+                💧 Streams
+            </button>
+            <button class="tab-btn" data-tab="iocs" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 500;">
+                🔍 Extracted IOCs
+            </button>
+            <button class="tab-btn" data-tab="patterns" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 500;">
+                🔎 Binary Patterns
+            </button>
+            <button class="tab-btn" data-tab="history" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-weight: 500;">
+                📜 History
+            </button>
+        </div>
+
+        <!-- Summary Tab -->
+        <div id="tab-summary" class="tab-content">
+            <div class="card">
+                <h2 class="card-title" style="margin-bottom: 16px;">PDF Node Summary</h2>
+                {% if analysis.pdf_summary %}
+                <div style="display: grid; gap: 24px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                        <div style="padding: 16px; background: rgba(139, 92, 246, 0.1); border-radius: 8px;">
+                            <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Total Nodes</div>
+                            <div style="font-size: 24px; font-weight: 600;">{{ analysis.pdf_summary.node_count }}</div>
+                        </div>
+                        <div style="padding: 16px; background: rgba(139, 92, 246, 0.1); border-radius: 8px;">
+                            <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Total Streams</div>
+                            <div style="font-size: 24px; font-weight: 600;">{{ analysis.pdf_summary.total_streams }}</div>
+                        </div>
+                        <div style="padding: 16px; background: rgba(139, 92, 246, 0.1); border-radius: 8px;">
+                            <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Total Fonts</div>
+                            <div style="font-size: 24px; font-weight: 600;">{{ analysis.pdf_summary.total_fonts }}</div>
+                        </div>
+                    </div>
+                    
+                    {% if analysis.pdf_summary.pdf_object_types %}
+                    <div>
+                        <h3 style="margin-bottom: 12px; font-size: 16px;">PDF Object Types</h3>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for obj_type, count in analysis.pdf_summary.pdf_object_types.items() %}
+                                    <tr>
+                                        <td><code>{{ obj_type }}</code></td>
+                                        <td>{{ count }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if analysis.pdf_summary.node_labels %}
+                    <div>
+                        <h3 style="margin-bottom: 12px; font-size: 16px;">Node Labels</h3>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Label</th>
+                                        <th>Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for label, count in analysis.pdf_summary.node_labels.items() %}
+                                    <tr>
+                                        <td><code>{{ label }}</code></td>
+                                        <td>{{ count }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if analysis.pdf_summary.keys_encountered %}
+                    <div>
+                        <h3 style="margin-bottom: 12px; font-size: 16px;">Keys Encountered</h3>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Key</th>
+                                        <th>Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for key, count in analysis.pdf_summary.keys_encountered.items() %}
+                                    <tr>
+                                        <td><code>{{ key }}</code></td>
+                                        <td>{{ count }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+                    <p>PDF summary not available</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Structure Tab -->
+        <div id="tab-structure" class="tab-content" style="display: none;">
+            <div class="card">
+                <h2 class="card-title" style="margin-bottom: 16px;">PDF Structure</h2>
+                {% if analysis.pdf_structure_file %}
+                <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border-radius: 6px; cursor: pointer;">
+                        <span>Format:</span>
+                        <select id="structure-format" style="padding: 6px 12px; border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 4px; background: white; color: var(--text-primary); cursor: pointer;">
+                            <option value="html">HTML</option>
+                            <option value="svg">SVG</option>
+                            <option value="txt">TXT</option>
+                        </select>
+                    </label>
+                    <a id="download-structure-btn" href="/api/pdf/{{ source.id }}/structure?format=html" class="btn btn-primary" target="_blank" style="text-decoration: none;">
+                        📥 Download
+                    </a>
+                </div>
+                <div style="border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 8px; padding: 16px; background: rgba(139, 92, 246, 0.02);">
+                    <iframe id="structure-iframe" src="/api/pdf/{{ source.id }}/structure?format=html" style="width: 100%; height: 600px; border: none; border-radius: 4px;"></iframe>
+                </div>
+                <script>
+                    document.getElementById('structure-format').addEventListener('change', function() {
+                        const format = this.value;
+                        const downloadBtn = document.getElementById('download-structure-btn');
+                        const iframe = document.getElementById('structure-iframe');
+                        
+                        // Update download link
+                        downloadBtn.href = `/api/pdf/{{ source.id }}/structure?format=${format}`;
+                        
+                        // Update iframe only for HTML (other formats should download)
+                        if (format === 'html') {
+                            iframe.src = `/api/pdf/{{ source.id }}/structure?format=html`;
+                            iframe.style.display = 'block';
+                        } else {
+                            iframe.style.display = 'none';
+                        }
+                    });
+                </script>
+                {% else %}
+                <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+                    <p>PDF structure visualization not available</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Fonts Tab -->
+        <div id="tab-fonts" class="tab-content" style="display: none;">
+            <div class="card">
+                <h2 class="card-title" style="margin-bottom: 16px;">Embedded Fonts Analysis</h2>
+                {% if analysis.font_analysis %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Label</th>
+                                <th>Type</th>
+                                <th>Base Font</th>
+                                <th>Stream Length</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for font in analysis.font_analysis %}
+                            <tr>
+                                <td>{{ font.id }}</td>
+                                <td><code>{{ font.label }}</code></td>
+                                <td>{{ font.sub_type or 'Unknown' }}</td>
+                                <td><code>{{ font.base_font or 'N/A' }}</code></td>
+                                <td>{{ font.stream_length }} bytes</td>
+                                <td>
+                                    {% if font.is_suspicious %}
+                                    <span class="badge" style="background: #DC2626; color: white;">⚠️ Suspicious</span>
+                                    {% else %}
+                                    <span class="badge" style="background: #10B981; color: white;">✓ OK</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🔤</div>
+                    <p>No fonts found in this PDF</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- YARA Tab -->
+        <div id="tab-yara" class="tab-content" style="display: none;">
+            <div class="card">
+                <h2 class="card-title" style="margin-bottom: 16px;">YARA Scan Results</h2>
+                
+                <!-- Main PDF YARA Matches -->
+                {% if analysis.yara_matches %}
+                <div style="margin-bottom: 32px;">
+                    <h3 style="margin-bottom: 16px; font-size: 18px;">Main PDF Scan</h3>
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        {% for match in analysis.yara_matches %}
+                        <div style="padding: 16px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 4px solid #F59E0B;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                                <div>
+                                    <div style="font-weight: 600; font-size: 16px; color: #F59E0B; margin-bottom: 4px;">
+                                        {{ match.rule_name }}
+                                    </div>
+                                    {% if match.rule_namespace %}
+                                    <div style="font-size: 12px; color: var(--text-secondary);">
+                                        Namespace: {{ match.rule_namespace }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <span class="badge" style="background: #F59E0B; color: white;">
+                                    {{ match.strings|length }} match(es)
+                                </span>
+                            </div>
+                            {% if match.strings %}
+                            <div style="margin-top: 12px;">
+                                <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">Matches:</div>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    {% for string_match in match.strings[:10] %}
+                                    <div style="padding: 8px; background: rgba(0, 0, 0, 0.05); border-radius: 4px; font-family: monospace; font-size: 12px;">
+                                        <div style="color: var(--text-secondary); margin-bottom: 4px;">Offset: {{ string_match.offset }}</div>
+                                        <div style="word-break: break-all;">{{ string_match.data[:100] }}{% if string_match.data|length > 100 %}...{% endif %}</div>
+                                    </div>
+                                    {% endfor %}
+                                    {% if match.strings|length > 10 %}
+                                    <div style="font-size: 12px; color: var(--text-secondary); text-align: center; padding: 8px;">
+                                        ... and {{ match.strings|length - 10 }} more matches
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Detailed YARA Results (Streams) -->
+                {% if analysis.yara_detailed and analysis.yara_detailed.stream_matches %}
+                <div>
+                    <h3 style="margin-bottom: 16px; font-size: 18px;">Stream Scans</h3>
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        {% for match in analysis.yara_detailed.stream_matches %}
+                        <div style="padding: 16px; background: rgba(139, 92, 246, 0.1); border-radius: 8px; border-left: 4px solid #8B5CF6;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                                <div>
+                                    <div style="font-weight: 600; font-size: 16px; color: #8B5CF6; margin-bottom: 4px;">
+                                        {{ match.rule_name }}
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">
+                                        Stream: <code>{{ match.node_label }}</code> (ID: {{ match.node_id }})
+                                    </div>
+                                </div>
+                                <span class="badge" style="background: #8B5CF6; color: white;">
+                                    {{ match.strings|length }} match(es)
+                                </span>
+                            </div>
+                            {% if match.strings %}
+                            <div style="margin-top: 12px;">
+                                <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">Matches:</div>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    {% for string_match in match.strings[:5] %}
+                                    <div style="padding: 8px; background: rgba(0, 0, 0, 0.05); border-radius: 4px; font-family: monospace; font-size: 12px;">
+                                        <div style="color: var(--text-secondary); margin-bottom: 4px;">Offset: {{ string_match.offset }}</div>
+                                        <div style="word-break: break-all;">{{ string_match.data[:100] }}{% if string_match.data|length > 100 %}...{% endif %}</div>
+                                    </div>
+                                    {% endfor %}
+                                    {% if match.strings|length > 5 %}
+                                    <div style="font-size: 12px; color: var(--text-secondary); text-align: center; padding: 8px;">
+                                        ... and {{ match.strings|length - 5 }} more matches
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if not analysis.yara_matches and not (analysis.yara_detailed and analysis.yara_detailed.stream_matches) %}
+                <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🛡️</div>
+                    <p>No YARA matches found</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Streams Analysis Tab -->
+        <div id="tab-streams" class="tab-content" style="display: none;">
+            <div class="card">
+                <h2 class="card-title" style="margin-bottom: 16px;">Binary Streams Analysis</h2>
+                {% if analysis.streams_analysis %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Node ID</th>
+                                <th>Label</th>
+                                <th>Status</th>
+                                <th>Stream Length</th>
+                                <th>MD5</th>
+                                <th>SHA256</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stream in analysis.streams_analysis %}
+                            <tr>
+                                <td>{{ stream.node_id }}</td>
+                                <td><code>{{ stream.label }}</code></td>
+                                <td>
+                                    {% if stream.status == 'analyzed' %}
+                                    <span class="badge" style="background: #10B981; color: white;">✓ Analyzed</span>
+                                    {% elif stream.status == 'decode_failure' %}
+                                    <span class="badge" style="background: #DC2626; color: white;">⚠️ Decode Failure</span>
+                                    {% elif stream.status == 'empty' %}
+                                    <span class="badge" style="background: #6B7280; color: white;">Empty</span>
+                                    {% elif stream.status == 'error' %}
+                                    <span class="badge" style="background: #DC2626; color: white;">Error</span>
+                                    {% else %}
+                                    <span class="badge" style="background: #6B7280; color: white;">{{ stream.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ stream.stream_length }} bytes</td>
+                                <td>
+                                    {% if stream.hashes %}
+                                    <code style="font-size: 11px;">{{ stream.hashes.md5[:16] }}...</code>
+                                    {% else %}
+                                    N/A
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if stream.hashes %}
+                                    <code style="font-size: 11px;">{{ stream.hashes.sha256[:32] }}...</code>
+                                    {% else %}
+                                    N/A
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <div style="font-size: 48px; margin-bottom: 16px;">💧</div>
+                    <p>Streams analysis not available</p>
+                    <p style="font-size: 14px; margin-top: 8px;">Enable "analyze_streams" option during PDF analysis to see stream details.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- IOCs Tab -->
+        <div id="tab-iocs" class="tab-content" style="display: none;">
+            <div class="card">
+                <h2 class="card-title" style="margin-bottom: 16px;">Extracted IOCs</h2>
+                <div style="margin-bottom: 16px;">
+                    <a href="{{ url_for('iocs_list') }}?source={{ source.name }}" class="btn btn-primary">
+                        View all IOCs from this PDF →
+                    </a>
+                </div>
+                <div style="padding: 24px; background: rgba(139, 92, 246, 0.05); border-radius: 8px; text-align: center; color: var(--text-secondary);">
+                    <p>IOCs extracted from this PDF are available in the main IOCs list.</p>
+                    <p style="font-size: 14px; margin-top: 8px;">Use the link above to filter IOCs by this source.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Binary Patterns Tab -->
+        <div id="tab-patterns" class="tab-content" style="display: none;">
+            <div class="card">
+                <h2 class="card-title" style="margin-bottom: 16px;">Binary Pattern Search</h2>
+                <div style="margin-bottom: 24px;">
+                    <form id="pattern-search-form">
+                        <div class="form-group">
+                            <label class="form-label">Search Patterns (one per line)</label>
+                            <textarea id="pattern-input" class="form-control" rows="5" placeholder="Enter patterns to search (hex, regex, or strings)&#10;Example:&#10;4A 53&#10;/JavaScript&#10;http://"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Search</button>
+                    </form>
+                </div>
+                <div id="pattern-results" style="display: none;">
+                    <h3 style="margin-bottom: 16px;">Search Results</h3>
+                    <div id="pattern-results-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div id="tab-history" class="tab-content" style="display: none;">
+            <div class="card">
+                <h2 class="card-title" style="margin-bottom: 16px;">Modification History</h2>
+                {% if analysis.modification_history.has_modifications %}
+                <div style="padding: 16px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 4px solid #F59E0B; margin-bottom: 16px;">
+                    <div style="font-weight: 600; margin-bottom: 8px; color: #F59E0B;">⚠️ Modified PDF Detected</div>
+                    <div style="font-size: 14px; color: var(--text-secondary);">
+                        This PDF has been modified (incremental updates detected).
+                    </div>
+                </div>
+                <div style="display: grid; gap: 16px;">
+                    <div>
+                        <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Max Generation</div>
+                        <div style="font-size: 18px; font-weight: 500;">{{ analysis.modification_history.max_generation }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Total Objects</div>
+                        <div style="font-size: 18px; font-weight: 500;">{{ analysis.modification_history.total_objects }}</div>
+                    </div>
+                    {% if analysis.modification_history.generations %}
+                    <div>
+                        <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Objects by Generation</div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            {% for gen, count in analysis.modification_history.generations.items() %}
+                            <div style="padding: 8px; background: rgba(139, 92, 246, 0.05); border-radius: 4px;">
+                                Generation {{ gen }}: {{ count }} object(s)
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📜</div>
+                    <p>No modifications detected</p>
+                    <p style="font-size: 14px; margin-top: 8px;">This PDF appears to be in its original form.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Tab management
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        
+        // Deactivate all tabs
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('active');
+            b.style.color = 'var(--text-secondary)';
+            b.style.borderBottom = 'none';
+        });
+        
+        // Activate clicked tab
+        btn.classList.add('active');
+        btn.style.color = 'var(--text-primary)';
+        btn.style.borderBottom = '2px solid var(--violet-light)';
+        
+        // Show corresponding content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.style.display = 'none';
+        });
+        document.getElementById(`tab-${tab}`).style.display = 'block';
+    });
+});
+
+// Binary pattern search
+document.getElementById('pattern-search-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const patternsText = document.getElementById('pattern-input').value.trim();
+    if (!patternsText) {
+        alert('Please enter at least one pattern');
+        return;
+    }
+    
+    const patterns = patternsText.split('\n').filter(p => p.trim());
+    
+    const resultsDiv = document.getElementById('pattern-results');
+    const resultsContent = document.getElementById('pattern-results-content');
+    
+    resultsDiv.style.display = 'block';
+    resultsContent.innerHTML = '<div style="text-align: center; padding: 20px;">Searching...</div>';
+    
+    try {
+        const response = await fetch(`/api/pdf/{{ source.id }}/binary-search`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({patterns: patterns})
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            const matches = data.matches || [];
+            if (matches.length === 0) {
+                resultsContent.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-secondary);">No matches found</div>';
+            } else {
+                let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+                matches.forEach(match => {
+                    html += `
+                        <div style="padding: 12px; background: rgba(139, 92, 246, 0.05); border-radius: 8px;">
+                            <div style="font-weight: 500; margin-bottom: 4px;">Pattern: <code>${match.pattern}</code></div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Node ID: ${match.node_id}, Offset: ${match.offset}</div>
+                            <div style="font-family: monospace; font-size: 12px; word-break: break-all;">${match.data}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                resultsContent.innerHTML = html;
+            }
+        } else {
+            resultsContent.innerHTML = `<div style="text-align: center; padding: 20px; color: #DC2626;">Error: ${data.error || 'Unknown error'}</div>`;
+        }
+    } catch (error) {
+        resultsContent.innerHTML = `<div style="text-align: center; padding: 20px; color: #DC2626;">Error: ${error.message}</div>`;
+    }
+});
+</script>
+{% endblock %}
+
