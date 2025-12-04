@@ -212,19 +212,30 @@ Analyze suspicious PDF files with YARA-based detection and visualize PDF structu
 
 ## 🧭 ISO 27001 & NIS2 Compliance
 
-**ISO 27001:2022 Controls:**
-- **A.9 Access Control**: Optional authentication, secured cookies, dedicated service user
-- **A.12 Operations**: Automatic IOC workflows, log rotation, background cleanup, storage monitoring
-- **A.14 System Acquisition & Development**: Locked dependencies, import verification, configuration templates
-- **A.16 Incident Management**: Tagging system (False Positive, Investigating, Verified), report exports
-- **A.18 Compliance**: SSL support, secret key management, log retention, audit documentation
+Yes, your application concretely addresses specific requirements of CTI (Cyber Threat Intelligence) for ISO 27001 and NIS2. It functions as a technical tool that helps implement specific controls, primarily by centralizing and operationalizing threat intelligence.
 
-**NIS2 Directive Alignment:**
-- **Article 21 - Cybersecurity measures**: Centralized IOC management, threat classification, full traceability
-- **Incident management**: IOC tracking and classification (True Positive, False Positive, Verified)
-- **Threat intelligence**: Centralized IOC enrichment for rapid threat response
-- **Reporting**: Structured exports (STIX 2.1) for threat information sharing
-- **Operational resilience**: Offline operation, storage monitoring, secure data handling
+The table below describes the direct link between your application's features and the actual requirements of the frameworks. The concrete examples come from your application's documented functionality.
+
+| Framework / Requirement | Objective of the Requirement | How Odysafe CTI Contributes (Documented Feature) |
+| :--- | :--- | :--- |
+| **ISO 27001:2022 Control 5.7 - Threat Intelligence** | Collect, analyze, and produce threat intelligence to guide security decisions. | **IOC Centralization Platform**: import, extraction, enrichment, organization by tags, and integrated source (DeepDarkCTI). |
+| **NIS2 - Risk Management (Art. 21)** | Adopt a risk management approach based on continuous threat analysis. | **Input Data for Risk Analysis**: Provides a centralized view of relevant IOCs to assess threats. |
+| **NIS2 - Incident Management (Art. 23)** | Detect, manage, and notify incidents within strict timeframes (24h/72h). | **IOC Lifecycle Tracking**: Tagging system (`Investigating`, `Verified`, `False Positive`) and audit history to understand and document an incident. |
+| **NIS2 - Information Sharing & Collaboration (Art. 23)** | Share threat information with authorities and partners. | **Structured Exports**: Formats like **STIX 2.1**, facilitating sharing with CERT/CSIRT and integration into other security tools. |
+| **ISO 27001:2022 A.8.16 - Monitoring Activities** | Monitor systems to detect unauthorized activities and security events. | **Logging and Audit**: Logs via `journald` and complete audit trail for actions on IOCs. |
+| **Offline Operation / Resilience** | Function in secure environments or with low connectivity. | **"Offline-First" Design**: Local processing, SQLite database, no telemetry. Aligns with the principle of resilience. |
+
+### 💡 Key Points to Understand About Its Role in Compliance
+
+As we have already discussed, these features make your application a **valuable technical component** within a broader compliance program, but they do not constitute compliance on their own.
+
+- **For ISO 27001**: The application primarily addresses **Control 5.7 (Threat Intelligence)** introduced in the 2022 version. This is its most direct and significant contribution.
+
+- **For NIS2**: The application supports several areas, including incident management and information sharing, which can accelerate response and notification to authorities. However, NIS2 also requires **governance measures, extended business continuity, and supply chain security** that go beyond the scope of a CTI tool.
+
+- **Your mentions of "A.9 Access Control", etc.**: These references to ISO 27001 annexes describe **internal application security functions** (e.g., secure cookies). They do not cover organizational access control policies.
+
+In summary, your application is well positioned as **a platform for centralizing and operationalizing Threat Intelligence**, which serves as technical evidence for specific controls such as ISO 27001:2022 Control 5.7 and supports several operational requirements of NIS2.
 
 ---
 
