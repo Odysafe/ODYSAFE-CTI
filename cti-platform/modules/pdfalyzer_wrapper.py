@@ -22,7 +22,6 @@ import logging
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Any
-from anytree.search import findall_by_attr
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -33,6 +32,7 @@ try:
     from pdfalyzer.output.pdfalyzer_presenter import PdfalyzerPresenter
     from pdfalyzer.util.adobe_strings import JAVASCRIPT, OPEN_ACTION, ACRO_FORM, FONT_FILE
     from pdfalyzer.util.exceptions import PdfWalkError
+    from anytree.search import findall_by_attr
     PDFALYZER_AVAILABLE = True
     PdfalyzerType = Pdfalyzer  # Type hint
 except ImportError as e:
@@ -41,6 +41,7 @@ except ImportError as e:
     Pdfalyzer = None  # type: ignore
     PdfWalkError = Exception  # Fallback for type checking
     PdfalyzerType = Any
+    findall_by_attr = None  # type: ignore
 
 
 def analyze_pdf(pdf_path: str, options: Optional[Dict[str, bool]] = None, pdfalyzer_instance: Optional[Any] = None) -> Dict[str, Any]:
@@ -226,6 +227,9 @@ def detect_suspicious_pdf(pdfalyzer: Any) -> Tuple[bool, List[str]]:
     Returns:
         Tuple of (is_suspicious, list_of_reasons)
     """
+    if not PDFALYZER_AVAILABLE or findall_by_attr is None:
+        return False, []
+    
     reasons = []
     
     try:
