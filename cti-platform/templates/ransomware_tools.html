@@ -1,0 +1,911 @@
+{% extends "base.html" %}
+
+{% block title %}Ransomware Tool Matrix - CTI Platform{% endblock %}
+
+{% block extra_head %}
+<style>
+    .rtm-hero {
+        text-align: center;
+        margin-bottom: 80px;
+        padding: 60px 0;
+    }
+    
+    .rtm-hero h1 {
+        font-size: clamp(32px, 5vw, 56px);
+        font-weight: 700;
+        margin-bottom: 24px;
+        background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .rtm-hero p {
+        font-size: 20px;
+        color: var(--text-secondary);
+        max-width: 700px;
+        margin: 0 auto 40px;
+    }
+    
+    .refresh-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 40px;
+        padding: 24px;
+        background: rgba(139, 92, 246, 0.05);
+        border-radius: 16px;
+        border: 1px solid rgba(167, 139, 250, 0.1);
+    }
+    
+    .refresh-button {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, var(--violet-medium), var(--violet-light));
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        ody: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .refresh-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+    }
+    
+    .refresh-button:active {
+        transform: translateY(0);
+    }
+    
+    .refresh-button.loading {
+        opacity: 0.7;
+        ody: not-allowed;
+    }
+    
+    .refresh-button .spinner {
+        display: none;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    
+    .refresh-button.loading .spinner {
+        display: block;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .stats-info {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+    
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--violet-light);
+    }
+    
+    .stat-label {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+    
+    .thank-you-message {
+        background: rgba(139, 92, 246, 0.1);
+        border-left: 4px solid var(--violet-light);
+        padding: 20px 24px;
+        border-radius: 12px;
+        margin-bottom: 60px;
+        font-size: 16px;
+        line-height: 1.6;
+    }
+    
+    .thank-you-message strong {
+        color: var(--violet-light);
+    }
+    
+    .section-tabs {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 32px;
+        border-bottom: 2px solid rgba(167, 139, 250, 0.2);
+        padding-bottom: 12px;
+    }
+    
+    .section-tab {
+        padding: 12px 24px;
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 16px;
+        font-weight: 500;
+        ody: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -14px;
+        transition: all 0.3s ease;
+    }
+    
+    .section-tab:hover {
+        color: var(--violet-light);
+    }
+    
+    .section-tab.active {
+        color: var(--violet-light);
+        border-bottom-color: var(--violet-light);
+    }
+    
+    .section-content {
+        display: none;
+    }
+    
+    .section-content.active {
+        display: block;
+    }
+    
+    .tools-grid, .threat-intel-grid, .profiles-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 24px;
+        margin-bottom: 40px;
+    }
+    
+    .reports-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(800px, 1fr));
+        gap: 24px;
+        margin-bottom: 40px;
+    }
+    
+    @media (max-width: 1200px) {
+        .reports-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .tool-card, .threat-intel-card, .profile-card, .report-card {
+        background: rgba(20, 20, 30, 0.6);
+        border: 1px solid rgba(167, 139, 250, 0.15);
+        border-radius: 16px;
+        padding: 24px;
+        transition: all 0.3s ease;
+        ody: pointer;
+    }
+    
+    .tool-card:hover, .threat-intel-card:hover, .profile-card:hover, .report-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(139, 92, 246, 0.2);
+        border-color: rgba(167, 139, 250, 0.3);
+    }
+    
+    .tool-card.expanded, .threat-intel-card.expanded, .profile-card.expanded, .report-card.expanded {
+        border-color: var(--violet-light);
+    }
+    
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 16px;
+    }
+    
+    .card-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    
+    .card-count {
+        background: var(--violet-medium);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .card-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+    }
+    
+    .tool-card.expanded .card-content, .threat-intel-card.expanded .card-content,
+    .profile-card.expanded .card-content {
+        max-height: 800px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    .report-card.expanded .card-content {
+        max-height: 1200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    /* Community Reports specific styling */
+    .report-content {
+        font-size: 14px;
+        color: var(--text-secondary);
+        line-height: 1.8;
+        padding: 8px 0;
+    }
+    
+    .report-content h1,
+    .report-content h2,
+    .report-content h3,
+    .report-content h4 {
+        color: var(--text-primary);
+        margin-top: 24px;
+        margin-bottom: 12px;
+        font-weight: 600;
+    }
+    
+    .report-content h1 {
+        font-size: 24px;
+        border-bottom: 2px solid rgba(139, 92, 246, 0.3);
+        padding-bottom: 8px;
+    }
+    
+    .report-content h2 {
+        font-size: 20px;
+        border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+        padding-bottom: 6px;
+    }
+    
+    .report-content h3 {
+        font-size: 18px;
+    }
+    
+    .report-content h4 {
+        font-size: 16px;
+    }
+    
+    .report-content p {
+        margin-bottom: 12px;
+    }
+    
+    .report-content ul,
+    .report-content ol {
+        margin: 12px 0;
+        padding-left: 24px;
+    }
+    
+    .report-content li {
+        margin-bottom: 6px;
+    }
+    
+    .report-content code {
+        background: rgba(139, 92, 246, 0.15);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        color: var(--violet-light);
+    }
+    
+    .report-content pre {
+        background: rgba(139, 92, 246, 0.1);
+        padding: 16px;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 16px 0;
+        border-left: 3px solid var(--violet-light);
+    }
+    
+    .report-content pre code {
+        background: none;
+        padding: 0;
+        color: var(--text-primary);
+    }
+    
+    .report-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+        font-size: 13px;
+    }
+    
+    .report-content table th,
+    .report-content table td {
+        padding: 8px 12px;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        text-align: left;
+    }
+    
+    .report-content table th {
+        background: rgba(139, 92, 246, 0.15);
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+    
+    .report-content table tr:nth-child(even) {
+        background: rgba(139, 92, 246, 0.05);
+    }
+    
+    .report-content blockquote {
+        border-left: 4px solid var(--violet-light);
+        padding-left: 16px;
+        margin: 16px 0;
+        color: var(--text-secondary);
+        font-style: italic;
+    }
+    
+    .report-content a {
+        color: var(--violet-light);
+        text-decoration: none;
+        border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+        transition: all 0.2s ease;
+    }
+    
+    .report-content a:hover {
+        color: var(--violet-aurora);
+        border-bottom-color: var(--violet-aurora);
+    }
+    
+    .report-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        margin: 16px 0;
+    }
+    
+    .report-content hr {
+        border: none;
+        border-top: 1px solid rgba(139, 92, 246, 0.2);
+        margin: 24px 0;
+    }
+    
+    /* Scroll optimization for report content */
+    .report-content {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(139, 92, 246, 0.3) transparent;
+    }
+    
+    .report-content::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .report-content::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    
+    .report-content::-webkit-scrollbar-thumb {
+        background: rgba(139, 92, 246, 0.3);
+        border-radius: 4px;
+    }
+    
+    .report-content::-webkit-scrollbar-thumb:hover {
+        background: rgba(139, 92, 246, 0.5);
+    }
+    
+    .tool-item, .threat-group-item {
+        padding: 12px;
+        margin-bottom: 8px;
+        background: rgba(139, 92, 246, 0.05);
+        border-radius: 8px;
+        border-left: 3px solid var(--violet-light);
+    }
+    
+    .tool-name {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+    
+    .threat-groups {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+    
+    .threat-group-tag {
+        display: inline-block;
+        padding: 2px 8px;
+        margin: 2px 4px 2px 0;
+        background: rgba(139, 92, 246, 0.2);
+        border-radius: 4px;
+        font-size: 12px;
+    }
+    
+    .tip-box, .important-box {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    
+    .tip-box {
+        background: rgba(34, 197, 94, 0.1);
+        border-left: 4px solid #22C55E;
+    }
+    
+    .important-box {
+        background: rgba(220, 38, 38, 0.1);
+        border-left: 4px solid #DC2626;
+    }
+    
+    .search-box {
+        width: 100%;
+        padding: 16px 20px;
+        background: rgba(139, 92, 246, 0.05);
+        border: 1px solid rgba(167, 139, 250, 0.2);
+        border-radius: 12px;
+        color: var(--text-primary);
+        font-size: 16px;
+        margin-bottom: 32px;
+        transition: all 0.3s ease;
+    }
+    
+    .search-box:focus {
+        outline: none;
+        border-color: var(--violet-light);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+    
+    /* Barre de progression */
+    .progress-container {
+        display: none;
+        margin-bottom: 24px;
+        padding: 20px;
+        background: rgba(139, 92, 246, 0.05);
+        border-radius: 12px;
+        border: 1px solid rgba(167, 139, 250, 0.1);
+    }
+    
+    .progress-container.active {
+        display: block;
+    }
+    
+    .progress-bar-wrapper {
+        width: 100%;
+        height: 8px;
+        background: rgba(139, 92, 246, 0.1);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 12px;
+    }
+    
+    .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, var(--violet-medium), var(--violet-light));
+        border-radius: 4px;
+        transition: width 0.3s ease;
+        width: 0%;
+    }
+    
+    .progress-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+    
+    .progress-message {
+        font-weight: 500;
+        color: var(--violet-light);
+    }
+    
+    #progressPercentage {
+        color: var(--text-secondary);
+    }
+    
+    /* Modal styles */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal-overlay.active {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: rgba(20, 20, 30, 0.95);
+        border: 1px solid rgba(167, 139, 250, 0.3);
+        border-radius: 16px;
+        padding: 32px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+    }
+    
+    .modal-message {
+        font-size: 14px;
+        color: var(--text-secondary);
+        word-break: break-all;
+        margin-bottom: 24px;
+        padding: 12px;
+        background: rgba(139, 92, 246, 0.1);
+        border-radius: 8px;
+    }
+    
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+    
+    .modal-button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        ody: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .modal-button.primary {
+        background: linear-gradient(135deg, var(--violet-medium), var(--violet-light));
+        color: white;
+    }
+    
+    .modal-button.primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    }
+    
+    .modal-button.secondary {
+        background: rgba(139, 92, 246, 0.2);
+        color: var(--violet-light);
+        border: 1px solid var(--violet-light);
+    }
+    
+    .modal-button.secondary:hover {
+        background: rgba(139, 92, 246, 0.3);
+    }
+    
+    .modal-button.cancel {
+        background: rgba(100, 100, 100, 0.2);
+        color: var(--text-secondary);
+        border: 1px solid rgba(167, 139, 250, 0.2);
+    }
+    
+    .modal-button.cancel:hover {
+        background: rgba(100, 100, 100, 0.3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <!-- Barre de sélection -->
+        <div class="resource-selector" style="display: flex; gap: 0; margin-bottom: 40px; padding: 6px; background: rgba(139, 92, 246, 0.05); border-radius: 16px; border: 1px solid rgba(167, 139, 250, 0.1); overflow-x: auto; flex-wrap: nowrap;">
+            <button class="resource-tab" data-resource="deepdarkcti" onclick="window.location.href='/cti-resources/deepdarkcti'" style="padding: 12px 24px; background: transparent; border: none; border-radius: 12px; color: #9CA3AF; font-size: 16px; font-weight: 500; ody: pointer; transition: all 0.3s ease; white-space: nowrap; flex: 1; text-align: center;">
+                DeepDarkCTI
+            </button>
+            <button class="resource-tab active" data-resource="ransomware-matrix" onclick="window.location.href='/cti-resources/ransomware-matrix'" style="padding: 12px 24px; background: rgba(60, 60, 80, 0.8); border: none; border-radius: 12px; color: white; font-size: 16px; font-weight: 600; ody: pointer; transition: all 0.3s ease; white-space: nowrap; flex: 1; text-align: center;">
+                Ransomware Tool Matrix
+            </button>
+        </div>
+
+        <!-- Hero Section -->
+        <div style="text-align: center; margin-bottom: 60px;">
+            <h1 style="font-size: clamp(32px, 5vw, 48px); font-weight: 700; margin-bottom: 24px; background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                Ransomware Tool Matrix
+            </h1>
+            <p style="font-size: 18px; color: var(--text-secondary); max-width: 800px; margin: 0 auto 32px; line-height: 1.6;">
+                Access comprehensive resources on tools, groups, and reports related to ransomware. Explore tools used by ransomware gangs, group profiles, and community reports to improve your detection and blocking capabilities.
+            </p>
+        </div>
+
+        <!-- External Resource Information -->
+        <div class="thank-you-message">
+            <strong>External Resource</strong><br>
+            This section uses data from the <a href="https://github.com/BushidoUK/Ransomware-Tool-Matrix" target="_blank" style="color: var(--violet-light); text-decoration: none;">Ransomware Tool Matrix</a> project, an open-source resource that collects and documents tools used by ransomware gangs. This resource is integrated into the platform to provide comprehensive information for threat hunting, detection deployment, and tool blocking.<br><br>
+            <strong>Odysafe CTI Platform thanks the Ransomware Tool Matrix project</strong> for making this valuable resource available to the community.
+        </div>
+
+        {% if not repo_exists %}
+        <!-- Repository not available -->
+        <div style="text-align: center; padding: 60px 20px;">
+            <div style="font-size: 48px; margin-bottom: 20px;">📦</div>
+            <h2 style="color: var(--text-primary); margin-bottom: 16px;">Repository not available</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 16px; max-width: 500px; margin-left: auto; margin-right: auto;">
+                The Ransomware Tool Matrix repository has not been downloaded. Click the button below to download it.
+            </p>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 24px; max-width: 500px; margin-left: auto; margin-right: auto;">
+                <span style="font-size: 24px;">🌐</span>
+                <p style="color: var(--text-secondary); margin: 0; font-size: 14px;">
+                    An internet connection is required to download the repository from GitHub.
+                </p>
+            </div>
+            <button id="downloadBtn" class="refresh-button" style="min-width: 200px;">
+                <span class="spinner"></span>
+                <span class="button-text">⬇️ Download</span>
+            </button>
+            <div id="progressContainer" class="progress-container">
+                <div class="progress-bar-wrapper">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+                <div id="progressMessage" class="progress-message">Preparing...</div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Refresh Section -->
+        <div class="refresh-section">
+            <div class="stats-info">
+                {% if category_info %}
+                <div class="stat-item">
+                    <div class="stat-value">{{ tools|length }}</div>
+                    <div class="stat-label">Tool Categories</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ threat_intel|length }}</div>
+                    <div class="stat-label">Threat Intel Sources</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ group_profiles|length }}</div>
+                    <div class="stat-label">Group Profiles</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ community_reports|length }}</div>
+                    <div class="stat-label">Community Reports</div>
+                </div>
+                {% if category_info.last_update %}
+                <div class="stat-item">
+                    <div class="stat-value" style="font-size: 14px;">{{ category_info.last_update[:10] }}</div>
+                    <div class="stat-label">Last Updated</div>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 6px; padding: 6px 10px;">
+                    <span style="font-size: 18px;">🌐</span>
+                    <p style="color: var(--text-secondary); margin: 0; font-size: 12px;">
+                        Internet connection required
+                    </p>
+                </div>
+                <button id="refreshBtn" class="refresh-button">
+                    <span class="spinner"></span>
+                    <span class="button-text">🔄 Refresh</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Barre de progression -->
+        <div id="progressContainer" class="progress-container">
+            <div class="progress-bar-wrapper">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div class="progress-info">
+                <span id="progressMessage" class="progress-message">Initializing...</span>
+                <span id="progressPercentage">0%</span>
+            </div>
+        </div>
+
+        <!-- Search Box -->
+        <input type="text" id="searchBox" class="search-box" placeholder="🔍 Search tools, groups, reports...">
+
+        <!-- Section Tabs -->
+        <div class="section-tabs">
+            <button class="section-tab active" data-section="tools">🛠️ Tools</button>
+            <button class="section-tab" data-section="threat-intel">📊 Threat Intel</button>
+            <button class="section-tab" data-section="profiles">👥 Group Profiles</button>
+            <button class="section-tab" data-section="reports">📝 Community Reports</button>
+        </div>
+
+        <!-- Tools Section -->
+        <div id="toolsSection" class="section-content active">
+            <div class="tools-grid" id="toolsContainer">
+                {% if tools %}
+                    {% for tool_key, tool_data in tools.items() %}
+                    <div class="tool-card" data-tool-key="{{ tool_key }}">
+                        <div class="card-header">
+                            <h3 class="card-title">{{ tool_data.title }}</h3>
+                            <span class="card-count">{{ tool_data.tools_count }}</span>
+                        </div>
+                        {% if tool_data.tip %}
+                        <div class="tip-box">{{ tool_data.tip }}</div>
+                        {% endif %}
+                        {% if tool_data.important %}
+                        <div class="important-box">{{ tool_data.important }}</div>
+                        {% endif %}
+                        <div class="card-content">
+                            {% for tool in tool_data.tools %}
+                            <div class="tool-item">
+                                <div class="tool-name">{{ tool.tool_name }}</div>
+                                <div class="threat-groups">
+                                    {% for group in tool.threat_groups %}
+                                    <span class="threat-group-tag">{{ group }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <p>No tools data available. Please refresh the repository.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Threat Intel Section -->
+        <div id="threatIntelSection" class="section-content">
+            <div class="threat-intel-grid" id="threatIntelContainer">
+                {% if threat_intel %}
+                    {% for intel_key, intel_data in threat_intel.items() %}
+                    <div class="threat-intel-card" data-intel-key="{{ intel_key }}">
+                        <div class="card-header">
+                            <h3 class="card-title">{{ intel_data.title }}</h3>
+                            <span class="card-count">{{ intel_data.entries_count }}</span>
+                        </div>
+                        {% if intel_data.important %}
+                        <div class="important-box">{{ intel_data.important }}</div>
+                        {% endif %}
+                        <div class="card-content">
+                            {% for entry in intel_data.entries %}
+                            <div class="threat-group-item">
+                                {% for key, value in entry.items() %}
+                                <div style="margin-bottom: 8px;">
+                                    <strong>{{ key }}:</strong>
+                                    {% if value is mapping and value.links %}
+                                        {% for link in value.links %}
+                                            <a href="{{ link.url }}" target="_blank" class="external-link" style="color: var(--violet-light); text-decoration: none; margin-left: 4px;">{{ link.text }}</a>
+                                        {% endfor %}
+                                    {% elif value.startswith('http://') or value.startswith('https://') %}
+                                        <a href="{{ value }}" target="_blank" class="external-link" style="color: var(--violet-light); text-decoration: none; margin-left: 4px;">{{ value }}</a>
+                                    {% else %}
+                                        {{ value }}
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <p>No threat intel data available. Please refresh the repository.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Group Profiles Section -->
+        <div id="profilesSection" class="section-content">
+            <div class="profiles-grid" id="profilesContainer">
+                {% if group_profiles %}
+                    {% for profile in group_profiles %}
+                    <div class="profile-card" data-profile-name="{{ profile.filename }}">
+                        <div class="card-header">
+                            <h3 class="card-title">{{ profile.title }}</h3>
+                        </div>
+                        <div class="card-content">
+                            {% if profile.tools_table %}
+                            <div style="overflow-x: auto;">
+                                <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                                    {% for entry in profile.tools_table %}
+                                    <tr>
+                                        {% for key, value in entry.items() %}
+                                        <td style="padding: 8px; border: 1px solid rgba(167, 139, 250, 0.2);">{{ value }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                </table>
+                            </div>
+                            {% endif %}
+                            {% if profile.sources %}
+                            <div style="margin-top: 16px;">
+                                <strong>Sources:</strong>
+                                {% for source in profile.sources %}
+                                <div style="margin-top: 8px; padding: 8px; background: rgba(139, 92, 246, 0.05); border-radius: 4px;">
+                                    {% for key, value in source.items() %}
+                                    <div style="margin-bottom: 4px;">
+                                        <strong>{{ key }}:</strong> 
+                                        {% if value.startswith('http://') or value.startswith('https://') %}
+                                            <a href="{{ value }}" target="_blank" style="color: var(--violet-light); text-decoration: none; margin-left: 4px;">{{ value }}</a>
+                                            <a href="{{ value }}" target="_blank" class="external-link" style="margin-left: 8px; padding: 2px 8px; background: rgba(139, 92, 246, 0.2); border: 1px solid var(--violet-light); border-radius: 4px; color: var(--violet-light); ody: pointer; font-size: 12px; text-decoration: none;">🔗 Link</a>
+                                        {% else %}
+                                            {{ value }}
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <p>No group profiles data available. Please refresh the repository.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Community Reports Section -->
+        <div id="reportsSection" class="section-content">
+            <div class="reports-grid" id="reportsContainer">
+                {% if community_reports %}
+                    {% for report in community_reports %}
+                    <div class="report-card" data-report-id="{{ report.report_id }}">
+                        <div class="card-header">
+                            <h3 class="card-title">{{ report.title }}</h3>
+                            <span class="card-count">{{ report.report_id }}</span>
+                        </div>
+                        <div style="margin-bottom: 12px; font-size: 14px; color: var(--text-secondary);">
+                            <div><strong>Group:</strong> {{ report.group_name }}</div>
+                            <div><strong>Date:</strong> {{ report.month }} {{ report.year }}</div>
+                        </div>
+                        <div class="card-content">
+                            <div class="report-content">
+                                {% if report.full_content %}
+                                    {{ report.full_content | markdown | safe }}
+                                {% else %}
+                                    {{ report.content_preview | markdown | safe }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <p>No community reports data available. Please refresh the repository.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Link confirmation modal -->
+<div id="linkModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 class="modal-title">Open link</h3>
+        <p class="modal-message" id="modalLinkUrl"></p>
+        <div class="modal-actions">
+            <button class="modal-button secondary" id="copyLinkBtn">📋 Copy link</button>
+            <button class="modal-button primary" id="openLinkBtn">🔗 Open link</button>
+            <button class="modal-button cancel" id="cancelLinkBtn">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/cti_resources_common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ransomware_tools.js') }}"></script>
+{% endblock %}
+

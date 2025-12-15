@@ -1,0 +1,2059 @@
+{% extends "base.html" %}
+
+{% block title %}IOCs - CTI Platform{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <!-- Hero Section -->
+        <div style="text-align: center; margin-bottom: 60px;">
+            <h1 style="font-size: clamp(32px, 5vw, 48px); font-weight: 700; margin-bottom: 24px; background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                Extracted IOCs
+            </h1>
+            <p style="font-size: 18px; color: var(--text-secondary); max-width: 800px; margin: 0 auto 32px; line-height: 1.6;">
+                Browse, filter, and manage all extracted Indicators of Compromise (IOCs) from your sources. Use advanced filters, interactive hashtags, status groups, and bulk actions to efficiently organize and analyze your threat intelligence.
+            </p>
+            
+            <!-- Features -->
+            <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 16px; padding: 32px; margin-top: 40px; text-align: left;">
+                <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 20px; color: var(--text-primary); text-align: center;">
+                    🔍 Features
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; font-size: 14px;">
+                    <div><strong>Advanced Filtering:</strong> Search by type, source, group, date, and duplicates</div>
+                    <div><strong>Interactive Hashtags:</strong> Quick filtering by type, source, date, and groups</div>
+                    <div><strong>Group Management:</strong> Assign status (True/False Positive, TLP) to IOCs</div>
+                    <div><strong>Bulk Actions:</strong> Multiple selection, bulk deletion, group assignment</div>
+                    <div><strong>Manual Addition:</strong> Create individual IOCs with type, value, and context</div>
+                    <div><strong>Query URLs:</strong> Links to external analysis tools for each IOC</div>
+                    <div><strong>Smart Pagination:</strong> Progressive loading for large lists</div>
+                    <div><strong>Export:</strong> Export filtered IOCs to various formats</div>
+                </div>
+                <p style="text-align: center; margin-top: 20px; color: var(--text-secondary); font-size: 13px;">
+                    All IOCs are automatically tagged with their type, source, and extraction date
+                </p>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <button type="button" onclick="toggleAddIocForm()" class="btn btn-secondary" style="display: flex; align-items: center; gap: 6px;">
+                    <span>➕</span> Add IOC Manually
+                </button>
+                <a href="{{ url_for('upload') }}" class="btn btn-primary">IOC Extractions</a>
+            </div>
+        </div>
+
+        <!-- Manual IOC addition form -->
+        <div id="add-ioc-form" class="card" style="margin-bottom: 32px; display: none;">
+            <h3 style="margin: 0 0 20px 0; color: var(--text-primary); font-size: 18px; font-weight: 600;">➕ Add IOC Manually</h3>
+            <form id="manual-ioc-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">IOC Type *</label>
+                    <select name="ioc_type" id="manual-ioc-type" class="form-control" required>
+                        <option value="">Select type</option>
+                        <option value="url">URL</option>
+                        <option value="fqdn">FQDN/Domain</option>
+                        <option value="ip4">IPv4</option>
+                        <option value="ip6">IPv6</option>
+                        <option value="md5">MD5</option>
+                        <option value="sha1">SHA1</option>
+                        <option value="sha256">SHA256</option>
+                        <option value="email">Email</option>
+                        <option value="bitcoin">Bitcoin</option>
+                        <option value="ethereum">Ethereum</option>
+                        <option value="cve">CVE</option>
+                        <option value="ttp">TTP (MITRE ATT&CK)</option>
+                        <option value="twitter">Twitter</option>
+                        <option value="github">GitHub</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="telegram">Telegram</option>
+                        <option value="pinterest">Pinterest</option>
+                        <option value="packagename">Package Android</option>
+                        <option value="webmoney">WebMoney</option>
+                        <option value="onionaddress">Tor Onion</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Value *</label>
+                    <input type="text" name="ioc_value" id="manual-ioc-value" class="form-control" placeholder="IOC value" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Context (optional)</label>
+                    <input type="text" name="context" id="manual-ioc-context" class="form-control" placeholder="Context or description">
+                </div>
+                <div style="display: flex; align-items: end; gap: 8px;">
+                    <button type="submit" class="btn btn-primary">Add IOC</button>
+                    <button type="button" onclick="toggleAddIocForm()" class="btn btn-secondary">Cancel</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Main filters -->
+        <div class="card" style="margin-bottom: 32px;">
+            <form method="GET" id="filter-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;" class="filters-grid">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Search</label>
+                    <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ filters.search or '' }}">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Type</label>
+                    <select name="type" class="form-control">
+                        <option value="">All</option>
+                        {% for ioc_type in unique_types %}
+                        <option value="{{ ioc_type }}" {% if filters.ioc_type == ioc_type %}selected{% endif %}>
+                            {{ ioc_type }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Source</label>
+                    <select name="source" class="form-control">
+                        <option value="">All</option>
+                        {% for source_name in unique_source_names %}
+                        <option value="{{ source_name }}" {% if filters.source_name == source_name %}selected{% endif %}>
+                            {{ source_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Group</label>
+                    <select name="group" class="form-control">
+                        <option value="">All</option>
+                        {% for group in all_groups %}
+                        <option value="{{ group.id }}" {% if filters.group_id and filters.group_id|int == group.id %}selected{% endif %}>
+                            {{ group.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Duplicates</label>
+                    <select name="duplicates" class="form-control">
+                        <option value="">All</option>
+                        <option value="true" {% if filters.show_duplicates %}selected{% endif %}>Duplicates only</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Date Range</label>
+                    <select name="date_range" class="form-control" id="date-range-select">
+                        <option value="">All time</option>
+                        <option value="24h" {% if filters.date_range == '24h' %}selected{% endif %}>Last 24 hours</option>
+                        <option value="7d" {% if filters.date_range == '7d' %}selected{% endif %}>Last 7 days</option>
+                        <option value="30d" {% if filters.date_range == '30d' %}selected{% endif %}>Last 30 days</option>
+                        <option value="3m" {% if filters.date_range == '3m' %}selected{% endif %}>Last 3 months</option>
+                        <option value="1y" {% if filters.date_range == '1y' %}selected{% endif %}>Last year</option>
+                        <option value="custom" {% if filters.date_range == 'custom' %}selected{% endif %}>Custom range</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0; display: none;" id="custom-date-range">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ filters.date_from or '' }}">
+                </div>
+                <div class="form-group" style="margin-bottom: 0; display: none;" id="custom-date-range-end">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ filters.date_to or '' }}">
+                </div>
+                <div style="display: flex; align-items: end; gap: 8px;">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                    <a href="{{ url_for('iocs_list') }}" class="btn btn-secondary">Reset</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Bulk Actions Bar (visible when IOCs are selected) -->
+        <div id="bulk-actions-bar" class="card" style="margin-bottom: 24px; display: none; padding: 16px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%); position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 2px solid rgba(139, 92, 246, 0.3);">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <strong id="selection-count" style="color: var(--text-primary); font-size: 16px;">0 IOCs selected</strong>
+                    <button class="btn btn-secondary" onclick="selectAllIocs()" style="display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 6px 12px;">
+                        <span>✓</span> Select All
+                    </button>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="position: relative;">
+                        <button class="btn btn-primary" onclick="toggleBulkGroupSelector(event)" style="display: flex; align-items: center; gap: 6px;">
+                            <span>📁</span> Assign to Group
+                        </button>
+                        <div id="bulk-group-selector" class="group-selector-dropdown" style="display: none; position: fixed; background: white; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; min-width: 200px; max-width: 90vw; max-height: 70vh; overflow-y: auto; padding: 8px;">
+                            <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); padding: 4px 8px; margin-bottom: 4px; border-bottom: 1px solid rgba(139, 92, 246, 0.1);">Status Groups</div>
+                            {% for group in all_groups %}
+                                {% if group.name in ['default', 'True Positive', 'False Positive', 'TLP:CLEAR', 'TLP:GREEN', 'TLP:AMBER', 'TLP:RED'] %}
+                                <div onclick="assignSelectedIocsToGroup({{ group.id }})" 
+                                     style="padding: 6px 12px; ody: pointer; font-size: 12px; color: {{ group.color or '#8B5CF6' }}; display: flex; align-items: center; gap: 8px; border-radius: 4px; transition: all 0.2s;"
+                                     onmouseover="this.style.background='rgba(139, 92, 246, 0.1)'"
+                                     onmouseout="this.style.background='transparent'">
+                                    <span style="width: 12px; height: 12px; background: {{ group.color or '#8B5CF6' }}; border-radius: 50%; display: inline-block;"></span>
+                                    <span>{{ group.name }}</span>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <button class="btn btn-danger" onclick="confirmBulkDelete()" style="display: flex; align-items: center; gap: 6px;">
+                        <span>🗑️</span> Delete Selected
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="card" style="position: relative; z-index: 1;">
+            <!-- Active hashtag filters - Modern Style -->
+            <div id="hashtag-filters-bar" class="card" style="margin-bottom: 20px; display: none; padding: 16px 20px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Active Filters:</span>
+                        <span id="filter-count" style="background: var(--violet-light); color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;">0</span>
+                    </div>
+                    <div id="active-hashtag-filters" style="display: flex; flex-wrap: wrap; gap: 8px; flex: 1;">
+                        <!-- Active filters will be added here -->
+                    </div>
+                    <button onclick="clearAllHashtagFilters()" style="background: rgba(220, 38, 38, 0.1); color: #DC2626; border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 500; ody: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(220, 38, 38, 0.15)'" onmouseout="this.style.background='rgba(220, 38, 38, 0.1)'">
+                        Clear All
+                    </button>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 24px; color: var(--text-secondary);">
+                {{ total }} IOC(s) found
+            </div>
+
+            {% if iocs %}
+            <div class="table-responsive" style="overflow-x: auto;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">
+                                <input type="checkbox" id="select-all-iocs" onchange="toggleAllIocs()" style="ody: pointer;">
+                            </th>
+                            <th>Type</th>
+                            <th>Value</th>
+                            <th>Source</th>
+                            <th style="min-width: 200px;">Query URLs</th>
+                            <th style="min-width: 350px;">Hashtags</th>
+                            <th>Date/Time</th>
+                            <th style="width: 50px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ioc in iocs %}
+                        <tr data-ioc-id="{{ ioc.id }}">
+                            <td style="width: 40px;">
+                                <input type="checkbox" class="ioc-checkbox" value="{{ ioc.id }}" onchange="updateSelection()" style="ody: pointer;">
+                            </td>
+                            <td>
+                                <span class="badge">{{ ioc.ioc_type }}</span>
+                            </td>
+                            <td style="font-family: monospace; word-break: break-all;">
+                                {{ ioc.ioc_value }}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('sources_list') }}" style="color: var(--violet-light); text-decoration: none;">
+                                    {{ ioc.source_name or 'N/A' }}
+                                </a>
+                            </td>
+                            <td>
+                                <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                                    {% if ioc.query_urls and ioc.query_urls|length > 0 %}
+                                        {% for query_url in ioc.query_urls %}
+                                            <a href="{{ query_url.url }}" 
+                                               target="_blank" 
+                                               rel="noopener noreferrer"
+                                               style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: rgba(59, 130, 246, 0.12); color: #3B82F6; border-radius: 6px; font-size: 11px; font-weight: 500; border: 1px solid rgba(59, 130, 246, 0.3); text-decoration: none; transition: all 0.2s ease; white-space: nowrap;"
+                                               onmouseover="this.style.background='rgba(59, 130, 246, 0.2)'; this.style.transform='translateY(-1px)'"
+                                               onmouseout="this.style.background='rgba(59, 130, 246, 0.12)'; this.style.transform='translateY(0)'"
+                                               title="{{ query_url.url }}">
+                                                <span>🔗</span>
+                                                <span>{{ query_url.name }}</span>
+                                            </a>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span style="color: var(--text-secondary); font-size: 12px; font-style: italic;">No query URLs</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="hashtags-container" data-ioc-id="{{ ioc.id }}" style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 300px; max-width: 600px;">
+                                    {% set source_name_clean = (ioc.source_name or 'N/A')|replace(' ', '_')|replace('/', '_')|replace('\\', '_')|replace('#', '')|truncate(25, True, '') %}
+                                    {% set ioc_type_clean = ioc.ioc_type|replace(' ', '_')|lower %}
+                                    {% if ioc.created_at %}
+                                        {% if ioc.created_at is string %}
+                                            {% set date_str = ioc.created_at[:19].replace('T', ' ') %}
+                                            {% set date_parts = date_str.split(' ') %}
+                                            {% if date_parts|length >= 2 %}
+                                                {% set date_only = date_parts[0].split('-') %}
+                                                {% if date_only|length >= 2 %}
+                                                    {% set month_year = date_only[1] ~ '/' ~ date_only[0] %}
+                                                {% else %}
+                                                    {% set month_year = 'N/A' %}
+                                                {% endif %}
+                                            {% else %}
+                                                {% set month_year = 'N/A' %}
+                                            {% endif %}
+                                        {% else %}
+                                            {% set month_year = ioc.created_at.strftime('%m/%Y') %}
+                                        {% endif %}
+                                    {% else %}
+                                        {% set month_year = 'N/A' %}
+                                    {% endif %}
+                                    {% set groups = ioc.get('groups', []) %}
+                                    {% set has_groups = groups and groups|length > 0 %}
+                                    {% set source_groups = ioc.get('source_groups', []) %}
+                                    {% set has_source_groups = source_groups and source_groups|length > 0 %}
+                                    {% set ioc_groups = ioc.get('ioc_groups', []) %}
+                                    
+                                    {# Collect Positive and TLP groups - IOC groups have absolute priority #}
+                                    {% set has_positive = False %}
+                                    {% set positive_type = '' %}
+                                    {% set has_tlp = False %}
+                                    {% set tlp_groups_list = [] %}
+                                    
+                                    {# Check IOC groups first (absolute priority - these override source groups) #}
+                                    {% if ioc_groups %}
+                                        {% for ioc_group in ioc_groups %}
+                                            {% if ioc_group.name in ['True Positive', 'False Positive'] %}
+                                                {% set has_positive = True %}
+                                                {% if ioc_group.name == 'True Positive' %}
+                                                    {% set positive_type = 'true' %}
+                                                {% else %}
+                                                    {% set positive_type = 'false' %}
+                                                {% endif %}
+                                            {% elif ioc_group.name in ['TLP:CLEAR', 'TLP:GREEN', 'TLP:AMBER', 'TLP:RED'] %}
+                                                {% set has_tlp = True %}
+                                                {% set tlp_name = ioc_group.name|replace('TLP:', '')|lower %}
+                                                {% set _ = tlp_groups_list.append({'name': tlp_name, 'full_name': ioc_group.name, 'color': ioc_group.color}) %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    
+                                    {# Check source groups only if not already found in IOC groups #}
+                                    {% if has_source_groups and (not has_positive or not has_tlp) %}
+                                        {% for source_group in source_groups %}
+                                            {% if source_group.name in ['True Positive', 'False Positive'] %}
+                                                {% if not has_positive %}
+                                                    {% set has_positive = True %}
+                                                    {% if source_group.name == 'True Positive' %}
+                                                        {% set positive_type = 'true' %}
+                                                    {% else %}
+                                                        {% set positive_type = 'false' %}
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% elif source_group.name in ['TLP:CLEAR', 'TLP:GREEN', 'TLP:AMBER', 'TLP:RED'] %}
+                                                {% if not has_tlp %}
+                                                    {% set has_tlp = True %}
+                                                    {% set tlp_name = source_group.name|replace('TLP:', '')|lower %}
+                                                    {% set _ = tlp_groups_list.append({'name': tlp_name, 'full_name': source_group.name, 'color': source_group.color}) %}
+                                                {% endif %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    
+                                    {# Display Type hashtag - Priority 1 #}
+                                    <span class="hashtag hashtag-type" 
+                                          data-hashtag-type="type" 
+                                          data-hashtag-value="{{ ioc_type_clean }}"
+                                          onclick="toggleHashtagFilter(this, 'type', '{{ ioc_type_clean }}')"
+                                          style="ody: pointer; padding: 6px 12px; background: rgba(59, 130, 246, 0.12); color: #3B82F6; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(59, 130, 246, 0.3); transition: all 0.2s ease; white-space: nowrap;">
+                                        #{{ ioc_type_clean }}
+                                    </span>
+                                    
+                                    {# Display Source hashtag - Priority 4 #}
+                                    <span class="hashtag hashtag-source" 
+                                          data-hashtag-type="source" 
+                                          data-hashtag-value="{{ source_name_clean }}"
+                                          onclick="toggleHashtagFilter(this, 'source', '{{ source_name_clean }}')"
+                                          style="ody: pointer; padding: 6px 12px; background: rgba(34, 197, 94, 0.12); color: #22C55E; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(34, 197, 94, 0.3); transition: all 0.2s ease; white-space: nowrap;">
+                                        #{{ source_name_clean }}
+                                    </span>
+                                    
+                                    {# Display Date hashtag - Priority 5 #}
+                                    {% if month_year != 'N/A' %}
+                                    <span class="hashtag hashtag-date" 
+                                          data-hashtag-type="date" 
+                                          data-hashtag-value="{{ month_year }}"
+                                          onclick="toggleHashtagFilter(this, 'date', '{{ month_year }}')"
+                                          style="ody: pointer; padding: 6px 12px; background: rgba(245, 158, 11, 0.12); color: #F59E0B; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(245, 158, 11, 0.3); transition: all 0.2s ease; white-space: nowrap;">
+                                        #{{ month_year }}
+                                    </span>
+                                    {% endif %}
+                                    
+                                    {# Display Group hashtags - Priority 6 (all groups, IOC groups have ABSOLUTE priority over source groups) #}
+                                    {# PRIORITY RULE: If IOC has TLP/Positive assigned via Actions, it REPLACES (masks) ALL TLP/Positive from source #}
+                                    {% set ioc_has_tlp = False %}
+                                    {% set ioc_has_positive = False %}
+                                    {% set ioc_group_names = [] %}
+                                    {% set ioc_tlp_names = [] %}
+                                    {% set ioc_positive_names = [] %}
+                                    {% if ioc_groups %}
+                                        {% for ioc_group in ioc_groups %}
+                                            {% set _ = ioc_group_names.append(ioc_group.name) %}
+                                            {% if ioc_group.name == 'TLP:CLEAR' or ioc_group.name == 'TLP:GREEN' or ioc_group.name == 'TLP:AMBER' or ioc_group.name == 'TLP:RED' %}
+                                                {% set ioc_has_tlp = True %}
+                                                {% set _ = ioc_tlp_names.append(ioc_group.name) %}
+                                            {% elif ioc_group.name == 'True Positive' or ioc_group.name == 'False Positive' %}
+                                                {% set ioc_has_positive = True %}
+                                                {% set _ = ioc_positive_names.append(ioc_group.name) %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    
+                                    {% set displayed_group_names = [] %}
+                                    
+                                    {# Display IOC groups first (they have priority) #}
+                                    {% if ioc_groups %}
+                                        {% for ioc_group in ioc_groups %}
+                                            {% set group_name_clean = ioc_group.name|replace(' ', '_')|replace('/', '_')|replace('\\', '_')|replace('#', '')|replace(':', '_') %}
+                                            {% set _ = displayed_group_names.append(ioc_group.name) %}
+                                            <span class="hashtag hashtag-group" 
+                                                  data-hashtag-type="group" 
+                                                  data-hashtag-value="{{ group_name_clean }}"
+                                                  onclick="toggleHashtagFilter(this, 'group', '{{ group_name_clean }}')"
+                                                  style="ody: pointer; padding: 6px 12px; background: rgba(168, 85, 247, 0.12); color: #A855F7; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(168, 85, 247, 0.3); transition: all 0.2s ease; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; position: relative;">
+                                                #{{ group_name_clean }}
+                                                <span onclick="event.stopPropagation(); removeIocFromGroup({{ ioc.id }}, {{ ioc_group.id }})" 
+                                                      style="ody: pointer; margin-left: 4px; padding: 2px 4px; background: rgba(220, 38, 38, 0.2); color: #DC2626; border-radius: 4px; font-size: 10px; font-weight: bold; transition: all 0.2s;"
+                                                      onmouseover="this.style.background='rgba(220, 38, 38, 0.4)'"
+                                                      onmouseout="this.style.background='rgba(220, 38, 38, 0.2)'"
+                                                      title="Remove this group from this IOC">×</span>
+                                            </span>
+                                        {% endfor %}
+                                    {% endif %}
+                                    
+                                    {# Display source groups, excluding those already in IOC groups #}
+                                    {# If IOC has TLP/Positive, exclude ALL TLP/Positive from source (not just the same one) #}
+                                    {% if has_source_groups %}
+                                        {% for source_group in source_groups %}
+                                            {% set should_display = True %}
+                                            
+                                            {# Exclude if exact same name as an IOC group #}
+                                            {% for ioc_name in ioc_group_names %}
+                                                {% if ioc_name == source_group.name %}
+                                                    {% set should_display = False %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            
+                                            {# If source group is a TLP and IOC has any TLP, exclude it #}
+                                            {% if should_display and (source_group.name == 'TLP:CLEAR' or source_group.name == 'TLP:GREEN' or source_group.name == 'TLP:AMBER' or source_group.name == 'TLP:RED') %}
+                                                {% if ioc_groups and ioc_groups|length > 0 %}
+                                                    {% for ioc_group in ioc_groups %}
+                                                        {% if ioc_group.name == 'TLP:CLEAR' or ioc_group.name == 'TLP:GREEN' or ioc_group.name == 'TLP:AMBER' or ioc_group.name == 'TLP:RED' %}
+                                                            {% set should_display = False %}
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% endif %}
+                                            {% endif %}
+                                            
+                                            {# If source group is a Positive and IOC has any Positive, exclude it #}
+                                            {% if should_display and (source_group.name == 'True Positive' or source_group.name == 'False Positive') %}
+                                                {% if ioc_groups and ioc_groups|length > 0 %}
+                                                    {% for ioc_group in ioc_groups %}
+                                                        {% if ioc_group.name == 'True Positive' or ioc_group.name == 'False Positive' %}
+                                                            {% set should_display = False %}
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% endif %}
+                                            {% endif %}
+                                            
+                                            {# Only display if not excluded #}
+                                            {% if should_display %}
+                                                {% set group_name_clean = source_group.name|replace(' ', '_')|replace('/', '_')|replace('\\', '_')|replace('#', '')|replace(':', '_') %}
+                                                {% set _ = displayed_group_names.append(source_group.name) %}
+                                                <span class="hashtag hashtag-group" 
+                                                      data-hashtag-type="group" 
+                                                      data-hashtag-value="{{ group_name_clean }}"
+                                                      onclick="toggleHashtagFilter(this, 'group', '{{ group_name_clean }}')"
+                                                      style="ody: pointer; padding: 6px 12px; background: rgba(168, 85, 247, 0.12); color: #A855F7; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(168, 85, 247, 0.3); transition: all 0.2s ease; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; position: relative;">
+                                                    #{{ group_name_clean }}
+                                                    <span onclick="event.stopPropagation(); removeIocFromGroup({{ ioc.id }}, {{ source_group.id }}, true)" 
+                                                          style="ody: pointer; margin-left: 4px; padding: 2px 4px; background: rgba(220, 38, 38, 0.2); color: #DC2626; border-radius: 4px; font-size: 10px; font-weight: bold; transition: all 0.2s;"
+                                                          onmouseover="this.style.background='rgba(220, 38, 38, 0.4)'"
+                                                          onmouseout="this.style.background='rgba(220, 38, 38, 0.2)'"
+                                                          title="Remove this group from this IOC">×</span>
+                                                </span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td style="color: var(--text-secondary); font-size: 13px;">
+                                {% if ioc.created_at %}
+                                    {% if ioc.created_at is string %}
+                                        {% set date_str = ioc.created_at[:19].replace('T', ' ') %}
+                                        {% if date_str|length >= 19 %}
+                                            {% set parts = date_str.split(' ') %}
+                                            {% if parts|length >= 2 %}
+                                                {% set date_parts = parts[0].split('-') %}
+                                                {% if date_parts|length >= 3 %}
+                                                    {{ date_parts[2] }}/{{ date_parts[1] }}/{{ date_parts[0] }} {{ parts[1] }}
+                                                {% else %}
+                                                    {{ ioc.created_at }}
+                                                {% endif %}
+                                            {% else %}
+                                                {{ ioc.created_at }}
+                                            {% endif %}
+                                        {% else %}
+                                            {{ ioc.created_at }}
+                                        {% endif %}
+                                    {% else %}
+                                        {{ ioc.created_at.strftime('%d/%m/%Y %H:%M:%S') }}
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                                    <button type="button" onclick="markIocAsTruePositive({{ ioc.id }})" 
+                                            style="background: rgba(16, 185, 129, 0.1); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 12px; ody: pointer; transition: all 0.2s;" 
+                                            onmouseover="this.style.background='rgba(16, 185, 129, 0.2)'" 
+                                            onmouseout="this.style.background='rgba(16, 185, 129, 0.1)'" 
+                                            title="Mark as True Positive">
+                                        ✓ True Positive
+                                    </button>
+                                    <button type="button" onclick="markIocAsFalsePositive({{ ioc.id }})" 
+                                            style="background: rgba(220, 38, 38, 0.1); color: #DC2626; border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 12px; ody: pointer; transition: all 0.2s;" 
+                                            onmouseover="this.style.background='rgba(220, 38, 38, 0.2)'" 
+                                            onmouseout="this.style.background='rgba(220, 38, 38, 0.1)'" 
+                                            title="Mark as False Positive">
+                                        ✗ False Positive
+                                    </button>
+                                    <button type="button" onclick="deleteSingleIoc({{ ioc.id }})" 
+                                            style="background: rgba(220, 38, 38, 0.1); color: #DC2626; border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 14px; ody: pointer; transition: all 0.2s;" 
+                                            onmouseover="this.style.background='rgba(220, 38, 38, 0.2)'" 
+                                            onmouseout="this.style.background='rgba(220, 38, 38, 0.1)'" 
+                                            title="Delete this IOC">
+                                        ×
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination (hidden when lazy loading is active) -->
+            {% if total > per_page %}
+            <div id="pagination-container" style="display: flex; justify-content: center; gap: 8px; margin-top: 32px;">
+                {% if page > 1 %}
+                <a href="#" onclick="navigateToPage({{ page - 1 }}); return false;" class="btn btn-secondary" id="prev-page-link">
+                    Previous
+                </a>
+                {% endif %}
+                
+                <span style="display: flex; align-items: center; padding: 0 16px; color: var(--text-secondary);">
+                    Page {{ page }} of {{ (total / per_page)|round(0, 'ceil')|int }}
+                </span>
+                
+                {% if page * per_page < total %}
+                <a href="#" onclick="navigateToPage({{ page + 1 }}); return false;" class="btn btn-secondary" id="next-page-link">
+                    Next
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% else %}
+            <div style="text-align: center; padding: 64px 0; color: var(--text-secondary);">
+                <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+                <p>No IOCs found</p>
+                <a href="{{ url_for('upload') }}" class="btn btn-primary" style="margin-top: 24px;">
+                    Add a source
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- External Tool Information -->
+        <div class="thank-you-message" style="background: rgba(139, 92, 246, 0.1); border-left: 4px solid var(--violet-light); padding: 20px 24px; border-radius: 12px; margin-top: 60px; font-size: 16px; line-height: 1.6;">
+            <strong style="color: var(--violet-light);">IOC Extraction Tool</strong><br>
+            IOC extraction is powered by <a href="https://github.com/malicialab/iocsearcher" target="_blank" style="color: var(--violet-light); text-decoration: none;">iocsearcher</a>, an open-source library integrated into this platform that enables efficient extraction of indicators of compromise (IOCs) from PDF, HTML, Word, and text files.<br><br>
+            <strong style="color: var(--violet-light);">Odysafe CTI Platform thanks the iocsearcher project</strong> for making this valuable tool available to the community.
+        </div>
+    </div>
+</section>
+
+
+<!-- Modal for bulk delete confirmation -->
+<div id="bulk-delete-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%;">
+        <h3 style="margin-top: 0; color: #DC2626;">Confirm Deletion</h3>
+        <p style="color: var(--text-primary);">Are you sure you want to delete <strong id="delete-count">0</strong> selected IOC(s)? This action cannot be undone.</p>
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button class="btn btn-secondary" onclick="closeBulkDeleteModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="executeBulkDelete()">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for placing IOCs in a group -->
+<div id="place-iocs-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%;">
+        <h3 style="margin-top: 0; color: var(--text-primary);">Place IOCs in Group</h3>
+        <p style="color: var(--text-primary); margin-bottom: 16px;">Select a group to place the selected IOCs:</p>
+        <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" style="color: var(--text-primary);">Group</label>
+            <select id="place-group-select" class="form-control">
+                <option value="">-- Select a group --</option>
+                {% for group in all_groups %}
+                <option value="{{ group.id }}" style="color: {{ group.color or '#8B5CF6' }};">{{ group.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button class="btn btn-secondary" onclick="closePlaceIocsModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="executePlaceIocs()">Place</button>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load hashtag filters from URL first
+    loadHashtagFiltersFromURL();
+    
+    // Date range selector - show/hide custom date inputs
+    const dateRangeSelect = document.getElementById('date-range-select');
+    const customDateStart = document.getElementById('custom-date-range');
+    const customDateEnd = document.getElementById('custom-date-range-end');
+    
+    if (dateRangeSelect) {
+        dateRangeSelect.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                customDateStart.style.display = 'block';
+                customDateEnd.style.display = 'block';
+            } else {
+                customDateStart.style.display = 'none';
+                customDateEnd.style.display = 'none';
+            }
+        });
+        
+        // Initialize on load
+        if (dateRangeSelect.value === 'custom') {
+            customDateStart.style.display = 'block';
+            customDateEnd.style.display = 'block';
+        }
+    }
+    
+    // All hashtags are now visible by default - no need to initialize selectors
+    
+    // Update selection count and show/hide bulk actions bar
+    window.updateSelection = function() {
+        const selected = document.querySelectorAll('.ioc-checkbox:checked');
+        const count = selected.length;
+        const bulkActionsBar = document.getElementById('bulk-actions-bar');
+        const selectionCount = document.getElementById('selection-count');
+        
+        if (selectionCount) {
+            selectionCount.textContent = `${count} IOC${count !== 1 ? 's' : ''} selected`;
+        }
+        
+        if (bulkActionsBar) {
+            bulkActionsBar.style.display = count > 0 ? 'block' : 'none';
+        }
+    };
+    
+    // Function to toggle all IOCs selection
+    window.toggleAllIocs = function() {
+        const selectAll = document.getElementById('select-all-iocs');
+        const checkboxes = document.querySelectorAll('.ioc-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = selectAll.checked;
+        });
+        updateSelection();
+    };
+    
+    // Initialize selection on page load
+    updateSelection();
+    
+    // Initialize manual IOC form
+    const manualIocForm = document.getElementById('manual-ioc-form');
+    if (manualIocForm) {
+        manualIocForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const iocType = document.getElementById('manual-ioc-type').value;
+            const iocValue = document.getElementById('manual-ioc-value').value.trim();
+            const context = document.getElementById('manual-ioc-context').value.trim() || 'Manual IOC entry';
+            
+            if (!iocType || !iocValue) {
+                alert('Type and Value are required');
+                return;
+            }
+            
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Adding...';
+            
+            try {
+                const response = await fetch('/api/iocs/add-manual', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ioc_type: iocType,
+                        ioc_value: iocValue,
+                        context: context
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('IOC added successfully!');
+                    document.getElementById('manual-ioc-form').reset();
+                    toggleAddIocForm();
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        });
+    }
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.dropdown')) {
+            document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                menu.style.display = 'none';
+            });
+        }
+    });
+});
+
+// Dropdown toggle
+function toggleDropdown(id) {
+    const menu = document.getElementById(id);
+    const allMenus = document.querySelectorAll('.dropdown-menu');
+    allMenus.forEach(m => {
+        if (m.id !== id) m.style.display = 'none';
+    });
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+// Group management functions
+
+// Bulk delete functions
+function confirmBulkDelete() {
+    const selected = document.querySelectorAll('.ioc-checkbox:checked');
+    const count = selected.length;
+    
+    if (count === 0) {
+        alert('Please select at least one IOC to delete');
+        return;
+    }
+    
+    document.getElementById('delete-count').textContent = count;
+    document.getElementById('bulk-delete-modal').style.display = 'flex';
+}
+
+function closeBulkDeleteModal() {
+    document.getElementById('bulk-delete-modal').style.display = 'none';
+}
+
+async function executeBulkDelete() {
+    const selected = Array.from(document.querySelectorAll('.ioc-checkbox:checked')).map(cb => parseInt(cb.value));
+    const storedIds = localStorage.getItem('selectedIocIds');
+    let allSelectedIds = selected;
+    
+    if (storedIds) {
+        try {
+            const stored = JSON.parse(storedIds);
+            allSelectedIds = [...new Set([...selected, ...stored])];
+        } catch (e) {
+            // Ignore parse error
+        }
+    }
+    
+    try {
+        const response = await fetch('/api/iocs/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ioc_ids: allSelectedIds })
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+            closeBulkDeleteModal();
+            localStorage.removeItem('selectedIocIds');
+            // Remove rows with animation
+            selected.forEach(iocId => {
+                const row = document.querySelector(`tr[data-ioc-id="${iocId}"]`);
+                if (row) {
+                    row.style.transition = 'opacity 0.3s';
+                    row.style.opacity = '0';
+                    setTimeout(() => row.remove(), 300);
+                }
+            });
+            // Update selection
+            setTimeout(() => {
+                updateSelection();
+                location.reload();
+            }, 500);
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function deleteSingleIoc(iocId) {
+    if (!confirm('Are you sure you want to delete this IOC? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/iocs/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ioc_ids: [iocId] })
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+            const row = document.querySelector(`tr[data-ioc-id="${iocId}"]`);
+            if (row) {
+                row.style.transition = 'opacity 0.3s';
+                row.style.opacity = '0';
+                setTimeout(() => {
+                    row.remove();
+                    updateSelection();
+                    location.reload();
+                }, 300);
+            }
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function selectAllIocs() {
+    // Retrieve all IOCs from all pages with current filters
+    const urlParams = new URLSearchParams(window.location.search);
+    const params = {};
+    if (urlParams.get('search')) params.search = urlParams.get('search');
+    if (urlParams.get('type')) params.type = urlParams.get('type');
+    if (urlParams.get('source')) params.source = urlParams.get('source');
+    if (urlParams.get('group')) params.group = urlParams.get('group');
+    if (urlParams.get('date_from')) params.date_from = urlParams.get('date_from');
+    if (urlParams.get('date_to')) params.date_to = urlParams.get('date_to');
+    
+    try {
+        const queryString = new URLSearchParams(params).toString();
+        const response = await fetch('/api/iocs/all-ids?' + queryString);
+        
+        const data = await response.json();
+        if (response.ok && data.ioc_ids) {
+            // Store selected IDs in localStorage
+            localStorage.setItem('selectedIocIds', JSON.stringify(data.ioc_ids));
+            // Select all visible checkboxes
+            document.querySelectorAll('.ioc-checkbox').forEach(cb => cb.checked = true);
+            document.getElementById('select-all-iocs').checked = true;
+            updateSelection();
+            alert(`All IOCs (${data.ioc_ids.length}) are now selected. You can delete or place all selected IOCs.`);
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+function openPlaceIocsModal() {
+    const selected = Array.from(document.querySelectorAll('.ioc-checkbox:checked')).map(cb => parseInt(cb.value));
+    const storedIds = localStorage.getItem('selectedIocIds');
+    let allSelectedIds = selected;
+    
+    if (storedIds) {
+        try {
+            const stored = JSON.parse(storedIds);
+            allSelectedIds = [...new Set([...selected, ...stored])];
+        } catch (e) {
+            // Ignore parse error
+        }
+    }
+    
+    if (allSelectedIds.length === 0) {
+        alert('Please select at least one IOC');
+        return;
+    }
+    
+    document.getElementById('place-iocs-modal').style.display = 'flex';
+}
+
+function closePlaceIocsModal() {
+    document.getElementById('place-iocs-modal').style.display = 'none';
+    document.getElementById('place-group-select').value = '';
+}
+
+async function executePlaceIocs() {
+    const groupId = document.getElementById('place-group-select').value;
+    if (!groupId) {
+        alert('Please select a group');
+        return;
+    }
+    
+    const selected = Array.from(document.querySelectorAll('.ioc-checkbox:checked')).map(cb => parseInt(cb.value));
+    const storedIds = localStorage.getItem('selectedIocIds');
+    let allSelectedIds = selected;
+    
+    if (storedIds) {
+        try {
+            const stored = JSON.parse(storedIds);
+            allSelectedIds = [...new Set([...selected, ...stored])];
+        } catch (e) {
+            // Ignore parse error
+        }
+    }
+    
+    // Add IOCs directly to the group
+    try {
+        const response = await fetch('/api/iocs/bulk-add-group', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ioc_ids: allSelectedIds, group_id: parseInt(groupId) })
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+            closePlaceIocsModal();
+            localStorage.removeItem('selectedIocIds');
+            alert(`${data.count || allSelectedIds.length} IOC(s) have been placed in the group successfully.`);
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// Hashtag management
+let activeHashtagFilters = new Set();
+
+// Load hashtag filters from URL on page load
+function loadHashtagFiltersFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hashtagFilters = urlParams.get('hashtag_filters');
+    if (hashtagFilters) {
+        try {
+            const filters = JSON.parse(decodeURIComponent(hashtagFilters));
+            filters.forEach(filterKey => {
+                activeHashtagFilters.add(filterKey);
+                // Update visual state
+                const [type, value] = filterKey.split(':');
+                document.querySelectorAll(`.hashtag[data-hashtag-type="${type}"][data-hashtag-value="${value}"]`).forEach(el => {
+                    el.style.opacity = '0.8';
+                    el.style.transform = 'scale(1.05)';
+                    el.style.fontWeight = '600';
+                    el.classList.add('tag-active');
+                });
+            });
+            updateHashtagFiltersDisplay();
+            applyHashtagFilters();
+        } catch (e) {
+            console.error('Error loading hashtag filters from URL:', e);
+        }
+    }
+}
+
+// Build URL with all current filters
+function buildFilterURL(page = null) {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Keep existing form filters
+    const formFilters = ['search', 'type', 'source', 'group', 'duplicates', 'date_range', 'date_from', 'date_to'];
+    const newParams = new URLSearchParams();
+    
+    formFilters.forEach(key => {
+        const value = urlParams.get(key);
+        if (value) {
+            newParams.set(key, value);
+        }
+    });
+    
+    // Add page if specified
+    if (page !== null) {
+        newParams.set('page', page);
+    } else if (urlParams.get('page')) {
+        newParams.set('page', urlParams.get('page'));
+    }
+    
+    // Add hashtag filters if any
+    if (activeHashtagFilters.size > 0) {
+        const hashtagArray = Array.from(activeHashtagFilters);
+        newParams.set('hashtag_filters', encodeURIComponent(JSON.stringify(hashtagArray)));
+    }
+    
+    return '?' + newParams.toString();
+}
+
+// Update URL without reloading
+function updateURL() {
+    const newURL = buildFilterURL();
+    window.history.pushState({}, '', newURL);
+}
+
+function clearAllHashtagFilters() {
+    activeHashtagFilters.clear();
+    
+    // Reset all hashtag visual states
+    document.querySelectorAll('.hashtag').forEach(el => {
+        el.style.opacity = '1';
+        el.style.transform = 'scale(1)';
+        el.style.fontWeight = el.classList.contains('hashtag-tlp') || el.classList.contains('hashtag-positive') ? '600' : '500';
+        el.classList.remove('tag-active');
+    });
+    
+    updateHashtagFiltersDisplay();
+    applyHashtagFilters();
+    updateURL();
+}
+
+function toggleHashtagFilter(element, type, value) {
+    const filterKey = `${type}:${value}`;
+    
+    if (activeHashtagFilters.has(filterKey)) {
+        // Remove filter
+        activeHashtagFilters.delete(filterKey);
+        element.style.opacity = '1';
+        element.style.transform = 'scale(1)';
+        element.style.fontWeight = element.classList.contains('hashtag-tlp') || element.classList.contains('hashtag-positive') ? '600' : '500';
+        element.classList.remove('tag-active');
+    } else {
+        // Add filter
+        activeHashtagFilters.add(filterKey);
+        element.style.opacity = '0.8';
+        element.style.transform = 'scale(1.05)';
+        element.style.fontWeight = '600';
+        element.classList.add('tag-active');
+    }
+    
+    updateHashtagFiltersDisplay();
+    applyHashtagFilters();
+    updateURL();
+}
+
+function updateHashtagFiltersDisplay() {
+    const filtersBar = document.getElementById('hashtag-filters-bar');
+    const filtersContainer = document.getElementById('active-hashtag-filters');
+    const filterCount = document.getElementById('filter-count');
+    
+    if (activeHashtagFilters.size === 0) {
+        filtersBar.style.display = 'none';
+        filtersContainer.innerHTML = '';
+        if (filterCount) filterCount.textContent = '0';
+        return;
+    }
+    
+    filtersBar.style.display = 'block';
+    filtersContainer.innerHTML = '';
+    if (filterCount) filterCount.textContent = activeHashtagFilters.size;
+    
+    // Color mapping for different hashtag types
+    const typeColors = {
+        'tlp': { bg: 'rgba(139, 92, 246, 0.15)', color: '#8B5CF6', border: 'rgba(139, 92, 246, 0.3)' },
+        'positive': { bg: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: 'rgba(16, 185, 129, 0.3)' },
+        'type': { bg: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6', border: 'rgba(59, 130, 246, 0.3)' },
+        'source': { bg: 'rgba(34, 197, 94, 0.15)', color: '#22C55E', border: 'rgba(34, 197, 94, 0.3)' },
+        'date': { bg: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', border: 'rgba(245, 158, 11, 0.3)' },
+        'group': { bg: 'rgba(168, 85, 247, 0.15)', color: '#A855F7', border: 'rgba(168, 85, 247, 0.3)' }
+    };
+    
+    activeHashtagFilters.forEach(filterKey => {
+        const [type, value] = filterKey.split(':');
+        const colors = typeColors[type] || typeColors['group'];
+        
+        const filterElement = document.createElement('span');
+        filterElement.style.cssText = `display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: ${colors.bg}; color: ${colors.color}; border: 1px solid ${colors.border}; border-radius: 8px; font-size: 12px; font-weight: 500; transition: all 0.2s ease;`;
+        filterElement.innerHTML = `<span style="font-weight: 600;">#${value}</span> <span onclick="event.stopPropagation(); removeHashtagFilter('${filterKey}')" style="ody: pointer; font-weight: bold; color: #DC2626; font-size: 14px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: rgba(220, 38, 38, 0.1); transition: all 0.2s ease;" onmouseover="this.style.background='rgba(220, 38, 38, 0.2)'" onmouseout="this.style.background='rgba(220, 38, 38, 0.1)'">×</span>`;
+        filterElement.onmouseover = function() {
+            this.style.transform = 'translateY(-1px)';
+            this.style.boxShadow = '0 2px 6px rgba(0,0,0,0.1)';
+        };
+        filterElement.onmouseout = function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = 'none';
+        };
+        filtersContainer.appendChild(filterElement);
+    });
+}
+
+function removeHashtagFilter(filterKey) {
+    activeHashtagFilters.delete(filterKey);
+    
+    // Update visual state of hashtags
+    const [type, value] = filterKey.split(':');
+    document.querySelectorAll(`.hashtag[data-hashtag-type="${type}"][data-hashtag-value="${value}"]`).forEach(el => {
+        el.style.opacity = '1';
+        el.style.transform = 'scale(1)';
+        el.style.fontWeight = el.classList.contains('hashtag-tlp') || el.classList.contains('hashtag-positive') ? '600' : '500';
+        el.classList.remove('tag-active');
+    });
+    
+    updateHashtagFiltersDisplay();
+    applyHashtagFilters();
+    updateURL();
+}
+
+// Optimized applyHashtagFilters with requestAnimationFrame for smooth scrolling
+let filterAnimationFrame = null;
+function applyHashtagFilters() {
+    // Cancel any pending animation frame
+    if (filterAnimationFrame) {
+        cancelAnimationFrame(filterAnimationFrame);
+    }
+    
+    // Use requestAnimationFrame to batch DOM updates
+    filterAnimationFrame = requestAnimationFrame(() => {
+        const rows = document.querySelectorAll('tbody tr[data-ioc-id]');
+        
+        if (activeHashtagFilters.size === 0) {
+            // Use DocumentFragment for better performance
+            const fragment = document.createDocumentFragment();
+            rows.forEach(row => {
+                row.style.display = '';
+            });
+            return;
+        }
+        
+        // Process in batches to avoid blocking the UI
+        let processed = 0;
+        const batchSize = 50;
+        
+        function processBatch() {
+            const end = Math.min(processed + batchSize, rows.length);
+            
+            for (let i = processed; i < end; i++) {
+                const row = rows[i];
+                const container = row.querySelector('.hashtags-container');
+                if (!container) {
+                    row.style.display = 'none';
+                    continue;
+                }
+                
+                let matches = false;
+                activeHashtagFilters.forEach(filterKey => {
+                    const [type, value] = filterKey.split(':');
+                    const hashtag = container.querySelector(`.hashtag[data-hashtag-type="${type}"][data-hashtag-value="${value}"]`);
+                    if (hashtag) {
+                        matches = true;
+                    }
+                });
+                
+                row.style.display = matches ? '' : 'none';
+            }
+            
+            processed = end;
+            
+            if (processed < rows.length) {
+                // Process next batch on next frame
+                requestAnimationFrame(processBatch);
+            } else {
+                // Update count after all rows processed
+                updateFilteredCount();
+            }
+        }
+        
+        processBatch();
+    });
+}
+
+// Optimized count update
+function updateFilteredCount() {
+    const visibleCount = document.querySelectorAll('tbody tr[data-ioc-id]:not([style*="display: none"])').length;
+    const countElement = document.querySelector('.card .container > div:first-child');
+    if (countElement) {
+        countElement.textContent = `${visibleCount} IOC(s) found${activeHashtagFilters.size > 0 ? ' (filtered)' : ''}`;
+    }
+}
+
+// Navigation function that preserves all filters
+function navigateToPage(newPage) {
+    const url = buildFilterURL(newPage);
+    window.location.href = url;
+}
+
+// ============================================
+// LAZY LOADING & SMOOTH SCROLLING OPTIMIZATION
+// ============================================
+
+// Debounce and throttle utilities
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function throttle(func, limit) {
+    let inThrottle;
+    return function(...args) {
+        if (!inThrottle) {
+            func.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+}
+
+// Lazy loading state
+let lazyLoadingState = {
+    isLoading: false,
+    currentPage: {{ page }},
+    hasMore: {{ (total / per_page)|round(0, 'ceil')|int > page }},
+    totalPages: {{ (total / per_page)|round(0, 'ceil')|int }},
+    perPage: {{ per_page }}
+};
+
+// Intersection Observer for lazy loading
+let lazyLoadObserver = null;
+
+function initLazyLoading() {
+    // Only enable lazy loading if there are more pages
+    if (!lazyLoadingState.hasMore) {
+        return;
+    }
+    
+    // Create a sentinel element at the bottom of the table
+    const tbody = document.querySelector('tbody');
+    if (!tbody) return;
+    
+    // Remove existing sentinel if any
+    const existingSentinel = document.getElementById('lazy-load-sentinel');
+    if (existingSentinel) {
+        existingSentinel.remove();
+    }
+    
+    // Create sentinel element
+    const sentinel = document.createElement('tr');
+    sentinel.id = 'lazy-load-sentinel';
+    sentinel.innerHTML = '<td colspan="8" style="text-align: center; padding: 20px;"><div class="loading-spinner" style="display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(139, 92, 246, 0.3); border-top-color: var(--violet-light); border-radius: 50%; animation: spin 1s linear infinite;"></div></td>';
+    tbody.appendChild(sentinel);
+    
+    // Create Intersection Observer
+    if (lazyLoadObserver) {
+        lazyLoadObserver.disconnect();
+    }
+    
+    lazyLoadObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && !lazyLoadingState.isLoading && lazyLoadingState.hasMore) {
+                loadMoreIocs();
+            }
+        });
+    }, {
+        root: null,
+        rootMargin: '200px', // Start loading 200px before reaching the sentinel
+        threshold: 0.1
+    });
+    
+    lazyLoadObserver.observe(sentinel);
+}
+
+// Load more IOCs asynchronously
+async function loadMoreIocs() {
+    if (lazyLoadingState.isLoading || !lazyLoadingState.hasMore) {
+        return;
+    }
+    
+    lazyLoadingState.isLoading = true;
+    lazyLoadingState.currentPage += 1;
+    
+    const sentinel = document.getElementById('lazy-load-sentinel');
+    if (sentinel) {
+        sentinel.querySelector('td').innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading-spinner" style="display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(139, 92, 246, 0.3); border-top-color: var(--violet-light); border-radius: 50%; animation: spin 1s linear infinite;"></div> Loading more IOCs...</div>';
+    }
+    
+    try {
+        // Build API URL with current filters
+        const urlParams = new URLSearchParams(window.location.search);
+        const apiParams = new URLSearchParams();
+        
+        // Copy all filter parameters
+        ['search', 'type', 'source', 'group', 'duplicates', 'date_range', 'date_from', 'date_to', 'hashtag_filters'].forEach(key => {
+            const value = urlParams.get(key);
+            if (value) {
+                apiParams.set(key, value);
+            }
+        });
+        
+        apiParams.set('page', lazyLoadingState.currentPage);
+        apiParams.set('per_page', lazyLoadingState.perPage);
+        
+        const response = await fetch(`/api/iocs/load?${apiParams.toString()}`);
+        const data = await response.json();
+        
+        if (response.ok && data.iocs && data.iocs.length > 0) {
+            // Render new IOCs
+            renderIocsRows(data.iocs);
+            
+            // Update state
+            lazyLoadingState.hasMore = data.has_more;
+            
+            // Re-observe sentinel if there are more pages
+            if (lazyLoadingState.hasMore && sentinel) {
+                lazyLoadObserver.observe(sentinel);
+            } else if (sentinel) {
+                sentinel.remove();
+            }
+        } else {
+            lazyLoadingState.hasMore = false;
+            if (sentinel) {
+                sentinel.remove();
+            }
+        }
+    } catch (error) {
+        console.error('Error loading more IOCs:', error);
+        lazyLoadingState.currentPage -= 1; // Revert page increment
+        if (sentinel) {
+            sentinel.remove();
+        }
+    } finally {
+        lazyLoadingState.isLoading = false;
+    }
+}
+
+// Render IOCs rows (optimized)
+function renderIocsRows(iocs) {
+    const tbody = document.querySelector('tbody');
+    if (!tbody) return;
+    
+    // Use DocumentFragment for better performance
+    const fragment = document.createDocumentFragment();
+    
+    iocs.forEach(ioc => {
+        const row = createIocRow(ioc);
+        fragment.appendChild(row);
+    });
+    
+    // Insert before sentinel
+    const sentinel = document.getElementById('lazy-load-sentinel');
+    if (sentinel) {
+        tbody.insertBefore(fragment, sentinel);
+    } else {
+        tbody.appendChild(fragment);
+    }
+    
+    // Re-apply hashtag filters if any are active
+    if (activeHashtagFilters.size > 0) {
+        applyHashtagFilters();
+    }
+}
+
+// Create IOC row element (simplified version - you may need to adapt based on your template)
+function createIocRow(ioc) {
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-ioc-id', ioc.id);
+    
+    // This is a simplified version - you'll need to match your exact template structure
+    // For now, we'll use a placeholder that you can enhance
+    tr.innerHTML = `
+        <td style="width: 40px;">
+            <input type="checkbox" class="ioc-checkbox" value="${ioc.id}" onchange="updateSelection()" style="ody: pointer;">
+        </td>
+        <td><span class="badge">${ioc.ioc_type}</span></td>
+        <td style="font-family: monospace; word-break: break-all;">${escapeHtml(ioc.ioc_value)}</td>
+        <td><a href="/sources" style="color: var(--violet-light); text-decoration: none;">${escapeHtml(ioc.source_name || 'N/A')}</a></td>
+        <td>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                ${renderQueryUrls(ioc.query_urls || [])}
+            </div>
+        </td>
+        <td>
+            <div class="hashtags-container" data-ioc-id="${ioc.id}" style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 300px; max-width: 600px;">
+                ${renderHashtags(ioc)}
+            </div>
+        </td>
+        <td style="color: var(--text-secondary); font-size: 13px;">${formatDate(ioc.created_at)}</td>
+        <td>
+            <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                <button type="button" onclick="markIocAsTruePositive(${ioc.id})" style="background: rgba(16, 185, 129, 0.1); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 12px; ody: pointer;">✓ True Positive</button>
+                <button type="button" onclick="markIocAsFalsePositive(${ioc.id})" style="background: rgba(220, 38, 38, 0.1); color: #DC2626; border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 12px; ody: pointer;">✗ False Positive</button>
+                <button type="button" onclick="deleteSingleIoc(${ioc.id})" style="background: rgba(220, 38, 38, 0.1); color: #DC2626; border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 14px; ody: pointer;">×</button>
+            </div>
+        </td>
+    `;
+    
+    return tr;
+}
+
+// Helper functions for rendering
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
+function renderQueryUrls(queryUrls) {
+    if (!queryUrls || queryUrls.length === 0) {
+        return '<span style="color: var(--text-secondary); font-size: 12px; font-style: italic;">No query URLs</span>';
+    }
+    
+    return queryUrls.map(url => `
+        <a href="${escapeHtml(url.url)}" target="_blank" rel="noopener noreferrer"
+           style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: rgba(59, 130, 246, 0.12); color: #3B82F6; border-radius: 6px; font-size: 11px; font-weight: 500; border: 1px solid rgba(59, 130, 246, 0.3); text-decoration: none;">
+            <span>🔗</span>
+            <span>${escapeHtml(url.name)}</span>
+        </a>
+    `).join('');
+}
+
+function renderHashtags(ioc) {
+    let html = '';
+    
+    // Type hashtag
+    const iocTypeClean = (ioc.ioc_type || '').replace(/ /g, '_').toLowerCase();
+    html += `<span class="hashtag hashtag-type" data-hashtag-type="type" data-hashtag-value="${escapeHtml(iocTypeClean)}" onclick="toggleHashtagFilter(this, 'type', '${escapeHtml(iocTypeClean)}')" style="ody: pointer; padding: 6px 12px; background: rgba(59, 130, 246, 0.12); color: #3B82F6; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(59, 130, 246, 0.3); transition: all 0.2s ease; white-space: nowrap;">#${escapeHtml(iocTypeClean)}</span>`;
+    
+    // Source hashtag
+    const sourceNameClean = (ioc.source_name || 'N/A').replace(/ /g, '_').replace(/\//g, '_').replace(/\\/g, '_').replace(/#/g, '').substring(0, 25);
+    html += `<span class="hashtag hashtag-source" data-hashtag-type="source" data-hashtag-value="${escapeHtml(sourceNameClean)}" onclick="toggleHashtagFilter(this, 'source', '${escapeHtml(sourceNameClean)}')" style="ody: pointer; padding: 6px 12px; background: rgba(34, 197, 94, 0.12); color: #22C55E; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(34, 197, 94, 0.3); transition: all 0.2s ease; white-space: nowrap;">#${escapeHtml(sourceNameClean)}</span>`;
+    
+    // Date hashtag
+    if (ioc.created_at) {
+        const date = new Date(ioc.created_at);
+        const monthYear = `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+        html += `<span class="hashtag hashtag-date" data-hashtag-type="date" data-hashtag-value="${escapeHtml(monthYear)}" onclick="toggleHashtagFilter(this, 'date', '${escapeHtml(monthYear)}')" style="ody: pointer; padding: 6px 12px; background: rgba(245, 158, 11, 0.12); color: #F59E0B; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(245, 158, 11, 0.3); transition: all 0.2s ease; white-space: nowrap;">#${escapeHtml(monthYear)}</span>`;
+    }
+    
+    // Group hashtags (IOC groups first, then source groups)
+    const iocGroups = ioc.ioc_groups || [];
+    const sourceGroups = ioc.source_groups || [];
+    const iocGroupNames = new Set(iocGroups.map(g => g.name));
+    
+    // Display IOC groups
+    iocGroups.forEach(group => {
+        const groupNameClean = (group.name || '').replace(/ /g, '_').replace(/\//g, '_').replace(/\\/g, '_').replace(/#/g, '').replace(/:/g, '_');
+        html += `<span class="hashtag hashtag-group" data-hashtag-type="group" data-hashtag-value="${escapeHtml(groupNameClean)}" onclick="toggleHashtagFilter(this, 'group', '${escapeHtml(groupNameClean)}')" style="ody: pointer; padding: 6px 12px; background: rgba(168, 85, 247, 0.12); color: #A855F7; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(168, 85, 247, 0.3); transition: all 0.2s ease; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">#${escapeHtml(groupNameClean)} <span onclick="event.stopPropagation(); removeIocFromGroup(${ioc.id}, ${group.id})" style="ody: pointer; padding: 2px 4px; background: rgba(220, 38, 38, 0.2); color: #DC2626; border-radius: 4px; font-size: 10px; font-weight: bold;">×</span></span>`;
+    });
+    
+    // Display source groups (excluding those already in IOC groups and TLP/Positive if IOC has any)
+    const iocHasTlp = iocGroups.some(g => ['TLP:CLEAR', 'TLP:GREEN', 'TLP:AMBER', 'TLP:RED'].includes(g.name));
+    const iocHasPositive = iocGroups.some(g => ['True Positive', 'False Positive'].includes(g.name));
+    
+    sourceGroups.forEach(group => {
+        // Skip if exact same name as IOC group
+        if (iocGroupNames.has(group.name)) return;
+        
+        // Skip TLP if IOC has any TLP
+        if (iocHasTlp && ['TLP:CLEAR', 'TLP:GREEN', 'TLP:AMBER', 'TLP:RED'].includes(group.name)) return;
+        
+        // Skip Positive if IOC has any Positive
+        if (iocHasPositive && ['True Positive', 'False Positive'].includes(group.name)) return;
+        
+        const groupNameClean = (group.name || '').replace(/ /g, '_').replace(/\//g, '_').replace(/\\/g, '_').replace(/#/g, '').replace(/:/g, '_');
+        html += `<span class="hashtag hashtag-group" data-hashtag-type="group" data-hashtag-value="${escapeHtml(groupNameClean)}" onclick="toggleHashtagFilter(this, 'group', '${escapeHtml(groupNameClean)}')" style="ody: pointer; padding: 6px 12px; background: rgba(168, 85, 247, 0.12); color: #A855F7; border-radius: 8px; font-size: 12px; font-weight: 500; border: 1px solid rgba(168, 85, 247, 0.3); transition: all 0.2s ease; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">#${escapeHtml(groupNameClean)} <span onclick="event.stopPropagation(); removeIocFromGroup(${ioc.id}, ${group.id}, true)" style="ody: pointer; padding: 2px 4px; background: rgba(220, 38, 38, 0.2); color: #DC2626; border-radius: 4px; font-size: 10px; font-weight: bold;">×</span></span>`;
+    });
+    
+    return html;
+}
+
+// Optimize scroll events with throttling
+const optimizedScrollHandler = throttle(() => {
+    // This runs during scroll but throttled
+    // Intersection Observer handles the actual loading
+}, 100);
+
+// Store original renderIocsRows for filter re-application
+const originalRenderIocsRows = renderIocsRows;
+
+// Override renderIocsRows to re-apply filters
+renderIocsRows = function(iocs) {
+    originalRenderIocsRows(iocs);
+    // Small delay to ensure DOM is updated
+    setTimeout(() => {
+        if (activeHashtagFilters.size > 0) {
+            applyHashtagFilters();
+        }
+    }, 50);
+};
+
+// Initialize lazy loading when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide pagination if lazy loading is enabled
+    if (lazyLoadingState.hasMore) {
+        const paginationContainer = document.getElementById('pagination-container');
+        if (paginationContainer) {
+            paginationContainer.style.display = 'none';
+        }
+        initLazyLoading();
+    }
+    
+    // Add scroll optimization (though Intersection Observer is better)
+    window.addEventListener('scroll', optimizedScrollHandler, { passive: true });
+});
+
+// Initialize hashtag filters from URL on page load
+
+async function markIocAsTruePositive(iocId) {
+    try {
+        // Get group ID for "True Positive"
+        const groupResponse = await fetch('/api/groups/get-by-name?name=True Positive');
+        const groupData = await groupResponse.json();
+        
+        if (!groupResponse.ok || !groupData.group_id) {
+            alert('Error: True Positive group not found');
+            return;
+        }
+        
+        const groupId = groupData.group_id;
+        
+        // Add IOC to group (without adding the source)
+        const iocResponse = await fetch('/api/iocs/bulk-add-group', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ioc_ids: [iocId], group_id: groupId })
+        });
+        
+        const iocData = await iocResponse.json();
+        if (!iocResponse.ok) {
+            alert('Error: ' + (iocData.error || 'Unknown error'));
+            return;
+        }
+        
+        location.reload();
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function markIocAsFalsePositive(iocId) {
+    try {
+        // Get group ID for "False Positive"
+        const groupResponse = await fetch('/api/groups/get-by-name?name=False Positive');
+        const groupData = await groupResponse.json();
+        
+        if (!groupResponse.ok || !groupData.group_id) {
+            alert('Error: False Positive group not found');
+            return;
+        }
+        
+        const groupId = groupData.group_id;
+        
+        // Add IOC to group (without adding the source)
+        const iocResponse = await fetch('/api/iocs/bulk-add-group', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ioc_ids: [iocId], group_id: groupId })
+        });
+        
+        const iocData = await iocResponse.json();
+        if (!iocResponse.ok) {
+            alert('Error: ' + (iocData.error || 'Unknown error'));
+            return;
+        }
+        
+        location.reload();
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+function toggleAddIocForm() {
+    const form = document.getElementById('add-ioc-form');
+    if (form.style.display === 'none') {
+        form.style.display = 'block';
+    } else {
+        form.style.display = 'none';
+        document.getElementById('manual-ioc-form').reset();
+    }
+}
+
+
+
+function toggleBulkGroupSelector(event) {
+    event.stopPropagation();
+    // Close all individual selectors
+    document.querySelectorAll('.group-selector-dropdown').forEach(dropdown => {
+        if (dropdown.id !== 'bulk-group-selector') {
+            dropdown.style.display = 'none';
+        }
+    });
+    
+    const selector = document.getElementById('bulk-group-selector');
+    const button = event.target.closest('button');
+    
+    if (selector && button) {
+        if (selector.style.display === 'none' || !selector.style.display) {
+            selector.style.display = 'block';
+            // Calculate position relative to button
+            const rect = button.getBoundingClientRect();
+            selector.style.top = (rect.bottom + 4) + 'px';
+            selector.style.left = rect.left + 'px';
+            
+            // Adjust if dropdown goes off screen
+            setTimeout(() => {
+                const dropdownRect = selector.getBoundingClientRect();
+                if (dropdownRect.right > window.innerWidth) {
+                    selector.style.left = (window.innerWidth - dropdownRect.width - 10) + 'px';
+                }
+                if (dropdownRect.bottom > window.innerHeight) {
+                    selector.style.top = (rect.top - dropdownRect.height - 4) + 'px';
+                }
+                if (dropdownRect.left < 0) {
+                    selector.style.left = '10px';
+                }
+                if (dropdownRect.top < 0) {
+                    selector.style.top = '10px';
+                }
+            }, 0);
+        } else {
+            selector.style.display = 'none';
+        }
+    }
+}
+
+
+async function removeIocFromGroup(iocId, groupId, isSourceGroup = false) {
+    if (!confirm('Do you really want to remove this IOC from this group?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/iocs/remove-group', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                ioc_id: iocId, 
+                group_id: groupId,
+                is_source_group: isSourceGroup 
+            })
+        });
+        
+        const data = await response.json();
+        if (!response.ok) {
+            alert('Error: ' + (data.error || 'Unknown error'));
+            return;
+        }
+        
+        location.reload();
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function assignSelectedIocsToGroup(groupId) {
+    // Close selector
+    document.getElementById('bulk-group-selector').style.display = 'none';
+    
+    const selected = Array.from(document.querySelectorAll('.ioc-checkbox:checked')).map(cb => parseInt(cb.value));
+    const storedIds = localStorage.getItem('selectedIocIds');
+    let allSelectedIds = selected;
+    
+    if (storedIds) {
+        try {
+            const stored = JSON.parse(storedIds);
+            allSelectedIds = [...new Set([...selected, ...stored])];
+        } catch (e) {
+            // Ignore parse error
+        }
+    }
+    
+    if (allSelectedIds.length === 0) {
+        alert('Please select at least one IOC');
+        return;
+    }
+    
+    try {
+        // Add IOCs to group
+        const iocResponse = await fetch('/api/iocs/bulk-add-group', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ioc_ids: allSelectedIds, group_id: groupId })
+        });
+        
+        const iocData = await iocResponse.json();
+        if (!iocResponse.ok) {
+            alert('Error: ' + (iocData.error || 'Unknown error'));
+            return;
+        }
+        
+        // Get source IDs from IOCs
+        const sourceResponse = await fetch('/api/iocs/get-sources', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ioc_ids: allSelectedIds })
+        });
+        
+        const sourceData = await sourceResponse.json();
+        if (sourceResponse.ok && sourceData.source_ids && sourceData.source_ids.length > 0) {
+            // Add sources to same group (remove duplicates)
+            const uniqueSourceIds = [...new Set(sourceData.source_ids)];
+            await fetch('/api/sources/bulk-add-group', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ source_ids: uniqueSourceIds, group_id: groupId })
+            });
+        }
+        
+        localStorage.removeItem('selectedIocIds');
+        location.reload();
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.group-selector-dropdown') && !e.target.closest('button[onclick*="toggleBulkGroupSelector"]')) {
+        document.querySelectorAll('.group-selector-dropdown').forEach(dropdown => {
+            dropdown.style.display = 'none';
+        });
+    }
+});
+</script>
+
+<style>
+/* Modern-like Design System for IOCs Page */
+
+/* Modern Hashtag Badges */
+.hashtag {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.hashtag:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+}
+
+.hashtag:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* Hashtag Type Specific Styles */
+.hashtag-tlp {
+    font-weight: 600 !important;
+}
+
+.hashtag-positive {
+    font-weight: 600 !important;
+}
+
+.hashtag-type {
+    font-weight: 500;
+}
+
+.hashtag-source {
+    font-weight: 500;
+}
+
+.hashtag-date {
+    font-weight: 500;
+}
+
+.hashtag-group {
+    font-weight: 500;
+}
+
+/* Table Improvements */
+.table th,
+.table td {
+    padding: 14px 18px;
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Card Improvements */
+.card {
+    border-radius: 12px;
+    padding: 20px 24px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Button Improvements */
+.btn {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+/* Badge Improvements */
+.badge {
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+/* Form Controls */
+.form-control {
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 10px 14px;
+    transition: all 0.2s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--violet-light);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+/* Legacy styles for compatibility */
+.tag-clickable:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+}
+
+.tag-active {
+    font-weight: 600;
+}
+
+/* Smooth scrolling optimization */
+html {
+    scroll-behavior: smooth;
+}
+
+.table-responsive {
+    will-change: scroll-position;
+    transform: translateZ(0); /* Force GPU acceleration */
+}
+
+.table tbody tr {
+    will-change: transform, opacity;
+    transform: translateZ(0); /* Force GPU acceleration */
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(139, 92, 246, 0.3);
+    border-top-color: var(--violet-light);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Optimize rendering performance */
+.hashtags-container {
+    contain: layout style paint;
+}
+
+.hashtag {
+    contain: layout style paint;
+}
+
+/* Reduce repaints during scroll */
+.table {
+    contain: layout;
+}
+
+/* Responsive Design - Modern Style */
+
+@media (max-width: 1200px) {
+    .filters-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+        gap: 12px !important;
+    }
+    
+    .hashtags-container {
+        max-width: 500px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .filters-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .table {
+        min-width: 800px;
+    }
+    
+    .table th,
+    .table td {
+        padding: 12px 14px;
+        font-size: 14px;
+    }
+    
+    #bulk-actions-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        padding: 12px 16px !important;
+    }
+    
+    #bulk-actions-bar > div {
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+    
+    .group-selector-dropdown {
+        max-width: calc(100vw - 20px) !important;
+        left: 10px !important;
+        right: 10px !important;
+    }
+    
+    .hashtags-container {
+        max-width: 400px !important;
+        gap: 4px !important;
+    }
+    
+    .hashtag {
+        padding: 5px 10px !important;
+        font-size: 11px !important;
+    }
+    
+    #hashtag-filters-bar {
+        padding: 12px 16px !important;
+    }
+    
+    #hashtag-filters-bar > div {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+    }
+    
+    #active-hashtag-filters {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .filters-grid {
+        gap: 10px !important;
+    }
+    
+    .table {
+        min-width: 1000px;
+    }
+    
+    .table th,
+    .table td {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+    
+    .hashtags-container {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        max-width: 350px !important;
+        gap: 4px !important;
+    }
+    
+    .hashtag {
+        padding: 5px 10px !important;
+        font-size: 11px !important;
+    }
+    
+    .group-selector-dropdown {
+        max-height: 60vh !important;
+    }
+    
+    .card {
+        padding: 16px 18px !important;
+    }
+}
+
+/* Responsive for large screens and TVs */
+@media (min-width: 1920px) {
+    .container {
+        max-width: 1800px;
+    }
+    
+    .filters-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    
+    .hashtags-container {
+        max-width: 700px;
+    }
+}
+
+/* Responsive for tablets */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .filters-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .hashtags-container {
+        max-width: 500px;
+    }
+}
+
+/* Touch-friendly improvements for mobile */
+@media (max-width: 768px) {
+    .hashtag,
+    .btn,
+    .group-filter-chip {
+        min-height: 36px;
+        min-width: 36px;
+    }
+    
+    input[type="checkbox"] {
+        width: 20px !important;
+        height: 20px !important;
+    }
+}
+</style>
+{% endblock %}

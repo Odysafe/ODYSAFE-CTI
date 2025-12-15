@@ -1,0 +1,788 @@
+{% extends "base.html" %}
+
+{% block title %}DeepDarkCTI - CTI Platform{% endblock %}
+
+{% block extra_head %}
+<style>
+    .deepdarkcti-hero {
+        text-align: center;
+        margin-bottom: 80px;
+        padding: 60px 0;
+    }
+    
+    .deepdarkcti-hero h1 {
+        font-size: clamp(32px, 5vw, 56px);
+        font-weight: 700;
+        margin-bottom: 24px;
+        background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .deepdarkcti-hero p {
+        font-size: 20px;
+        color: var(--text-secondary);
+        max-width: 700px;
+        margin: 0 auto 40px;
+    }
+    
+    .refresh-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 40px;
+        padding: 24px;
+        background: rgba(139, 92, 246, 0.05);
+        border-radius: 16px;
+        border: 1px solid rgba(167, 139, 250, 0.1);
+    }
+    
+    .refresh-button {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, var(--violet-medium), var(--violet-light));
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        ody: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .refresh-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+    }
+    
+    .refresh-button:active {
+        transform: translateY(0);
+    }
+    
+    .refresh-button.loading {
+        opacity: 0.7;
+        ody: not-allowed;
+    }
+    
+    .refresh-button .spinner {
+        display: none;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    
+    .refresh-button.loading .spinner {
+        display: block;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .stats-info {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+    
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--violet-light);
+    }
+    
+    .stat-label {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+    
+    .thank-you-message {
+        background: rgba(139, 92, 246, 0.1);
+        border-left: 4px solid var(--violet-light);
+        padding: 20px 24px;
+        border-radius: 12px;
+        margin-bottom: 60px;
+        font-size: 16px;
+        line-height: 1.6;
+    }
+    
+    .thank-you-message strong {
+        color: var(--violet-light);
+    }
+    
+    .categories-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 24px;
+        margin-bottom: 40px;
+    }
+    
+    .category-card {
+        background: rgba(20, 20, 30, 0.6);
+        border: 1px solid rgba(167, 139, 250, 0.15);
+        border-radius: 16px;
+        padding: 24px;
+        transition: all 0.3s ease;
+        ody: pointer;
+    }
+    
+    .category-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(139, 92, 246, 0.2);
+        border-color: rgba(167, 139, 250, 0.3);
+    }
+    
+    .category-card.expanded {
+        border-color: var(--violet-light);
+    }
+    
+    .category-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 16px;
+    }
+    
+    .category-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    
+    .category-count {
+        background: var(--violet-medium);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .category-sources {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+    }
+    
+    .category-card.expanded .category-sources {
+        max-height: 600px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    .category-filters {
+        display: none;
+        padding: 12px;
+        margin-bottom: 12px;
+        background: rgba(20, 20, 30, 0.5);
+        border-radius: 8px;
+        border: 1px solid rgba(167, 139, 250, 0.15);
+    }
+    
+    .category-card.expanded .category-filters {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    
+    .filter-button {
+        padding: 6px 12px;
+        background: rgba(139, 92, 246, 0.1);
+        border: 1px solid rgba(167, 139, 250, 0.2);
+        border-radius: 6px;
+        color: var(--text-secondary);
+        font-size: 12px;
+        font-weight: 500;
+        ody: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .filter-button:hover {
+        background: rgba(139, 92, 246, 0.2);
+        border-color: var(--violet-light);
+    }
+    
+    .filter-button.active {
+        background: var(--violet-medium);
+        color: white;
+        border-color: var(--violet-light);
+    }
+    
+    .filter-button.excluded {
+        background: rgba(220, 38, 38, 0.2);
+        color: #DC2626;
+        border-color: rgba(220, 38, 38, 0.3);
+        text-decoration: line-through;
+    }
+    
+    .filter-button.excluded.active {
+        background: rgba(220, 38, 38, 0.3);
+        color: #DC2626;
+    }
+    
+    .filter-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-right: 4px;
+    }
+    
+    .source-content {
+        flex: 1;
+        min-width: 0; /* Allows content to shrink */
+    }
+    
+    .source-delete-btn {
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        background: rgba(220, 38, 38, 0.1);
+        border: 1px solid rgba(220, 38, 38, 0.2);
+        border-radius: 50%;
+        color: #DC2626;
+        font-size: 14px;
+        font-weight: 600;
+        ody: pointer;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+        opacity: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        margin-left: 8px;
+    }
+    
+    .source-item:hover .source-delete-btn {
+        opacity: 1;
+    }
+    
+    .source-delete-btn:hover {
+        background: rgba(220, 38, 38, 0.25);
+        border-color: #DC2626;
+        transform: scale(1.15);
+    }
+    
+    .source-delete-btn:active {
+        transform: scale(0.95);
+    }
+    
+    .category-sources::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .category-sources::-webkit-scrollbar-track {
+        background: rgba(139, 92, 246, 0.1);
+        border-radius: 4px;
+    }
+    
+    .category-sources::-webkit-scrollbar-thumb {
+        background: var(--violet-medium);
+        border-radius: 4px;
+    }
+    
+    .category-sources::-webkit-scrollbar-thumb:hover {
+        background: var(--violet-light);
+    }
+    
+    .source-item {
+        padding: 12px;
+        margin-bottom: 8px;
+        background: rgba(20, 20, 30, 0.5);
+        border-radius: 8px;
+        border-left: 3px solid transparent;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: relative;
+    }
+    
+    .source-item:hover {
+        background: rgba(20, 20, 30, 0.7);
+        border-left-color: var(--violet-light);
+    }
+    
+    .source-status {
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        flex-shrink: 0;
+    }
+    
+    .source-status.online {
+        background: rgba(34, 197, 94, 0.2);
+        color: #22C55E;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .source-status.offline {
+        background: rgba(220, 38, 38, 0.2);
+        color: #DC2626;
+        border: 1px solid rgba(220, 38, 38, 0.3);
+    }
+    
+    .source-status.valid {
+        background: rgba(34, 197, 94, 0.2);
+        color: #22C55E;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .source-status.expired {
+        background: rgba(220, 38, 38, 0.2);
+        color: #DC2626;
+        border: 1px solid rgba(220, 38, 38, 0.3);
+    }
+    
+    .source-content {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .source-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--violet-light);
+        margin-bottom: 4px;
+        display: block;
+        text-decoration: none;
+        word-wrap: break-word;
+        padding-right: 8px; /* Espace pour le bouton de suppression */
+    }
+    
+    .source-name:hover {
+        text-decoration: underline;
+    }
+    
+    .source-description {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+        word-wrap: break-word;
+        padding-right: 8px; /* Espace pour le bouton de suppression */
+    }
+    
+    .source-metadata {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    
+    .metadata-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        background: rgba(139, 92, 246, 0.08);
+        border-radius: 6px;
+        font-size: 12px;
+    }
+    
+    .metadata-label {
+        font-weight: 600;
+        color: var(--violet-light);
+    }
+    
+    .metadata-value {
+        color: var(--text-secondary);
+    }
+    
+    .search-box {
+        width: 100%;
+        padding: 16px 20px;
+        background: rgba(139, 92, 246, 0.05);
+        border: 1px solid rgba(167, 139, 250, 0.2);
+        border-radius: 12px;
+        color: var(--text-primary);
+        font-size: 16px;
+        margin-bottom: 32px;
+        transition: all 0.3s ease;
+    }
+    
+    .search-box:focus {
+        outline: none;
+        border-color: var(--violet-light);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-secondary);
+    }
+    
+    .empty-state-icon {
+        font-size: 64px;
+        margin-bottom: 24px;
+    }
+    
+    /* Barre de progression */
+    .progress-container {
+        display: none;
+        margin-bottom: 24px;
+        padding: 20px;
+        background: rgba(139, 92, 246, 0.05);
+        border-radius: 12px;
+        border: 1px solid rgba(167, 139, 250, 0.1);
+    }
+    
+    .progress-container.active {
+        display: block;
+    }
+    
+    .progress-bar-wrapper {
+        width: 100%;
+        height: 8px;
+        background: rgba(139, 92, 246, 0.1);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 12px;
+    }
+    
+    .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, var(--violet-medium), var(--violet-light));
+        border-radius: 4px;
+        transition: width 0.3s ease;
+        width: 0%;
+    }
+    
+    .progress-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+    
+    .progress-message {
+        font-weight: 500;
+        color: var(--violet-light);
+    }
+    
+    /* Modal de confirmation */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10000;
+        pointer-events: none;
+        backdrop-filter: blur(4px);
+    }
+    
+    .modal-overlay.active {
+        display: flex;
+    }
+    
+    .modal-content {
+        position: absolute;
+        background: var(--bg-primary);
+        border: 1px solid rgba(167, 139, 250, 0.2);
+        border-radius: 16px;
+        padding: 32px;
+        max-width: 500px;
+        width: 90%;
+        pointer-events: all;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-title {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--text-primary);
+    }
+    
+    .modal-message {
+        color: var(--text-secondary);
+        margin-bottom: 24px;
+        line-height: 1.6;
+        word-break: break-all;
+    }
+    
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+    
+    .modal-button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        ody: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .modal-button.primary {
+        background: linear-gradient(135deg, var(--violet-medium), var(--violet-light));
+        color: white;
+    }
+    
+    .modal-button.secondary {
+        background: rgba(139, 92, 246, 0.1);
+        color: var(--violet-light);
+        border: 1px solid rgba(167, 139, 250, 0.3);
+    }
+    
+    .modal-button.cancel {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-secondary);
+    }
+    
+    .modal-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <!-- Barre de sélection -->
+        <div class="resource-selector" style="display: flex; gap: 0; margin-bottom: 40px; padding: 6px; background: rgba(139, 92, 246, 0.05); border-radius: 16px; border: 1px solid rgba(167, 139, 250, 0.1); overflow-x: auto; flex-wrap: nowrap;">
+            <button class="resource-tab active" data-resource="deepdarkcti" onclick="window.location.href='/cti-resources/deepdarkcti'" style="padding: 12px 24px; background: rgba(60, 60, 80, 0.8); border: none; border-radius: 12px; color: white; font-size: 16px; font-weight: 600; ody: pointer; transition: all 0.3s ease; white-space: nowrap; flex: 1; text-align: center;">
+                DeepDarkCTI
+            </button>
+            <button class="resource-tab" data-resource="ransomware-matrix" onclick="window.location.href='/cti-resources/ransomware-matrix'" style="padding: 12px 24px; background: transparent; border: none; border-radius: 12px; color: #9CA3AF; font-size: 16px; font-weight: 500; ody: pointer; transition: all 0.3s ease; white-space: nowrap; flex: 1; text-align: center;">
+                Ransomware Tool Matrix
+            </button>
+        </div>
+
+        <!-- Hero Section -->
+        <div style="text-align: center; margin-bottom: 60px;">
+            <h1 style="font-size: clamp(32px, 5vw, 48px); font-weight: 700; margin-bottom: 24px; background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                CTI Resources
+            </h1>
+            <p style="font-size: 18px; color: var(--text-secondary); max-width: 800px; margin: 0 auto 32px; line-height: 1.6;">
+                Access quality external CTI resources. Explore DeepDarkCTI for Deep and Dark Web sources, consult the Ransomware Tool Matrix for ransomware tools, and access comprehensive threat intelligence data.
+            </p>
+        </div>
+
+        <!-- External Resource Information -->
+        <div class="thank-you-message">
+            <strong>External Resource</strong><br>
+            This section uses data from the <a href="https://github.com/fastfire/deepdarkCTI" target="_blank" style="color: var(--violet-light); text-decoration: none;">deepdarkCTI</a> project, an open-source resource that collects and shares Cyber Threat Intelligence sources from the deep and dark web. This resource is integrated into the platform to provide access to CTI sources for the security community.<br><br>
+            <strong>Odysafe CTI Platform thanks the deepdarkCTI project</strong> for making this valuable resource available to the community.
+        </div>
+
+        {% if not repo_exists %}
+        <!-- Repository not available -->
+        <div style="text-align: center; padding: 60px 20px;">
+            <div style="font-size: 48px; margin-bottom: 20px;">📦</div>
+            <h2 style="color: var(--text-primary); margin-bottom: 16px;">Repository not available</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 16px; max-width: 500px; margin-left: auto; margin-right: auto;">
+                The DeepDarkCTI repository has not been downloaded. Click the button below to download it.
+            </p>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 24px; max-width: 500px; margin-left: auto; margin-right: auto;">
+                <span style="font-size: 24px;">🌐</span>
+                <p style="color: var(--text-secondary); margin: 0; font-size: 14px;">
+                    An internet connection is required to download the repository from GitHub.
+                </p>
+            </div>
+            <button id="downloadBtn" class="refresh-button" style="min-width: 200px;">
+                <span class="spinner"></span>
+                <span class="button-text">⬇️ Download</span>
+            </button>
+        </div>
+        {% else %}
+        <!-- Refresh Section -->
+        <div class="refresh-section">
+            <div class="stats-info">
+                {% if category_info %}
+                <div class="stat-item">
+                    <div class="stat-value">{{ category_info.total_categories or 0 }}</div>
+                    <div class="stat-label">Categories</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ category_info.total_sources or 0 }}</div>
+                    <div class="stat-label">Total Sources</div>
+                </div>
+                {% if category_info.last_update %}
+                <div class="stat-item">
+                    <div class="stat-value" style="font-size: 14px;">
+                        {{ category_info.last_update[:10] }}<br>
+                        <span style="font-size: 12px; color: var(--text-secondary);">{{ category_info.last_update[11:16] }}</span>
+                    </div>
+                    <div class="stat-label">Last Update</div>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 6px; padding: 6px 10px;">
+                    <span style="font-size: 18px;">🌐</span>
+                    <p style="color: var(--text-secondary); margin: 0; font-size: 12px;">
+                        Internet connection required
+                    </p>
+                </div>
+                <button id="refreshBtn" class="refresh-button">
+                    <span class="spinner"></span>
+                    <span class="button-text">🔄 Refresh</span>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Manual source addition form -->
+        <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <h3 style="margin: 0 0 16px 0; color: var(--text-primary); font-size: 16px; font-weight: 600;">➕ Add a source manually</h3>
+            <form id="addManualSourceForm" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: 12px; font-weight: 500;">URL *</label>
+                    <input type="url" id="manualSourceUrl" required placeholder="https://example.com" style="width: 100%; padding: 10px; border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 14px;">
+                </div>
+                <div style="flex: 1; min-width: 150px;">
+                    <label style="display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: 12px; font-weight: 500;">Name (optional)</label>
+                    <input type="text" id="manualSourceName" placeholder="Source name" style="width: 100%; padding: 10px; border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 14px;">
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: 12px; font-weight: 500;">Description (optional)</label>
+                    <input type="text" id="manualSourceDescription" placeholder="Description" style="width: 100%; padding: 10px; border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 14px;">
+                </div>
+                <button type="submit" style="padding: 10px 20px; background: var(--violet); color: white; border: none; border-radius: 8px; font-weight: 600; ody: pointer; font-size: 14px; white-space: nowrap;">Add</button>
+            </form>
+        </div>
+
+        <!-- Barre de progression -->
+        <div id="progressContainer" class="progress-container">
+            <div class="progress-bar-wrapper">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div class="progress-info">
+                <span id="progressMessage" class="progress-message">Initializing...</span>
+                <span id="progressPercentage">0%</span>
+            </div>
+        </div>
+
+        {% if repo_exists %}
+        <!-- Search Box -->
+        <input type="text" id="searchBox" class="search-box" placeholder="Search for a source or category...">
+
+        <!-- Categories Grid -->
+        <div id="categoriesContainer" class="categories-grid">
+            {% if categories %}
+                {% for filename, category in categories.items() %}
+                <div class="category-card {% if category.is_manual %}manual-category{% endif %}" data-category="{{ filename }}" data-name="{{ category.name|lower }}">
+                    <div class="category-header">
+                        <h3 class="category-title">{{ category.name }}</h3>
+                        <span class="category-count">{{ category.source_count }} sources</span>
+                    </div>
+                    <div class="category-filters" data-category-filters="{{ filename }}">
+                        <span class="filter-label">Show:</span>
+                        <button class="filter-button active" data-filter="all" data-action="include">All</button>
+                        {% if category.available_statuses %}
+                            {% if 'ONLINE' in category.available_statuses %}
+                            <button class="filter-button" data-filter="online" data-action="toggle">🟢 Online</button>
+                            {% endif %}
+                            {% if 'OFFLINE' in category.available_statuses %}
+                            <button class="filter-button" data-filter="offline" data-action="toggle">🔴 Offline</button>
+                            {% endif %}
+                            {% if 'VALID' in category.available_statuses %}
+                            <button class="filter-button" data-filter="valid" data-action="toggle">✅ Valid</button>
+                            {% endif %}
+                            {% if 'EXPIRED' in category.available_statuses %}
+                            <button class="filter-button" data-filter="expired" data-action="toggle">❌ Expired</button>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    <div class="category-sources">
+                        {% if category.sources %}
+                            {% for source in category.sources %}
+                            <div class="source-item {% if source.is_manual or category.is_manual %}manual-source{% endif %} {% if source.is_favorite %}favorite-source{% endif %}" data-source-name="{{ source.name|lower }}" data-source-status="{{ source.status|lower if source.status else '' }}" data-source-id="{{ loop.index0 }}" data-source-url="{{ source.url }}" data-category="{{ filename }}" data-is-manual="{% if source.is_manual or category.is_manual %}true{% else %}false{% endif %}">
+                                {% if source.status %}
+                                <span class="source-status {{ source.status|lower }}">{{ source.status }}</span>
+                                {% endif %}
+                                <div class="source-content">
+                                    <a href="{{ source.url }}" target="_blank" rel="noopener noreferrer" class="source-name">
+                                        {% if source.is_favorite %}<span class="favorite-indicator">⭐</span> {% endif %}{{ source.name }}
+                                    </a>
+                                    {% if source.description %}
+                                    <div class="source-description">{{ source.description[:100] }}{% if source.description|length > 100 %}...{% endif %}</div>
+                                    {% endif %}
+                                    {% if source.metadata %}
+                                    <div class="source-metadata">
+                                        {% for key, value in source.metadata.items() %}
+                                        {% if value and value.strip() and key not in ['name', 'link', 'url', 'status', 'description', 'desc'] %}
+                                        <div class="metadata-item" data-metadata-key="{{ key }}">
+                                            <span class="metadata-label">{{ key.replace('_', ' ').title() }}:</span>
+                                            <span class="metadata-value">{{ value[:80] }}{% if value|length > 80 %}...{% endif %}</span>
+                                        </div>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div style="display: flex; gap: 4px; align-items: center;">
+                                    <button class="source-favorite-btn {% if source.is_favorite %}active{% endif %}" data-source-url="{{ source.url }}" title="{% if source.is_favorite %}Remove from favorites{% else %}Add to favorites{% endif %}">
+                                        {% if source.is_favorite %}⭐{% else %}☆{% endif %}
+                                    </button>
+                                    <button class="source-delete-btn" data-source-id="{{ loop.index0 }}" title="{% if source.is_manual or category.is_manual %}Delete this source{% else %}Hide this source{% endif %}">✕</button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div style="padding: 12px; color: var(--text-secondary); font-size: 14px;">
+                                No source found
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">📂</div>
+                    <h3>No category available</h3>
+                    <p>Click "Update" to load data from GitHub</p>
+                </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Link confirmation modal -->
+<div id="linkModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 class="modal-title">Open link</h3>
+        <p class="modal-message" id="modalLinkUrl"></p>
+        <div class="modal-actions">
+            <button class="modal-button secondary" id="copyLinkBtn">📋 Copy link</button>
+            <button class="modal-button primary" id="openLinkBtn">🔗 Open link</button>
+            <button class="modal-button cancel" id="cancelLinkBtn">Cancel</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/cti_resources_common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/deepdarkcti.js') }}"></script>
+{% endblock %}
+

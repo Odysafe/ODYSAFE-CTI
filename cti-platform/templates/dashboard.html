@@ -1,0 +1,1067 @@
+{% extends "base.html" %}
+
+{% block title %}Home - CTI Platform{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="hero-content" style="text-align: center; margin-bottom: 80px;">
+            <div style="margin-bottom: 32px;">
+                <img src="{{ url_for('static', filename='images/logo-c.png') }}" alt="Odysafe" style="height: 120px; width: auto; margin-bottom: 24px;">
+            </div>
+            <h1 class="hero-title" style="font-size: clamp(32px, 5vw, 56px); font-weight: 700; margin-bottom: 24px; background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                On-Premise CTI Platform
+            </h1>
+            <p class="hero-subtitle" style="font-size: 20px; color: var(--text-secondary); max-width: 700px; margin: 0 auto 40px;">
+                Extract, organize, and enrich IOCs from files, text, URLs, or CTI resources. Analyze PDFs, visualize STIX bundles, and export to multiple formats.
+            </p>
+        </div>
+
+        <!-- Quick actions -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 80px;">
+            <a href="{{ url_for('upload') }}" class="card" style="text-decoration: none; display: block;">
+                <div style="font-size: 48px; margin-bottom: 16px;">📁</div>
+                <h3 class="card-title">IOC Extractions</h3>
+                <p class="card-content">Extract IOCs from files, text, URLs, or manual entry</p>
+            </a>
+            <a href="{{ url_for('iocs_list') }}" class="card" style="text-decoration: none; display: block;">
+                <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+                <h3 class="card-title">IOCs</h3>
+                <p class="card-content">Browse, filter, and manage extracted IOCs</p>
+            </a>
+            <a href="{{ url_for('sources_list') }}" class="card" style="text-decoration: none; display: block;">
+                <div style="font-size: 48px; margin-bottom: 16px;">📚</div>
+                <h3 class="card-title">Sources</h3>
+                <p class="card-content">Manage sources and analyze PDFs with YARA</p>
+            </a>
+            <a href="{{ url_for('export') }}" class="card" style="text-decoration: none; display: block;">
+                <div style="font-size: 48px; margin-bottom: 16px;">📤</div>
+                <h3 class="card-title">Export</h3>
+                <p class="card-content">Export to TXT, CSV, JSON, XLSX, or STIX 2.1</p>
+            </a>
+            <a href="{{ url_for('stix_graph') }}" class="card" style="text-decoration: none; display: block;">
+                <div style="font-size: 48px; margin-bottom: 16px;">🕸️</div>
+                <h3 class="card-title">STIX Graph</h3>
+                <p class="card-content">Interactive visualization of STIX 2.1 bundles</p>
+            </a>
+            <a href="{{ url_for('cti_resources') }}" class="card" style="text-decoration: none; display: block;">
+                <div style="font-size: 48px; margin-bottom: 16px;">🌐</div>
+                <h3 class="card-title">CTI Resources</h3>
+                <p class="card-content">Access DeepDarkCTI and Ransomware Tool Matrix</p>
+            </a>
+        </div>
+
+        <!-- Statistics -->
+        {% if stats %}
+        <!-- Overview -->
+        <div class="card" style="margin-bottom: 40px;">
+            <h2 class="card-title" style="margin-bottom: 32px;">Overview</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px;">
+                <div>
+                    <div style="font-size: 36px; font-weight: 700; color: var(--violet-light); margin-bottom: 8px;">
+                        {{ stats.total_sources or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary);">Sources</div>
+                </div>
+                <div>
+                    <div style="font-size: 36px; font-weight: 700; color: var(--violet-light); margin-bottom: 8px;">
+                        {{ stats.total_iocs or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary);">Active IOCs</div>
+                </div>
+                <div>
+                    <div style="font-size: 36px; font-weight: 700; color: var(--green-positive); margin-bottom: 8px;">
+                        {{ stats.true_positive_count or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary);">True Positive</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CTI Resources Statistics -->
+        <div class="card" style="margin-bottom: 40px;">
+            <h2 class="card-title" style="margin-bottom: 32px;">📚 CTI Resources</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+                <!-- DeepDarkCTI Stats -->
+                <div style="padding: 24px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 12px;">
+                    <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                        <div style="font-size: 32px; margin-right: 12px;">🌐</div>
+                        <h3 style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin: 0;">DeepDarkCTI</h3>
+                    </div>
+                    {% if cti_stats and cti_stats.deepdarkcti and cti_stats.deepdarkcti.available %}
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 28px; font-weight: 700; color: var(--violet-light); margin-bottom: 4px;">
+                            {{ cti_stats.deepdarkcti.categories_count }}
+                        </div>
+                        <div style="color: var(--text-secondary); font-size: 14px;">Categories</div>
+                    </div>
+                    {% if cti_stats.deepdarkcti.last_update %}
+                    <div style="font-size: 12px; color: var(--text-secondary);">
+                        Last update: {{ cti_stats.deepdarkcti.last_update[:10] }}
+                    </div>
+                    {% endif %}
+                    <div style="margin-top: 12px;">
+                        <a href="{{ url_for('cti_resources') }}" style="color: var(--violet-light); text-decoration: none; font-size: 14px; font-weight: 500;">
+                            View resources →
+                        </a>
+                    </div>
+                    {% else %}
+                    <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 12px;">
+                        Repository not downloaded
+                    </div>
+                    <div>
+                        <a href="{{ url_for('cti_resources') }}" style="color: var(--violet-light); text-decoration: none; font-size: 14px; font-weight: 500;">
+                            Download now →
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Ransomware Tool Matrix Stats -->
+                <div style="padding: 24px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 12px;">
+                    <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                        <div style="font-size: 32px; margin-right: 12px;">🛡️</div>
+                        <h3 style="font-size: 18px; font-weight: 600; color: var(--text-primary); margin: 0;">Ransomware Tool Matrix</h3>
+                    </div>
+                    {% if cti_stats and cti_stats.ransomware_matrix and cti_stats.ransomware_matrix.available %}
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light); margin-bottom: 4px;">
+                                {{ cti_stats.ransomware_matrix.tools_count }}
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 12px;">Tools</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light); margin-bottom: 4px;">
+                                {{ cti_stats.ransomware_matrix.threat_intel_count }}
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 12px;">Threat Intel</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light); margin-bottom: 4px;">
+                                {{ cti_stats.ransomware_matrix.group_profiles_count }}
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 12px;">Group Profiles</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light); margin-bottom: 4px;">
+                                {{ cti_stats.ransomware_matrix.community_reports_count }}
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 12px;">Reports</div>
+                        </div>
+                    </div>
+                    {% if cti_stats.ransomware_matrix.last_update %}
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                        Last update: {{ cti_stats.ransomware_matrix.last_update[:10] }}
+                    </div>
+                    {% endif %}
+                    <div>
+                        <a href="{{ url_for('cti_resources_ransomware_matrix') }}" style="color: var(--violet-light); text-decoration: none; font-size: 14px; font-weight: 500;">
+                            View resources →
+                        </a>
+                    </div>
+                    {% else %}
+                    <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 12px;">
+                        Repository not downloaded
+                    </div>
+                    <div>
+                        <a href="{{ url_for('cti_resources_ransomware_matrix') }}" style="color: var(--violet-light); text-decoration: none; font-size: 14px; font-weight: 500;">
+                            Download now →
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Data-Shield IPv4 Blocklist Stats -->
+                <div style="padding: 20px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 12px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="font-size: 28px;">🛡️</div>
+                            <div>
+                                <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0 0 2px 0;">Data-Shield IPv4 Blocklist</h3>
+                                <div style="font-size: 11px; color: var(--text-secondary);">
+                                    Malicious IPs for firewall/WAF protection • 
+                                    <a href="https://github.com/duggytuxy/Data-Shield_IPv4_Blocklist" target="_blank" style="color: #6D28D9; text-decoration: none;">Thanks to Data-Shield</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="refreshDataShield()" class="btn btn-secondary" style="padding: 8px 16px;" id="data-shield-refresh-btn-sources">
+                        🔄 Refresh Data-Shield Blocklist
+                    </button>
+                    {% if cti_stats and cti_stats.data_shield and cti_stats.data_shield.available %}
+                    <div style="display: flex; align-items: center; gap: 24px; padding-top: 12px; border-top: 1px solid rgba(167, 139, 250, 0.1);">
+                        <div style="display: flex; align-items: baseline; gap: 6px;">
+                            <span style="font-size: 20px; font-weight: 700; color: var(--violet-light);">{{ cti_stats.data_shield.imported_ip_count|default(0) }}</span>
+                            <span style="font-size: 12px; color: var(--text-secondary);">IPs imported</span>
+                        </div>
+                        {% if cti_stats.data_shield.last_update %}
+                        <div style="font-size: 11px; color: var(--text-secondary);">
+                            Updated: {{ cti_stats.data_shield.last_update[:10] }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 1. Temporal trends -->
+        <div class="card" style="margin-bottom: 40px;">
+            <h2 class="card-title" style="margin-bottom: 32px;">📈 Temporal trends</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px;">
+                <div>
+                    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--text-primary);">IOCs added</h3>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light);">{{ stats.iocs_24h or 0 }}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">24h</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light);">{{ stats.iocs_7d or 0 }}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">7j</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light);">{{ stats.iocs_30d or 0 }}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">30j</div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--text-primary);">Sources added</h3>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light);">{{ stats.sources_24h or 0 }}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">24h</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light);">{{ stats.sources_7d or 0 }}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">7j</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: var(--violet-light);">{{ stats.sources_30d or 0 }}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">30j</div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--text-primary);">New unique IOCs</h3>
+                    <div style="font-size: 32px; font-weight: 700; color: var(--green-positive);">
+                        {{ stats.new_unique_iocs_24h or 0 }}
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">First appearance (24h)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Distribution by type -->
+        <div class="card" style="margin-bottom: 40px;">
+            <h2 class="card-title" style="margin-bottom: 32px;">📊 Distribution by type</h2>
+            {% if stats.top5_types %}
+            <div style="margin-bottom: 24px;">
+                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--text-primary);">Top 5 IOC types</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                    {% for item in stats.top5_types %}
+                    <span class="badge" style="font-size: 14px; padding: 8px 16px;">
+                        {{ item.type }}: {{ item.count }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            {% if stats.by_category %}
+            <div>
+                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--text-primary);">Distribution by category</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                    {% for category, count in stats.by_category.items() %}
+                    <span class="badge" style="font-size: 14px; padding: 8px 16px; background: rgba(139, 92, 246, 0.15);">
+                        {{ category }}: {{ count }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 3. Quality and validation -->
+        <div class="card" style="margin-bottom: 40px;">
+            <h2 class="card-title" style="margin-bottom: 32px;">✅ Quality and validation</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px;">
+                <div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--green-positive); margin-bottom: 8px;">
+                        {{ stats.true_positive_count or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">True Positive</div>
+                    <div style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">
+                        Ratio: {{ stats.true_positive_ratio or 0 }}%
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size: 28px; font-weight: 700; color: #F59E0B; margin-bottom: 8px;">
+                        {{ stats.false_positive_count or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">False Positive</div>
+                </div>
+                <div>
+                    <div style="font-size: 28px; font-weight: 700; color: #DC2626; margin-bottom: 8px;">
+                        {{ stats.iocs_without_validation or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">Without validation</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Recent activity -->
+        <div class="card" style="margin-bottom: 40px;">
+            <h2 class="card-title" style="margin-bottom: 32px;">🔄 Recent activity</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px;">
+                <div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--violet-light); margin-bottom: 8px;">
+                        {{ stats.first_seen_24h or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">First appearance (24h)</div>
+                </div>
+                <div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--violet-light); margin-bottom: 8px;">
+                        {{ stats.recurrent_iocs_count or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">Recurring IOCs</div>
+                </div>
+            </div>
+            {% if stats.top5_sources %}
+            <div style="margin-top: 24px;">
+                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--text-primary);">Most productive sources</h3>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    {% for source in stats.top5_sources %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(139, 92, 246, 0.05); border-radius: 8px;">
+                        <span style="color: var(--text-primary); font-size: 14px;">{{ source.name[:50] }}{% if source.name|length > 50 %}...{% endif %}</span>
+                        <span class="badge" style="font-size: 12px;">{{ source.count }} IOCs</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 5. TLP and classification -->
+        <div class="card" style="margin-bottom: 40px;">
+            <h2 class="card-title" style="margin-bottom: 32px;">🔒 TLP and classification</h2>
+            {% if stats.tlp_distribution %}
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                {% for tlp, count in stats.tlp_distribution.items() %}
+                <div style="text-align: center; padding: 16px; background: rgba(139, 92, 246, 0.05); border-radius: 8px;">
+                    <div style="font-size: 24px; font-weight: 700; color: var(--violet-light);">{{ count }}</div>
+                    <div style="color: var(--text-secondary); font-size: 12px;">TLP:{{ tlp }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div>
+                <div style="font-size: 28px; font-weight: 700; color: #DC2626; margin-bottom: 8px;">
+                    {{ stats.iocs_without_tlp or 0 }}
+                </div>
+                <div style="color: var(--text-secondary); font-size: 14px;">IOCs not classified TLP</div>
+            </div>
+        </div>
+
+        <!-- 6. Operational metrics -->
+        <div class="card" style="margin-bottom: 40px;">
+            <h2 class="card-title" style="margin-bottom: 32px;">⚙️ Operational metrics</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px;">
+                <div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--violet-light); margin-bottom: 8px;">
+                        {{ stats.avg_processing_time_minutes or 0 }} min
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">Average processing time</div>
+                </div>
+                <div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--violet-light); margin-bottom: 8px;">
+                        {{ stats.duplication_rate or 0 }}%
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">Duplication rate</div>
+                </div>
+                <div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--violet-light); margin-bottom: 8px;">
+                        {{ stats.iocs_with_notes or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">IOCs with notes</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. Alerts and vigilance -->
+        <div class="card" style="margin-bottom: 40px;">
+            <h2 class="card-title" style="margin-bottom: 32px;">🚨 Alerts and vigilance</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px;">
+                <div>
+                    <div style="font-size: 32px; font-weight: 700; color: #DC2626; margin-bottom: 8px;">
+                        {{ stats.critical_iocs or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">Critical IOCs</div>
+                    <div style="color: var(--text-secondary); font-size: 12px; margin-top: 4px;">TLP:RED + True Positive</div>
+                </div>
+                <div>
+                    <div style="font-size: 28px; font-weight: 700; color: #F59E0B; margin-bottom: 8px;">
+                        {{ stats.recent_unvalidated_24h or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">Recent unvalidated (24h)</div>
+                </div>
+                <div>
+                    <div style="font-size: 28px; font-weight: 700; color: #DC2626; margin-bottom: 8px;">
+                        {{ stats.sources_in_error or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">Sources in error</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8. Enrichment -->
+        <div class="card" style="margin-bottom: 40px;">
+            <h2 class="card-title" style="margin-bottom: 32px;">🔗 Enrichment</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px;">
+                <div>
+                    <div style="font-size: 28px; font-weight: 700; color: var(--green-positive); margin-bottom: 8px;">
+                        {{ stats.iocs_with_query_urls or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">With query URLs</div>
+                </div>
+                <div>
+                    <div style="font-size: 28px; font-weight: 700; color: #DC2626; margin-bottom: 8px;">
+                        {{ stats.iocs_without_notes or 0 }}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">Without notes (to enrich)</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recent sources -->
+        {% if recent_sources %}
+        <div class="card">
+            <h2 class="card-title" style="margin-bottom: 24px;">Recent Sources</h2>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                {% for source in recent_sources %}
+                <div style="padding: 16px; background: rgba(139, 92, 246, 0.05); border-radius: 12px; border: 1px solid rgba(167, 139, 250, 0.1); position: relative;">
+                    <button type="button" onclick="confirmDeleteSource({{ source.id }})" style="position: absolute; top: 8px; right: 8px; background: rgba(220, 38, 38, 0.1); color: #DC2626; border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 50%; width: 24px; height: 24px; ody: pointer; font-size: 16px; line-height: 1; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(220, 38, 38, 0.2)'" onmouseout="this.style.background='rgba(220, 38, 38, 0.1)'" title="Delete source">
+                        ×
+                    </button>
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                        <div style="padding-right: 32px;">
+                            <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                                {{ source.name }}
+                            </div>
+                            <div style="font-size: 14px; color: var(--text-secondary);">
+                                {{ source.context[:100] }}{% if source.context|length > 100 %}...{% endif %}
+                            </div>
+                        </div>
+                        <span class="badge" style="font-size: 12px;">
+                            {{ source.source_type }}
+                        </span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted);">
+                        {{ source.created_at }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Platform Workflow Roadmap -->
+        <div class="card" style="margin-top: 80px; padding: 40px;">
+            <h2 class="card-title" style="text-align: center; margin-bottom: 48px; font-size: 32px; background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                Platform Workflow
+            </h2>
+            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 48px; font-size: 18px;">
+                Understand the CTI platform workflow and links between each page
+            </p>
+            
+            <div class="roadmap-container">
+                <!-- Main Workflow Flow -->
+                <div class="roadmap-main-flow">
+                    <!-- Home -->
+                    <div class="roadmap-box roadmap-box-primary">
+                        <a href="{{ url_for('dashboard') }}" class="roadmap-link">
+                            <div class="roadmap-icon">🏠</div>
+                            <h3 class="roadmap-title">Home</h3>
+                            <p class="roadmap-description">Platform overview and statistics</p>
+                        </a>
+                    </div>
+                    
+                    <div class="roadmap-arrow roadmap-arrow-down">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 5V19M12 19L19 12M12 19L5 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    
+                    <!-- IOC Extractions -->
+                    <div class="roadmap-box roadmap-box-primary">
+                        <a href="{{ url_for('upload') }}" class="roadmap-link">
+                            <div class="roadmap-icon">📁</div>
+                            <h3 class="roadmap-title">IOC Extractions</h3>
+                            <p class="roadmap-description">Import IOCs from files, text, URLs, or manual entry</p>
+                        </a>
+                    </div>
+                    
+                    <div class="roadmap-arrow roadmap-arrow-down">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 5V19M12 19L19 12M12 19L5 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    
+                    <!-- IOCs -->
+                    <div class="roadmap-box roadmap-box-primary roadmap-box-with-connection">
+                        <a href="{{ url_for('iocs_list') }}" class="roadmap-link">
+                            <div class="roadmap-icon">🔍</div>
+                            <h3 class="roadmap-title">IOCs</h3>
+                            <p class="roadmap-description">Browse, filter, tag, group, and manage extracted IOCs</p>
+                        </a>
+                        <div class="roadmap-connection-line roadmap-connection-to-sources"></div>
+                    </div>
+                    
+                    <div class="roadmap-arrow roadmap-arrow-down">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 5V19M12 19L19 12M12 19L5 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    
+                    <!-- Export -->
+                    <div class="roadmap-box roadmap-box-primary">
+                        <a href="{{ url_for('export') }}" class="roadmap-link">
+                            <div class="roadmap-icon">📤</div>
+                            <h3 class="roadmap-title">Export</h3>
+                            <p class="roadmap-description">Export to TXT, CSV, JSON, XLSX, or STIX 2.1 format</p>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Side Connections -->
+                <div class="roadmap-side-connections">
+                    <!-- Sources -->
+                    <div class="roadmap-box roadmap-box-secondary roadmap-box-connected">
+                        <a href="{{ url_for('sources_list') }}" class="roadmap-link">
+                            <div class="roadmap-icon">📚</div>
+                            <h3 class="roadmap-title">Sources</h3>
+                            <p class="roadmap-description">Manage data sources and analyze PDFs with YARA rules</p>
+                        </a>
+                    </div>
+                    
+                    <!-- STIX Graph -->
+                    <div class="roadmap-box roadmap-box-secondary">
+                        <a href="{{ url_for('stix_graph') }}" class="roadmap-link">
+                            <div class="roadmap-icon">🕸️</div>
+                            <h3 class="roadmap-title">STIX Graph</h3>
+                            <p class="roadmap-description">Interactive visualization of STIX 2.1 bundles and relationships</p>
+                        </a>
+                    </div>
+                    
+                    <!-- CTI Resources -->
+                    <div class="roadmap-box roadmap-box-secondary">
+                        <a href="{{ url_for('cti_resources') }}" class="roadmap-link">
+                            <div class="roadmap-icon">🌐</div>
+                            <h3 class="roadmap-title">CTI Resources</h3>
+                            <p class="roadmap-description">Access DeepDarkCTI, Ransomware Tool Matrix, and Data-Shield blocklist</p>
+                        </a>
+                    </div>
+                    
+                    <!-- Settings -->
+                    <div class="roadmap-box roadmap-box-secondary">
+                        <a href="{{ url_for('settings') }}" class="roadmap-link">
+                            <div class="roadmap-icon">⚙️</div>
+                            <h3 class="roadmap-title">Settings</h3>
+                            <p class="roadmap-description">Application configuration, storage, and cleanup settings</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-source-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%;">
+        <h3 style="margin-top: 0; color: #DC2626;">Confirm Deletion</h3>
+        <p style="color: var(--text-primary);">Are you sure you want to delete this source? All associated IOCs will also be deleted. This action cannot be undone.</p>
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+            <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="executeDeleteSource()" id="confirm-delete-btn">Delete</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let sourceToDelete = null;
+
+function confirmDeleteSource(sourceId) {
+    sourceToDelete = sourceId;
+    document.getElementById('delete-source-modal').style.display = 'flex';
+}
+
+function closeDeleteModal() {
+    sourceToDelete = null;
+    document.getElementById('delete-source-modal').style.display = 'none';
+}
+
+async function executeDeleteSource() {
+    if (!sourceToDelete) return;
+    
+    const btn = document.getElementById('confirm-delete-btn');
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+    
+    try {
+        const response = await fetch(`/api/sources/${sourceToDelete}/delete`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            closeDeleteModal();
+            // Remove source from display
+            const sourceElement = document.querySelector(`[onclick="confirmDeleteSource(${sourceToDelete})"]`)?.closest('div[style*="padding: 16px"]');
+            if (sourceElement) {
+                sourceElement.style.transition = 'opacity 0.3s';
+                sourceElement.style.opacity = '0';
+                setTimeout(() => sourceElement.remove(), 300);
+            }
+            // Reload page to update stats (use requestAnimationFrame for smoother transition)
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
+            });
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+            btn.disabled = false;
+            btn.textContent = 'Delete';
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+    }
+    }
+</script>
+
+<style>
+/* Roadmap Styles */
+.roadmap-container {
+    position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.roadmap-main-flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 60px;
+}
+
+.roadmap-box {
+    background: rgba(139, 92, 246, 0.08);
+    border: 2px solid rgba(139, 92, 246, 0.2);
+    border-radius: 16px;
+    padding: 24px 32px;
+    min-width: 280px;
+    max-width: 400px;
+    width: 100%;
+    transition: all 0.3s ease;
+    position: relative;
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    contain: layout style paint;
+}
+
+.roadmap-box-primary {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(167, 139, 250, 0.08) 100%);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.roadmap-box-secondary {
+    background: rgba(139, 92, 246, 0.06);
+    border-color: rgba(139, 92, 246, 0.15);
+}
+
+.roadmap-box:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);
+    border-color: rgba(139, 92, 246, 0.4);
+}
+
+.roadmap-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.roadmap-icon {
+    font-size: 48px;
+    text-align: center;
+    margin-bottom: 16px;
+    filter: drop-shadow(0 2px 8px rgba(139, 92, 246, 0.3));
+}
+
+.roadmap-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--violet-light);
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.roadmap-description {
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-align: center;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.roadmap-arrow {
+    color: var(--violet-light);
+    text-align: center;
+    opacity: 0.7;
+    animation: arrowPulse 2s ease-in-out infinite;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.roadmap-arrow svg {
+    width: 32px;
+    height: 32px;
+}
+
+.roadmap-arrow-down {
+    margin: 12px 0;
+}
+
+@keyframes arrowPulse {
+    0%, 100% {
+        opacity: 0.7;
+        transform: translateY(0);
+    }
+    50% {
+        opacity: 1;
+        transform: translateY(6px);
+    }
+}
+
+.roadmap-box-with-connection {
+    position: relative;
+}
+
+.roadmap-connection-line {
+    position: absolute;
+    width: 2px;
+    background: linear-gradient(to right, var(--violet-light), transparent);
+    opacity: 0.4;
+}
+
+.roadmap-connection-to-sources {
+    right: -120px;
+    top: 50%;
+    height: 100px;
+    transform: translateY(-50%) rotate(-45deg);
+    transform-origin: top;
+}
+
+.roadmap-box-connected {
+    position: relative;
+}
+
+.roadmap-box-connected::before {
+    content: '';
+    position: absolute;
+    left: -120px;
+    top: 50%;
+    width: 100px;
+    height: 2px;
+    background: linear-gradient(to left, var(--violet-light), transparent);
+    opacity: 0.4;
+    transform: translateY(-50%) rotate(45deg);
+    transform-origin: right;
+}
+
+.roadmap-side-connections {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+    margin-top: 40px;
+}
+
+.roadmap-side-connections .roadmap-box {
+    max-width: 100%;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .roadmap-container {
+        padding: 0;
+    }
+    
+    .roadmap-main-flow {
+        gap: 12px;
+        margin-bottom: 32px;
+    }
+    
+    .roadmap-box {
+        min-width: 100%;
+        max-width: 100%;
+        padding: 20px 20px;
+        margin: 0 auto;
+    }
+    
+    .roadmap-arrow {
+        margin: 8px 0;
+    }
+    
+    .roadmap-arrow svg {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .roadmap-connection-line,
+    .roadmap-box-connected::before {
+        display: none;
+    }
+    
+    .roadmap-side-connections {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-top: 32px;
+    }
+    
+    .roadmap-icon {
+        font-size: 36px;
+        margin-bottom: 12px;
+    }
+    
+    .roadmap-title {
+        font-size: 17px;
+        margin-bottom: 6px;
+    }
+    
+    .roadmap-description {
+        font-size: 13px;
+        line-height: 1.4;
+    }
+    
+    .card {
+        padding: 24px 20px !important;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .roadmap-container {
+        padding: 0 20px;
+    }
+    
+    .roadmap-box {
+        max-width: 350px;
+    }
+    
+    .roadmap-side-connections {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+    
+    .roadmap-connection-line,
+    .roadmap-box-connected::before {
+        display: none;
+    }
+    
+    .roadmap-icon {
+        font-size: 44px;
+    }
+}
+
+@media (min-width: 1025px) and (max-width: 1199px) {
+    .roadmap-side-connections {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .roadmap-connection-line {
+        right: -100px;
+        height: 80px;
+    }
+    
+    .roadmap-box-connected::before {
+        left: -100px;
+        width: 80px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .roadmap-side-connections {
+        grid-template-columns: repeat(3, 1fr);
+        max-width: 1000px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .roadmap-connection-line {
+        display: block;
+    }
+    
+    .roadmap-box-connected::before {
+        display: block;
+    }
+}
+
+/* Hide connection lines on smaller screens */
+@media (max-width: 1024px) {
+    .roadmap-connection-line,
+    .roadmap-box-connected::before {
+        display: none;
+    }
+}
+</style>
+
+<!-- Data-Shield Refresh Modal -->
+<div id="data-shield-refresh-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; backdrop-filter: blur(4px); pointer-events: none;">
+    <div class="modal-content" style="position: absolute; background: white; border-radius: 16px; max-width: 500px; width: 90%; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); pointer-events: all;">
+        <h3 style="margin-top: 0; margin-bottom: 16px; color: #6D28D9; font-weight: 600;">Refresh Data-Shield Blocklist</h3>
+        <div id="data-shield-refresh-content" style="color: #6D28D9; margin-bottom: 20px; line-height: 1.6;">
+            <p style="margin-bottom: 12px; font-weight: 500;">Data-Shield IPv4 Blocklist provides:</p>
+            <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">
+                <li style="margin-bottom: 8px;">Additional protection layer via blocking malicious IPs</li>
+                <li style="margin-bottom: 8px;">Network noise reduction (~50%)</li>
+                <li style="margin-bottom: 8px;">Block approximately 95% of malicious bot traffic</li>
+                <li style="margin-bottom: 8px;">Automatic updates every 24 hours</li>
+                <li style="margin-bottom: 8px;">Low false positive rate (99.5% accuracy)</li>
+            </ul>
+            <p style="margin-top: 16px; color: var(--text-secondary); font-size: 14px;">
+                This will download the latest malicious IPv4 IP list from Data-Shield and automatically import all IPs. Thanks to Data-Shield for providing this blocklist!
+            </p>
+        </div>
+        <div id="data-shield-loading" style="display: none; text-align: center; margin: 20px 0;">
+            <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #6D28D9; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <p style="margin-top: 12px; color: #6D28D9; font-weight: 500;">Downloading malicious IPv4 IP list...</p>
+            <p style="margin-top: 8px; color: var(--text-secondary); font-size: 12px;" id="data-shield-status">Please wait, this may take a few minutes</p>
+        </div>
+        <div id="data-shield-refresh-buttons" style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button class="btn btn-secondary" onclick="closeDataShieldRefreshModal()" id="cancel-refresh-btn-sources">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmDataShieldRefresh()" id="confirm-refresh-btn-sources">Refresh</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Data-Shield functions for Sources page
+function refreshDataShield() {
+    const modal = document.getElementById('data-shield-refresh-modal');
+    const modalContent = modal.querySelector('.modal-content');
+    const button = document.getElementById('data-shield-refresh-btn-sources');
+
+    // Get button position
+    const buttonRect = button.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const modalWidth = 500; // Approximate modal width
+    const modalHeight = 300; // Approximate modal height
+
+    // Try to position to the right of the button first
+    let left = buttonRect.right + 10;
+    let top = buttonRect.top;
+
+    // If not enough space to the right, try to the left
+    if (left + modalWidth > viewportWidth) {
+        left = buttonRect.left - modalWidth - 10;
+    }
+
+    // If still not enough space, position below and align with left edge
+    if (left < 0) {
+        left = buttonRect.left;
+        top = buttonRect.bottom + 10;
+    }
+
+    // If still not enough space below, position above
+    if (top + modalHeight > viewportHeight) {
+        top = buttonRect.top - modalHeight - 10;
+    }
+
+    // Ensure modal stays within viewport bounds
+    left = Math.max(10, Math.min(left, viewportWidth - modalWidth - 10));
+    top = Math.max(10, Math.min(top, viewportHeight - modalHeight - 10));
+
+    modalContent.style.top = top + 'px';
+    modalContent.style.left = left + 'px';
+    modalContent.style.right = 'auto';
+
+    modal.style.display = 'block';
+
+    // Automatically scroll to modal position
+    setTimeout(() => {
+        modalContent.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+    }, 100);
+}
+
+function closeDataShieldRefreshModal() {
+    document.getElementById('data-shield-refresh-modal').style.display = 'none';
+}
+
+async function confirmDataShieldRefresh() {
+    const btn = document.getElementById('confirm-refresh-btn-sources');
+    const cancelBtn = document.getElementById('cancel-refresh-btn-sources');
+    const content = document.getElementById('data-shield-refresh-content');
+    const loading = document.getElementById('data-shield-loading');
+    const buttons = document.getElementById('data-shield-refresh-buttons');
+    const status = document.getElementById('data-shield-status');
+
+    // Show loading animation
+    content.style.display = 'none';
+    buttons.style.display = 'none';
+    loading.style.display = 'block';
+
+    btn.disabled = true;
+    cancelBtn.disabled = true;
+
+    try {
+        status.textContent = 'Downloading malicious IPv4 IP list from Data-Shield...';
+
+        const response = await fetch('/api/data-shield/update', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            status.textContent = 'Importing IPs into database...';
+
+            // Wait a bit to show the import message
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            closeDataShieldRefreshModal();
+            window.location.reload();
+        } else {
+            loading.style.display = 'none';
+            content.style.display = 'block';
+            buttons.style.display = 'flex';
+            alert('Error: ' + (data.error || 'Unknown error'));
+            btn.disabled = false;
+            cancelBtn.disabled = false;
+        }
+    } catch (error) {
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        buttons.style.display = 'flex';
+        alert('Error: ' + error.message);
+        btn.disabled = false;
+        cancelBtn.disabled = false;
+    }
+}
+</script>
+{% endblock %}
+

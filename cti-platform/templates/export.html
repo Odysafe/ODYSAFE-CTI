@@ -1,0 +1,1280 @@
+{% extends "base.html" %}
+
+{% block title %}Export - CTI Platform{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Export section buttons - Two distinct buttons */
+    .export-section-btn {
+        position: relative;
+    }
+    
+    .export-section-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), transparent);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        border-radius: 16px;
+        pointer-events: none;
+    }
+    
+    .export-section-btn:hover::before {
+        opacity: 1;
+    }
+    
+    .export-section-btn:hover {
+        transform: translateY(-4px) !important;
+        box-shadow: 0 8px 24px rgba(139, 92, 246, 0.25) !important;
+    }
+    
+    .export-section-btn.active {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(139, 92, 246, 0.15)) !important;
+        border-color: rgba(167, 139, 250, 0.6) !important;
+    }
+    
+    /* STIX tabs */
+    .stix-tabs-nav {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        margin-bottom: 40px;
+        border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+        flex-wrap: wrap;
+    }
+    
+    /* STIX grid layouts */
+    .stix-grid-layout {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 24px;
+    }
+    
+    /* Drop zone */
+    .stix-drop-zone {
+        min-height: 300px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border: 2px dashed rgba(139, 92, 246, 0.3);
+        border-radius: 12px;
+        padding: 40px;
+        transition: all 0.3s ease;
+    }
+    
+    .stix-drop-zone:hover {
+        border-color: rgba(139, 92, 246, 0.5);
+        background: rgba(139, 92, 246, 0.02);
+    }
+    
+    /* Export section animations */
+    .export-section {
+        animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Badge styles */
+    #export-ready-badge {
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Table row hover effect */
+    .table tbody tr:hover {
+        background: rgba(139, 92, 246, 0.05) !important;
+        transition: background 0.2s ease;
+    }
+    
+    /* Progress modals */
+    .progress-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .progress-modal-content {
+        max-width: 500px;
+        width: 90%;
+        padding: 32px;
+    }
+    
+    /* Responsive Design */
+    
+    /* Extra Small Devices (phones, 480px and down) */
+    @media (max-width: 480px) {
+        .export-section-btn {
+            min-width: 100% !important;
+            max-width: 100% !important;
+            padding: 16px 24px !important;
+            font-size: 16px !important;
+        }
+        
+        .export-section-btn > div:first-child {
+            font-size: 28px !important;
+        }
+        
+        .stix-tabs-nav {
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .stix-tabs-nav .stix-tab-btn {
+            width: 100%;
+            padding: 10px 16px;
+        }
+        
+        .stix-grid-layout {
+            grid-template-columns: 1fr !important;
+            gap: 16px;
+        }
+        
+        .stix-drop-zone {
+            min-height: 200px;
+            padding: 20px;
+        }
+        
+        .stix-drop-zone-icon {
+            font-size: 48px !important;
+            margin-bottom: 12px !important;
+        }
+        
+        .progress-modal-content {
+            width: 95%;
+            padding: 20px;
+            max-width: none;
+        }
+        
+        h1 {
+            font-size: 24px !important;
+        }
+        
+        .card {
+            padding: 16px !important;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 10px 16px;
+            font-size: 14px;
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .table {
+            min-width: 600px;
+            font-size: 12px;
+        }
+    }
+    
+    /* Small Devices (phones, 768px and down) */
+    @media (min-width: 481px) and (max-width: 768px) {
+        .export-tabs-nav {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .export-tabs-nav .export-tab-btn {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        
+        .stix-tabs-nav {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            flex-wrap: nowrap;
+        }
+        
+        .stix-tabs-nav .stix-tab-btn {
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        .stix-grid-layout {
+            grid-template-columns: 1fr !important;
+            gap: 20px;
+        }
+        
+        .stix-drop-zone {
+            min-height: 250px;
+            padding: 30px;
+        }
+        
+        .progress-modal-content {
+            width: 90%;
+            padding: 24px;
+        }
+        
+        h1 {
+            font-size: 28px !important;
+        }
+    }
+    
+    /* Medium Devices (tablets, 769px to 1024px) */
+    @media (min-width: 769px) and (max-width: 1024px) {
+        .stix-grid-layout {
+            grid-template-columns: 1.5fr 1fr;
+            gap: 20px;
+        }
+        
+        .stix-drop-zone {
+            min-height: 280px;
+            padding: 35px;
+        }
+        
+        .progress-modal-content {
+            max-width: 450px;
+        }
+    }
+    
+    /* Large Devices (desktops, 1025px to 1440px) */
+    @media (min-width: 1025px) and (max-width: 1440px) {
+        .stix-grid-layout {
+            grid-template-columns: 2fr 1fr;
+        }
+        
+        .progress-modal-content {
+            max-width: 500px;
+        }
+    }
+    
+    /* Extra Large Devices (large desktops, 1441px to 1920px) */
+    @media (min-width: 1441px) and (max-width: 1920px) {
+        .stix-grid-layout {
+            grid-template-columns: 2fr 1fr;
+            gap: 32px;
+        }
+        
+        .progress-modal-content {
+            max-width: 550px;
+        }
+    }
+    
+    /* Ultra Wide / TV Screens (1921px and up) */
+    @media (min-width: 1921px) {
+        .stix-grid-layout {
+            grid-template-columns: 2.5fr 1fr;
+            gap: 40px;
+        }
+        
+        .stix-drop-zone {
+            min-height: 350px;
+            padding: 50px;
+        }
+        
+        .progress-modal-content {
+            max-width: 600px;
+            padding: 40px;
+        }
+    }
+    
+    /* Landscape orientation for mobile devices */
+    @media (max-width: 768px) and (orientation: landscape) {
+        .stix-drop-zone {
+            min-height: 180px;
+            padding: 20px;
+        }
+        
+        .progress-modal-content {
+            max-width: 90%;
+        }
+    }
+    
+    /* Touch-friendly improvements for mobile */
+    @media (max-width: 768px) {
+        .btn,
+        .export-section-btn,
+        .stix-tab-btn {
+            min-height: 44px;
+            min-width: 44px;
+        }
+        
+        input[type="checkbox"] {
+            width: 20px !important;
+            height: 20px !important;
+        }
+        
+        input[type="file"] {
+            font-size: 14px;
+        }
+        
+        textarea {
+            font-size: 14px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <!-- Hero Section -->
+        <div style="text-align: center; margin-bottom: 60px;">
+            <h1 style="font-size: clamp(32px, 5vw, 48px); font-weight: 700; margin-bottom: 24px; background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                Export
+            </h1>
+            <p style="font-size: 18px; color: var(--text-secondary); max-width: 800px; margin: 0 auto 32px; line-height: 1.6;">
+                Export your CTI data in various formats for analysis, sharing, and integration with other tools. Export IOCs, sources, and STIX data in industry-standard formats.
+            </p>
+            
+            <!-- Available Export Formats -->
+            <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 16px; padding: 32px; margin-top: 40px; text-align: left;">
+                <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 20px; color: var(--text-primary); text-align: center;">
+                    🔍 Available Export Formats
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; font-size: 14px;">
+                    <div><strong>STIX 2.1:</strong> Standardized format for cyber threat intelligence exchange</div>
+                    <div><strong>CSV:</strong> Tabular export for analysis in Excel or other tools</div>
+                    <div><strong>JSON:</strong> Structured format for integration with APIs and scripts</div>
+                    <div><strong>MISP:</strong> Compatible with MISP platform for threat sharing</div>
+                    <div><strong>YARA Rules:</strong> Generate YARA rules from IOCs</div>
+                    <div><strong>Firewall Rules:</strong> Firewall rules for automatic blocking</div>
+                    <div><strong>Advanced Filtering:</strong> Selective export by type, source, group, or date</div>
+                    <div><strong>Bulk Export:</strong> Export multiple sources or IOCs simultaneously</div>
+                </div>
+                <p style="text-align: center; margin-top: 20px; color: var(--text-secondary); font-size: 13px;">
+                    All exports respect active filters and can be customized according to your needs
+                </p>
+            </div>
+        </div>
+
+        <!-- Navigation buttons - Two distinct buttons -->
+        <div style="display: flex; gap: 24px; justify-content: center; margin-bottom: 40px; flex-wrap: wrap;">
+            <button id="btn-export-data" class="export-section-btn active" data-tab="export-data" onclick="switchExportTab('export-data')" style="flex: 1; min-width: 280px; max-width: 400px; padding: 20px 32px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05)); border: 2px solid rgba(167, 139, 250, 0.4); border-radius: 16px; color: var(--text-primary); font-size: 18px; font-weight: 600; ody: pointer; transition: all 0.3s ease; text-align: center; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2); position: relative; overflow: hidden;">
+                <div style="font-size: 32px; margin-bottom: 12px;">📤</div>
+                <div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Export Data</div>
+                <div style="font-size: 14px; color: var(--text-secondary); font-weight: 400;">Export your IOCs, sources, and groups in multiple formats</div>
+            </button>
+        </div>
+
+        <!-- Part 1: Export Data -->
+        <div id="export-data-section" class="export-section">
+
+            <div class="card" style="margin-bottom: 32px;">
+                <h2 class="card-title" style="margin-bottom: 24px;">Export Options</h2>
+                
+                <form id="export-form">
+                    <div class="form-group">
+                        <label class="form-label">Export Format</label>
+                        <select name="format" id="export-format" class="form-control" required>
+                            <option value="txt">TXT (with types)</option>
+                            <option value="txt-simple">TXT (values only - Firewall/EDR compatible)</option>
+                            <option value="csv">CSV (detailed with metadata)</option>
+                            <option value="csv-firewall">CSV (simplified - Firewall/EDR compatible)</option>
+                            <option value="json">JSON (complete internal format)</option>
+                            <option value="json-simple">JSON (simplified - grouped by type)</option>
+                            <option value="xlsx">XLSX (Excel - formatted report)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Selection</label>
+                        <select name="selection" id="export-selection" class="form-control" required>
+                            <option value="all">All IOCs</option>
+                            <option value="sources">By sources</option>
+                            <option value="groups">By groups</option>
+                        </select>
+                    </div>
+
+                    <div id="sources-selection" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Sources to export</label>
+                            <div style="max-height: 200px; overflow-y: auto; border: 1px solid rgba(167, 139, 250, 0.1); border-radius: 8px; padding: 12px;">
+                                {% for source in sources %}
+                                <label style="display: flex; align-items: center; gap: 8px; padding: 8px; ody: pointer;">
+                                    <input type="checkbox" name="source_ids" value="{{ source.id }}">
+                                    <span>{{ source.name }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="groups-selection" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Groups to export</label>
+                            <div style="max-height: 200px; overflow-y: auto; border: 1px solid rgba(167, 139, 250, 0.1); border-radius: 8px; padding: 12px;">
+                                {% for group in all_groups %}
+                                <label style="display: flex; align-items: center; gap: 8px; padding: 8px; ody: pointer;">
+                                    <input type="checkbox" name="group_ids" value="{{ group.id }}">
+                                    <span style="color: {{ group.color or '#8B5CF6' }}; font-weight: 500;">{{ group.name }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Filter by IOC Types (optional - leave empty for all types)</label>
+                        <div style="max-height: 200px; overflow-y: auto; border: 1px solid rgba(167, 139, 250, 0.1); border-radius: 8px; padding: 12px; background: rgba(139, 92, 246, 0.02);">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;">
+                                {% for ioc_type in unique_types %}
+                                <label style="display: flex; align-items: center; gap: 8px; padding: 4px; ody: pointer; font-size: 13px;">
+                                    <input type="checkbox" name="ioc_types" value="{{ ioc_type }}" class="ioc-type-checkbox">
+                                    <span>{{ ioc_type }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                            {% if not unique_types %}
+                            <div style="text-align: center; padding: 16px; color: var(--text-secondary); font-size: 13px;">
+                                No IOC types available. Types will appear here once IOCs are added.
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div style="margin-top: 8px; display: flex; gap: 8px;">
+                            <button type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="selectAllIocTypes()">Select All</button>
+                            <button type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="deselectAllIocTypes()">Deselect All</button>
+                            <button type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="selectCommonIocTypes()">Common (IP, Domain, Hash)</button>
+                        </div>
+                    </div>
+
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        Export
+                    </button>
+                </form>
+            </div>
+
+            <div id="export-feedback"></div>
+            
+            <!-- Last 5 exports -->
+            <div class="card" style="margin-top: 32px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <h2 style="font-size: 24px; font-weight: 600;">Last 5 exports</h2>
+                    <button type="button" class="btn btn-secondary" onclick="loadRecentOutputs()" id="refresh-outputs-btn">
+                        🔄 Refresh
+                    </button>
+                </div>
+                
+                <div id="recent-outputs-content">
+                    <div style="text-align: center; padding: 32px; color: var(--text-secondary);">
+                        <div class="spinner-border text-info" role="status" style="width: 2rem; height: 2rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Progress modal for exports -->
+        <div id="export-progress-modal" class="progress-modal">
+            <div class="card progress-modal-content">
+                <h2 style="margin-bottom: 24px; font-size: 24px;">Generating report...</h2>
+                <div id="export-progress-container">
+                    <div class="progress-bar-wrapper" style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; height: 32px; position: relative; overflow: hidden; margin-bottom: 16px;">
+                        <div id="export-progress-bar" style="background: linear-gradient(90deg, #8B5CF6 0%, #7C3AED 100%); height: 100%; width: 0%; transition: width 0.3s ease; border-radius: 12px;"></div>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; font-weight: 600; color: #8B5CF6; z-index: 1;">
+                            <span id="export-progress-percentage">0%</span>
+                        </div>
+                    </div>
+                    <div id="export-progress-message" style="text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">
+                        Preparing...
+                    </div>
+                    <div style="text-align: center;">
+                        <button type="button" id="export-stop-btn" class="btn btn-secondary" style="background: rgba(220, 38, 38, 0.1); color: #DC2626; border-color: #DC2626; display: none;" onclick="stopExportTask()">
+                            ⏹️ Stop
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- External Tool Information -->
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Tab switching for main export sections
+function switchExportTab(tab) {
+    // Only export-data tab exists now
+    const exportDataBtn = document.getElementById('btn-export-data');
+    const exportDataSection = document.getElementById('export-data-section');
+
+    if (exportDataBtn) {
+        exportDataBtn.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(139, 92, 246, 0.15))';
+        exportDataBtn.style.borderColor = 'rgba(167, 139, 250, 0.6)';
+        exportDataBtn.style.color = 'var(--text-primary)';
+        exportDataBtn.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.3)';
+        exportDataBtn.style.transform = 'translateY(-2px)';
+        exportDataBtn.classList.add('active');
+    }
+
+    if (exportDataSection) {
+        exportDataSection.style.display = 'block';
+        exportDataSection.style.visibility = 'visible';
+        exportDataSection.style.opacity = '1';
+    }
+}
+
+
+// Export Data section - existing code
+document.getElementById('export-selection').addEventListener('change', (e) => {
+    const sourcesDiv = document.getElementById('sources-selection');
+    const groupsDiv = document.getElementById('groups-selection');
+    if (e.target.value === 'sources') {
+        sourcesDiv.style.display = 'block';
+        groupsDiv.style.display = 'none';
+    } else if (e.target.value === 'groups') {
+        sourcesDiv.style.display = 'none';
+        groupsDiv.style.display = 'block';
+    } else {
+        sourcesDiv.style.display = 'none';
+        groupsDiv.style.display = 'none';
+    }
+});
+
+
+document.getElementById('export-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const format = formData.get('format');
+    const selection = formData.get('selection');
+    
+    const data = {};
+    
+    if (selection === 'sources') {
+        const sourceIds = Array.from(formData.getAll('source_ids')).map(id => parseInt(id));
+        if (sourceIds.length === 0) {
+            alert('Please select at least one source');
+            return;
+        }
+        data.source_ids = sourceIds;
+    } else if (selection === 'groups') {
+        const groupIds = Array.from(formData.getAll('group_ids')).map(id => parseInt(id));
+        if (groupIds.length === 0) {
+            alert('Please select at least one group');
+            return;
+        }
+        data.group_ids = groupIds;
+    }
+    
+    // Get selected IOC types
+    const iocTypes = Array.from(formData.getAll('ioc_types'));
+    if (iocTypes.length > 0) {
+        data.ioc_types = iocTypes;
+    }
+    
+    if (format === 'stix') {
+        data.report_name = formData.get('report_name') || 'CTI Export';
+        data.source_context = 'Export CTI Platform';
+    }
+    
+    const feedback = document.getElementById('export-feedback');
+    
+    // Use progress bar for ALL exports (displayed immediately)
+    feedback.innerHTML = '';
+    
+    // Display progress bar immediately
+    const modal = document.getElementById('export-progress-modal');
+    modal.style.display = 'flex';
+    document.getElementById('export-progress-bar').style.width = '10%';
+    document.getElementById('export-progress-percentage').textContent = '10%';
+    document.getElementById('export-progress-message').textContent = 'Preparing export...';
+    document.getElementById('export-stop-btn').style.display = 'none';
+    
+    try {
+        let endpoint = '';
+        let progressInterval = null;
+        let taskId = null;
+        
+        if (format === 'txt') {
+            endpoint = '/api/export/txt';
+        } else if (format === 'txt-simple') {
+            endpoint = '/api/export/txt-simple';
+        } else if (format === 'json') {
+            endpoint = '/api/export/json';
+        } else if (format === 'json-simple') {
+            endpoint = '/api/export/json-simple';
+        } else if (format === 'csv') {
+            endpoint = '/api/export/csv';
+        } else if (format === 'csv-firewall') {
+            endpoint = '/api/export/csv-firewall';
+        } else if (format === 'xlsx') {
+            endpoint = '/api/export/xlsx';
+        } else if (format === 'stix') {
+            endpoint = '/api/export/stix';
+        }
+        
+        // Update progress bar before sending
+        document.getElementById('export-progress-bar').style.width = '30%';
+        document.getElementById('export-progress-percentage').textContent = '30%';
+        document.getElementById('export-progress-message').textContent = 'Generating...';
+        
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            const contentDisposition = response.headers.get('content-disposition');
+            const isFileDownload = contentDisposition && contentDisposition.includes('attachment');
+            
+            if (!isFileDownload) {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const clonedResponse = response.clone();
+                    try {
+                        const responseData = await clonedResponse.json();
+                        if (responseData.task_id) {
+                            taskId = responseData.task_id;
+                            document.getElementById('export-progress-bar').style.width = '50%';
+                            document.getElementById('export-progress-percentage').textContent = '50%';
+                            document.getElementById('export-progress-message').textContent = 'Generating...';
+                            document.getElementById('export-stop-btn').style.display = 'inline-block';
+                            document.getElementById('export-stop-btn').setAttribute('data-task-id', taskId);
+                            progressInterval = setInterval(() => updateExportProgress(taskId, format), 1000);
+                            return;
+                        }
+                    } catch (e) {
+                        // Not JSON or parsing failed, continue with file download
+                    }
+                }
+            }
+            
+            // Synchronous export
+            document.getElementById('export-progress-bar').style.width = '100%';
+            document.getElementById('export-progress-percentage').textContent = '100%';
+            document.getElementById('export-progress-message').textContent = 'Export completed, downloading...';
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            let extension = format;
+            if (format === 'stix' || format === 'json-simple') {
+                extension = 'json';
+            } else if (format === 'txt-simple' || format === 'csv-firewall') {
+                extension = format.replace('-', '_');
+            } else if (format === 'xlsx') {
+                extension = 'xlsx';
+            }
+            a.href = url;
+            
+            let filename = `export_${format}_${new Date().toISOString().slice(0,10)}.${extension}`;
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+            }
+            
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            const modal = document.getElementById('export-progress-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            
+            feedback.innerHTML = '<div class="alert alert-success">Export generated successfully!</div>';
+            loadRecentOutputs();
+        } else {
+            const modal = document.getElementById('export-progress-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            const error = await response.json();
+            feedback.innerHTML = `<div class="alert alert-error">${error.error}</div>`;
+        }
+    } catch (error) {
+        if (progressInterval) clearInterval(progressInterval);
+        const modal = document.getElementById('export-progress-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        feedback.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    }
+    
+    function updateExportProgress(taskId, format) {
+        fetch(`/api/progress/${taskId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.progress) {
+                    const progress = data.progress;
+                    const percentage = progress.percentage || 0;
+                    const message = progress.message || 'Generating...';
+                    
+                    document.getElementById('export-progress-bar').style.width = percentage + '%';
+                    document.getElementById('export-progress-percentage').textContent = percentage + '%';
+                    document.getElementById('export-progress-message').textContent = message;
+                    
+                    if (progress.status === 'completed' || progress.status === 'stopping') {
+                        clearInterval(progressInterval);
+                        document.getElementById('export-stop-btn').style.display = 'none';
+                        
+                        if (progress.status === 'completed') {
+                            document.getElementById('export-progress-modal').style.display = 'none';
+                            fetch(`/api/progress/${taskId}/download`)
+                                .then(response => {
+                                    if (response.ok) {
+                                        return response.blob();
+                                    }
+                                    throw new Error('Download error');
+                                })
+                                .then(blob => {
+                                    const url = window.URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    let extension = format;
+                                    if (format === 'stix' || format === 'json-simple') {
+                                        extension = 'json';
+                                    } else if (format === 'txt-simple' || format === 'csv-firewall') {
+                                        extension = format.replace('-', '_');
+                                    } else if (format === 'xlsx') {
+                                        extension = 'xlsx';
+                                    }
+                                    a.download = `export_${format}_${new Date().toISOString().slice(0,10)}.${extension}`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    document.body.removeChild(a);
+                                    window.URL.revokeObjectURL(url);
+                                    
+                                    feedback.innerHTML = '<div class="alert alert-success">Export generated successfully!</div>';
+                                    loadRecentOutputs();
+                                })
+                                .catch(error => {
+                                    feedback.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+                                });
+                        } else {
+                            document.getElementById('export-progress-modal').style.display = 'none';
+                            feedback.innerHTML = '<div class="alert alert-warning">Export stopped by user</div>';
+                        }
+                    } else if (progress.status === 'error') {
+                        clearInterval(progressInterval);
+                        document.getElementById('export-stop-btn').style.display = 'none';
+                        document.getElementById('export-progress-modal').style.display = 'none';
+                        feedback.innerHTML = `<div class="alert alert-error">Error: ${message}</div>`;
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching progress:', error);
+            });
+    }
+});
+
+// STIX Import > Export section
+
+// Drag & Drop for STIX file upload
+const stixDropZone = document.getElementById('stix-drop-zone');
+const stixFileInput = document.getElementById('stix-file-input');
+
+if (stixDropZone && stixFileInput) {
+    stixDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        stixDropZone.classList.add('dragover');
+    });
+
+    stixDropZone.addEventListener('dragleave', () => {
+        stixDropZone.classList.remove('dragover');
+    });
+
+    stixDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        stixDropZone.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            stixFileInput.files = files;
+            document.getElementById('stix-file-name').textContent = files[0].name;
+            document.getElementById('stix-file-name').style.display = 'block';
+            
+            // Pre-fill name if empty
+            const nameField = document.getElementById('stix-upload-name');
+            if (!nameField.value) {
+                const nameWithoutExt = files[0].name.replace(/\.[^/.]+$/, '');
+                nameField.value = nameWithoutExt || files[0].name;
+            }
+        }
+    });
+
+    stixFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            const fileName = e.target.files[0].name;
+            document.getElementById('stix-file-name').textContent = fileName;
+            document.getElementById('stix-file-name').style.display = 'block';
+            
+            const nameField = document.getElementById('stix-upload-name');
+            if (!nameField.value) {
+                const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
+                nameField.value = nameWithoutExt || fileName;
+            }
+        }
+    });
+}
+
+
+// STIX File upload form removed
+if (false) { document.getElementById('stix-upload-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    autoFillStixContext('stix-upload-context', 'File upload');
+    
+    const formData = new FormData(e.target);
+    const nameField = document.getElementById('stix-upload-name');
+    const contextField = document.getElementById('stix-upload-context');
+    const aggregateCheckbox = document.getElementById('stix-upload-aggregate');
+    if (nameField) formData.set('name', nameField.value);
+    if (contextField) formData.set('context', contextField.value);
+    if (aggregateCheckbox) formData.set('aggregate_iocs', aggregateCheckbox.checked ? 'true' : 'false');
+    
+    const feedback = document.getElementById('stix-feedback');
+    feedback.innerHTML = '<div class="alert alert-info">Converting to STIX...</div>';
+    
+    // Show progress modal
+    const modal = document.getElementById('stix-progress-modal');
+    modal.style.display = 'flex';
+    document.getElementById('stix-progress-bar').style.width = '10%';
+    document.getElementById('stix-progress-percentage').textContent = '10%';
+    document.getElementById('stix-progress-message').textContent = 'Processing file...';
+    
+    try {
+        const response = await fetch('/api/stix/convert/file', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data_resp = await response.json();
+        
+        if (response.ok) {
+            document.getElementById('stix-progress-bar').style.width = '100%';
+            document.getElementById('stix-progress-percentage').textContent = '100%';
+            document.getElementById('stix-progress-message').textContent = 'Conversion completed!';
+            
+            setTimeout(() => {
+                modal.style.display = 'none';
+                const msg = data_resp.aggregated && data_resp.aggregated_count > 0
+                    ? `<div class="alert alert-success">STIX file generated successfully! ${data_resp.aggregated_count} IOCs aggregated to database.</div>`
+                    : '<div class="alert alert-success">STIX file generated successfully!</div>';
+                feedback.innerHTML = msg;
+                loadStixFiles();
+            }, 1000);
+        } else {
+            modal.style.display = 'none';
+            feedback.innerHTML = `<div class="alert alert-error">${data_resp.error}</div>`;
+        }
+    } catch (error) {
+        modal.style.display = 'none';
+        feedback.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    }
+});
+
+// STIX Paste form
+document.getElementById('stix-paste-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    autoFillStixContext('stix-paste-context', 'Paste');
+    
+    const formData = new FormData(e.target);
+    const nameField = document.getElementById('stix-paste-name');
+    const contextField = document.getElementById('stix-paste-context');
+    
+    const aggregateCheckbox = document.getElementById('stix-paste-aggregate');
+    const data = {
+        text: formData.get('text') || '',
+        name: nameField ? nameField.value.trim() : '',
+        context: contextField ? contextField.value.trim() : '',
+        aggregate_iocs: aggregateCheckbox ? aggregateCheckbox.checked : false
+    };
+    
+    const feedback = document.getElementById('stix-feedback');
+    feedback.innerHTML = '<div class="alert alert-info">Converting to STIX...</div>';
+    
+    // Show progress modal
+    const modal = document.getElementById('stix-progress-modal');
+    modal.style.display = 'flex';
+    document.getElementById('stix-progress-bar').style.width = '10%';
+    document.getElementById('stix-progress-percentage').textContent = '10%';
+    document.getElementById('stix-progress-message').textContent = 'Processing text...';
+    
+    try {
+        const response = await fetch('/api/stix/convert/paste', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const data_resp = await response.json();
+        
+        if (response.ok) {
+            document.getElementById('stix-progress-bar').style.width = '100%';
+            document.getElementById('stix-progress-percentage').textContent = '100%';
+            document.getElementById('stix-progress-message').textContent = 'Conversion completed!';
+            
+            setTimeout(() => {
+                modal.style.display = 'none';
+                const msg = data_resp.aggregated && data_resp.aggregated_count > 0
+                    ? `<div class="alert alert-success">STIX file generated successfully! ${data_resp.aggregated_count} IOCs aggregated to database.</div>`
+                    : '<div class="alert alert-success">STIX file generated successfully!</div>';
+                feedback.innerHTML = msg;
+                loadStixFiles();
+            }, 1000);
+        } else {
+            modal.style.display = 'none';
+            feedback.innerHTML = `<div class="alert alert-error">${data_resp.error}</div>`;
+        }
+    } catch (error) {
+        modal.style.display = 'none';
+        feedback.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    }
+});
+
+// STIX URL form
+document.getElementById('stix-url-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    autoFillStixContext('stix-url-context', 'URL');
+    
+    const formData = new FormData(e.target);
+    const nameField = document.getElementById('stix-url-name');
+    const contextField = document.getElementById('stix-url-context');
+    const aggregateCheckbox = document.getElementById('stix-url-aggregate');
+    
+    const data = {
+        url: formData.get('url') || '',
+        name: nameField ? nameField.value.trim() : '',
+        context: contextField ? contextField.value.trim() : '',
+        aggregate_iocs: aggregateCheckbox ? aggregateCheckbox.checked : false
+    };
+    
+    const feedback = document.getElementById('stix-feedback');
+    feedback.innerHTML = '<div class="alert alert-info">Converting to STIX...</div>';
+    
+    // Show progress modal
+    const modal = document.getElementById('stix-progress-modal');
+    modal.style.display = 'flex';
+    document.getElementById('stix-progress-bar').style.width = '10%';
+    document.getElementById('stix-progress-percentage').textContent = '10%';
+    document.getElementById('stix-progress-message').textContent = 'Fetching URL...';
+    
+    try {
+        const response = await fetch('/api/stix/convert/url', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const data_resp = await response.json();
+        
+        if (response.ok) {
+            document.getElementById('stix-progress-bar').style.width = '100%';
+            document.getElementById('stix-progress-percentage').textContent = '100%';
+            document.getElementById('stix-progress-message').textContent = 'Conversion completed!';
+            
+            setTimeout(() => {
+                modal.style.display = 'none';
+                const msg = data_resp.aggregated && data_resp.aggregated_count > 0
+                    ? `<div class="alert alert-success">STIX file generated successfully! ${data_resp.aggregated_count} IOCs aggregated to database.</div>`
+                    : '<div class="alert alert-success">STIX file generated successfully!</div>';
+                feedback.innerHTML = msg;
+                loadStixFiles();
+            }, 1000);
+        } else {
+            modal.style.display = 'none';
+            feedback.innerHTML = `<div class="alert alert-error">${data_resp.error}</div>`;
+        }
+    } catch (error) {
+        modal.style.display = 'none';
+        feedback.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    }
+});
+
+// Load STIX files list
+async function loadStixFiles() {
+    const container = document.getElementById('stix-files-content');
+    if (!container) return;
+    
+    try {
+        const response = await fetch('/api/stix/files');
+        const data = await response.json();
+        
+        if (response.ok) {
+            renderStixFiles(data.files || []);
+        } else {
+            container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No STIX files</div>';
+        }
+    } catch (error) {
+        console.error('Error loading STIX files:', error);
+        container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">Error loading STIX files</div>';
+    }
+}
+
+function renderStixFiles(files) {
+    const container = document.getElementById('stix-files-content');
+    
+    if (!files || files.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No STIX files</div>';
+        return;
+    }
+    
+    let html = '<div class="table-responsive" style="overflow-x: auto;"><table class="table"><thead><tr><th>Name</th><th>Size</th><th>Modified</th><th>Actions</th></tr></thead><tbody>';
+    
+    files.forEach(file => {
+        const modifiedDate = new Date(file.modified).toLocaleString('en-US');
+        
+        html += `
+            <tr>
+                <td style="font-weight: 500;">${escapeHtml(file.name)}</td>
+                <td style="color: var(--text-secondary);">${file.size_formatted || '-'}</td>
+                <td style="color: var(--text-secondary);">${modifiedDate}</td>
+                <td>
+                    <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; margin-right: 4px;" onclick="downloadStixFile('${escapeHtml(file.path.replace(/'/g, "\\'"))}')">
+                        📥 Download
+                    </button>
+                    <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; background: rgba(220, 38, 38, 0.1); color: #DC2626; border-color: #DC2626;" onclick="deleteStixFile('${escapeHtml(file.path.replace(/'/g, "\\'"))}')">
+                        ✕
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+async function downloadStixFile(filePath) {
+    try {
+        const relativePath = filePath.replace(/^.*stix[\/\\]/, '');
+        const url = `/api/stix/files/${relativePath}/download`;
+        
+        const response = await fetch(url);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = filePath.split(/[\/\\]/).pop();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        } else {
+            const error = await response.json();
+            alert('Error: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function deleteStixFile(filePath) {
+    if (!confirm('Do you really want to delete this STIX file?')) {
+        return;
+    }
+    
+    try {
+        const relativePath = filePath.replace(/^.*stix[\/\\]/, '');
+        const url = `/api/stix/files/${relativePath}/delete`;
+        
+        const response = await fetch(url, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            loadStixFiles();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// Load recent outputs on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadRecentOutputs();
+    // Initialize STIX tabs - make sure file tab is visible by default when section is shown
+    if (document.getElementById('stix-tab-file')) {
+        switchStixTab('file');
+    }
+
+    // Check URL parameters for tab activation
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get('tab');
+});
+
+// Function to load recent outputs
+async function loadRecentOutputs() {
+    const container = document.getElementById('recent-outputs-content');
+    if (!container) return;
+    
+    try {
+        const response = await fetch('/api/settings/outputs/recent');
+        const data = await response.json();
+        
+        if (response.ok) {
+            renderRecentOutputs(data.outputs || []);
+        } else {
+            container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No recent export</div>';
+        }
+    } catch (error) {
+        console.error('Error loading recent outputs:', error);
+        container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No recent export</div>';
+    }
+}
+
+function renderRecentOutputs(outputs) {
+    const container = document.getElementById('recent-outputs-content');
+    
+    if (!outputs || outputs.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No recent export</div>';
+        return;
+    }
+    
+    let html = '<div class="table-responsive" style="overflow-x: auto;"><table class="table"><thead><tr><th>Name</th><th>Format</th><th>Size</th><th>Modified</th><th>Actions</th></tr></thead><tbody>';
+    
+    outputs.forEach(output => {
+        const modifiedDate = new Date(output.modified).toLocaleString('en-US');
+        const folderLabels = {
+            'iocs': 'IOCs',
+            'stix': 'STIX',
+            'reports': 'Reports'
+        };
+        
+        html += `
+            <tr>
+                <td style="font-weight: 500;">${escapeHtml(output.name)}</td>
+                <td><span class="badge">${folderLabels[output.folder] || output.folder}</span></td>
+                <td style="color: var(--text-secondary);">${output.size_formatted || '-'}</td>
+                <td style="color: var(--text-secondary);">${modifiedDate}</td>
+                <td>
+                    <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="downloadRecentOutput('${escapeHtml(output.path.replace(/'/g, "\\'"))}')">
+                        📥 Download
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+async function downloadRecentOutput(filePath) {
+    try {
+        const relativePath = filePath.replace(/^.*outputs[\/\\]/, '');
+        const url = `/api/settings/outputs/${relativePath}/download`;
+        
+        const response = await fetch(url);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = filePath.split(/[\/\\]/).pop();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        } else {
+            const error = await response.json();
+            alert('Error: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+
+// IOC Type selection helpers
+function selectAllIocTypes() {
+    document.querySelectorAll('.ioc-type-checkbox').forEach(cb => cb.checked = true);
+}
+
+function deselectAllIocTypes() {
+    document.querySelectorAll('.ioc-type-checkbox').forEach(cb => cb.checked = false);
+}
+
+function selectCommonIocTypes() {
+    deselectAllIocTypes();
+    const commonTypes = ['ip4', 'ip6', 'fqdn', 'url', 'md5', 'sha1', 'sha256'];
+    document.querySelectorAll('.ioc-type-checkbox').forEach(cb => {
+        if (commonTypes.includes(cb.value)) {
+            cb.checked = true;
+        }
+    });
+}
+
+// Function to stop an export
+async function stopExportTask() {
+    const btn = document.getElementById('export-stop-btn');
+    const taskId = btn ? btn.getAttribute('data-task-id') : null;
+
+    if (!taskId) {
+        return;
+    }
+
+    if (!confirm('Do you really want to stop this export?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/progress/${taskId}/stop`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            btn.style.display = 'none';
+            document.getElementById('export-progress-message').textContent = 'Stopping...';
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+</script>
+{% endblock %}

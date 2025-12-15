@@ -1,0 +1,2752 @@
+{% extends "base.html" %}
+
+{% block title %}STIX Graph Analyzer - CTI Platform{% endblock %}
+
+{% block extra_head %}
+<!-- vis.js for network visualization -->
+<script src="https://unpkg.com/vis-network@9.1.6/dist/vis-network.min.js"></script>
+<link href="https://unpkg.com/vis-network@9.1.6/dist/dist/vis-network.min.css" rel="stylesheet" type="text/css" />
+<style>
+    /* Graph container styles */
+    #stix-graph-container {
+        width: 100%;
+        height: 600px;
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 12px;
+        background: rgba(30, 27, 46, 0.95);
+        position: relative;
+    }
+    
+    #stix-graph-container .vis-network {
+        outline: none;
+    }
+    
+    /* Hide vis.js default tooltip (white tooltip) */
+    .vis-tooltip {
+        display: none !important;
+    }
+    
+    /* Hide any tooltip divs created by vis.js */
+    div[class*="vis-tooltip"],
+    div[id*="vis-tooltip"] {
+        display: none !important;
+    }
+    
+    /* Legend styles */
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        background: rgba(139, 92, 246, 0.1);
+        border-radius: 8px;
+        ody: pointer;
+        transition: all 0.2s ease;
+        font-size: 13px;
+    }
+    
+    .legend-item:hover {
+        background: rgba(139, 92, 246, 0.2);
+    }
+    
+    .legend-item.hidden {
+        opacity: 0.4;
+        text-decoration: line-through;
+    }
+    
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        flex-shrink: 0;
+    }
+    
+    /* Details panel styles */
+    .details-panel {
+        background: rgba(30, 27, 46, 0.95);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 12px;
+        padding: 20px;
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    .details-panel h3 {
+        margin-top: 0;
+        color: var(--violet-light);
+        font-size: 16px;
+        border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+        padding-bottom: 12px;
+    }
+    
+    .property-row {
+        display: flex;
+        margin-bottom: 8px;
+        font-size: 13px;
+    }
+    
+    .property-label {
+        font-weight: 600;
+        color: var(--text-secondary);
+        min-width: 120px;
+        flex-shrink: 0;
+    }
+    
+    .property-value {
+        word-break: break-all;
+        color: var(--text-primary);
+    }
+    
+    .property-value code {
+        background: rgba(139, 92, 246, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+    
+    /* Filter panel styles */
+    .filter-panel {
+        background: rgba(30, 27, 46, 0.95);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 12px;
+        padding: 16px;
+    }
+    
+    .filter-panel textarea {
+        font-family: monospace;
+        font-size: 12px;
+    }
+    
+    /* Timeline styles */
+    .timeline-container {
+        padding: 16px;
+        background: rgba(139, 92, 246, 0.05);
+        border-radius: 8px;
+    }
+    
+    .timeline-slider {
+        width: 100%;
+        -webkit-appearance: none;
+        appearance: none;
+        height: 8px;
+        border-radius: 4px;
+        background: rgba(139, 92, 246, 0.2);
+        outline: none;
+    }
+    
+    .timeline-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--violet-light);
+        ody: pointer;
+    }
+    
+    /* Stats badges */
+    .stat-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        background: rgba(139, 92, 246, 0.1);
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .stat-badge .number {
+        font-weight: 700;
+        font-size: 18px;
+        color: var(--violet-light);
+    }
+    
+    /* Connections list */
+    .connection-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: rgba(139, 92, 246, 0.05);
+        border-radius: 6px;
+        margin-bottom: 6px;
+        font-size: 12px;
+        ody: pointer;
+        transition: background 0.2s;
+    }
+    
+    .connection-item:hover {
+        background: rgba(139, 92, 246, 0.15);
+    }
+    
+    .connection-arrow {
+        color: var(--violet-light);
+        font-weight: bold;
+    }
+    
+    /* Main graph layout */
+    .main-graph-layout {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 24px;
+    }
+    
+    /* Stats bar */
+    .stats-bar {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+    }
+    
+    /* Search bar */
+    .search-bar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+    
+    /* Import tabs */
+    .import-tabs {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        margin-bottom: 24px;
+        border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+        flex-wrap: wrap;
+    }
+    
+    /* Responsive Design */
+    
+    /* Extra Small Devices (phones, 480px and down) */
+    @media (max-width: 480px) {
+        #stix-graph-container {
+            height: 300px;
+            min-height: 300px;
+        }
+        
+        .main-graph-layout {
+            grid-template-columns: 1fr !important;
+            gap: 16px;
+        }
+        
+        .stats-bar {
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .stats-bar .btn {
+            width: 100%;
+            padding: 10px 16px;
+            font-size: 14px;
+        }
+        
+        .search-bar {
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .search-bar .form-control,
+        .search-bar .btn {
+            width: 100%;
+        }
+        
+        .import-tabs {
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .import-tabs .import-tab-btn {
+            width: 100%;
+            padding: 10px 16px;
+        }
+        
+        .details-panel {
+            padding: 16px;
+            max-height: 400px;
+        }
+        
+        .filter-panel {
+            padding: 12px;
+        }
+        
+        .property-label {
+            min-width: 100px;
+            font-size: 12px;
+        }
+        
+        .property-value {
+            font-size: 12px;
+        }
+        
+        .timeline-container {
+            padding: 12px;
+        }
+        
+        .timeline-slider::-webkit-slider-thumb {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .drop-zone {
+            min-height: 120px !important;
+            padding: 20px !important;
+        }
+        
+        .stat-badge {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .stat-badge .number {
+            font-size: 16px;
+        }
+    }
+    
+    /* Small Devices (phones, 768px and down) */
+    @media (min-width: 481px) and (max-width: 768px) {
+        #stix-graph-container {
+            height: 400px;
+            min-height: 400px;
+        }
+        
+        .main-graph-layout {
+            grid-template-columns: 1fr !important;
+            gap: 20px;
+        }
+        
+        .stats-bar {
+            gap: 12px;
+        }
+        
+        .stats-bar .btn {
+            padding: 8px 14px;
+            font-size: 13px;
+        }
+        
+        .import-tabs {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            flex-wrap: nowrap;
+        }
+        
+        .import-tabs .import-tab-btn {
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        .details-panel {
+            padding: 18px;
+            max-height: 500px;
+        }
+        
+        .filter-panel {
+            padding: 14px;
+        }
+        
+        .drop-zone {
+            min-height: 150px !important;
+            padding: 24px !important;
+        }
+    }
+    
+    /* Medium Devices (tablets, 769px to 1024px) */
+    @media (min-width: 769px) and (max-width: 1024px) {
+        #stix-graph-container {
+            height: 500px;
+            min-height: 500px;
+        }
+        
+        .main-graph-layout {
+            grid-template-columns: 1fr 280px;
+            gap: 20px;
+        }
+        
+        .details-panel {
+            max-height: 500px;
+        }
+        
+        .stats-bar .btn {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+    }
+    
+    /* Large Devices (desktops, 1025px to 1440px) */
+    @media (min-width: 1025px) and (max-width: 1440px) {
+        #stix-graph-container {
+            height: 600px;
+            min-height: 600px;
+        }
+        
+        .main-graph-layout {
+            grid-template-columns: 1fr 320px;
+        }
+    }
+    
+    /* Extra Large Devices (large desktops, 1441px to 1920px) */
+    @media (min-width: 1441px) and (max-width: 1920px) {
+        #stix-graph-container {
+            height: 650px;
+            min-height: 650px;
+        }
+        
+        .main-graph-layout {
+            grid-template-columns: 1fr 340px;
+        }
+        
+        .details-panel {
+            max-height: 650px;
+        }
+    }
+    
+    /* Ultra Wide / TV Screens (1921px and up) */
+    @media (min-width: 1921px) {
+        #stix-graph-container {
+            height: 700px;
+            min-height: 700px;
+        }
+        
+        .main-graph-layout {
+            grid-template-columns: 1fr 360px;
+            gap: 32px;
+        }
+        
+        .details-panel {
+            max-height: 700px;
+            padding: 24px;
+        }
+        
+        .filter-panel {
+            padding: 20px;
+        }
+    }
+    
+    /* Landscape orientation for mobile devices */
+    @media (max-width: 768px) and (orientation: landscape) {
+        #stix-graph-container {
+            height: 250px;
+            min-height: 250px;
+        }
+        
+        .details-panel {
+            max-height: 300px;
+        }
+    }
+    
+    /* Touch-friendly improvements for mobile */
+    @media (max-width: 768px) {
+        .btn,
+        .legend-item,
+        .connection-item {
+            min-height: 44px;
+            min-width: 44px;
+        }
+        
+        input[type="checkbox"] {
+            width: 20px !important;
+            height: 20px !important;
+        }
+        
+        .timeline-slider {
+            height: 10px;
+        }
+        
+        .timeline-slider::-webkit-slider-thumb {
+            width: 24px;
+            height: 24px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <!-- Hero Section -->
+        <div style="text-align: center; margin-bottom: 60px;">
+            <h1 style="font-size: clamp(32px, 5vw, 48px); font-weight: 700; margin-bottom: 24px; background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                STIX Graph Analyzer
+            </h1>
+            <p style="font-size: 18px; color: var(--text-secondary); max-width: 800px; margin: 0 auto 32px; line-height: 1.6;">
+                Import and visualize STIX 2.x bundles. Explore relationships between threat intelligence objects, filter by type and timeline, and analyze connections in an interactive graph view.
+            </p>
+            
+            <!-- Features -->
+            <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 16px; padding: 32px; margin-top: 40px; text-align: left;">
+                <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 20px; color: var(--text-primary); text-align: center;">
+                    🔍 Features
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; font-size: 14px;">
+                    <div><strong>Multiple Import:</strong> File upload, JSON paste, existing exports, saved models</div>
+                    <div><strong>Interactive Visualization:</strong> Network graph with zoom, pan, and object selection</div>
+                    <div><strong>Type Filtering:</strong> Show/hide STIX object types (Indicator, Malware, Threat Actor, etc.)</div>
+                    <div><strong>Timeline:</strong> Temporal filtering with slider to explore threat evolution</div>
+                    <div><strong>Complete Details:</strong> Side panel with all properties of selected objects</div>
+                    <div><strong>Search:</strong> Text search in graph objects and relationships</div>
+                    <div><strong>Save:</strong> Save models for later analysis</div>
+                    <div><strong>Export:</strong> Export graph and data to various formats</div>
+                </div>
+                <p style="text-align: center; margin-top: 20px; color: var(--text-secondary); font-size: 13px;">
+                    The graph supports all STIX 2.1 object types and their standardized relationships
+                </p>
+            </div>
+        </div>
+
+        <!-- Import Section -->
+        <div class="card" style="margin-bottom: 32px;">
+            <div class="import-tabs">
+                <button class="import-tab-btn active" data-tab="file" style="padding: 12px 24px; background: none; border: none; color: var(--text-primary); ody: pointer; border-bottom: 2px solid var(--violet-light); font-weight: 500;">
+                    📁 Upload File
+                </button>
+                <button class="import-tab-btn" data-tab="paste" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); ody: pointer; font-weight: 500;">
+                    📋 Paste JSON
+                </button>
+                <button class="import-tab-btn" data-tab="exports" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); ody: pointer; font-weight: 500;">
+                    📦 From Exports
+                </button>
+                <button class="import-tab-btn" data-tab="saved" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); ody: pointer; font-weight: 500;">
+                    💾 Saved Models
+                </button>
+            </div>
+
+            <!-- File Upload Tab -->
+            <div id="import-tab-file" class="import-tab-content">
+                <div style="display: flex; gap: 24px; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <div class="drop-zone" id="stix-drop-zone" style="min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 32px;">
+                            <div style="font-size: 48px; margin-bottom: 12px;">📄</div>
+                            <p style="color: var(--text-secondary); text-align: center; margin-bottom: 16px;">
+                                Drag and drop a STIX JSON file here<br>
+                                <small>or click to select</small>
+                            </p>
+                            <input type="file" id="stix-file-input" accept=".json,application/json" style="display: none;">
+                            <button type="button" class="btn btn-primary" onclick="document.getElementById('stix-file-input').click()" style="padding: 12px 24px; font-size: 16px;">
+                                Select a file
+                            </button>
+                            <div id="stix-file-name" style="margin-top: 16px; color: var(--violet-light); font-weight: 500; display: none;"></div>
+                        </div>
+                    </div>
+                    <div style="flex-shrink: 0;">
+                        <button type="button" class="btn btn-primary" id="load-file-btn" disabled style="padding: 16px 32px;">
+                            Load Graph →
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Paste JSON Tab -->
+            <div id="import-tab-paste" class="import-tab-content" style="display: none;">
+                <div style="display: flex; gap: 24px; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <textarea id="stix-paste-input" class="form-control" rows="8" placeholder='Paste STIX JSON here...
+
+Example:
+{
+  "type": "bundle",
+  "id": "bundle--...",
+  "objects": [...]
+}'></textarea>
+                    </div>
+                    <div style="flex-shrink: 0;">
+                        <button type="button" class="btn btn-primary" id="load-paste-btn" style="padding: 16px 32px;">
+                            Load Graph →
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- From Exports Tab -->
+            <div id="import-tab-exports" class="import-tab-content" style="display: none;">
+                <div id="exports-list" style="max-height: 300px; overflow-y: auto;">
+                    <div style="text-align: center; padding: 32px; color: var(--text-secondary);">
+                        Loading exports...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Uploaded STIX Files Tab -->
+            <div id="import-tab-saved" class="import-tab-content" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h4 style="margin: 0; font-size: 16px;">Uploaded STIX Files</h4>
+                    <button type="button" class="btn btn-secondary" onclick="loadUploadedStixFiles()" style="padding: 8px 16px; font-size: 13px;">
+                        🔄 Refresh
+                    </button>
+                </div>
+                <div id="saved-models-list" style="max-height: 400px; overflow-y: auto;">
+                    <div style="text-align: center; padding: 32px; color: var(--text-secondary);">
+                        Loading uploaded STIX files...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback area -->
+        <div id="stix-feedback" style="margin-bottom: 24px;"></div>
+
+        <!-- Graph Section (hidden initially) -->
+        <div id="graph-section" style="display: none;">
+            <!-- Stats Bar -->
+            <div class="stats-bar">
+                <div class="stat-badge">
+                    <span class="number" id="stat-objects">0</span>
+                    <span>Objects</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="number" id="stat-nodes">0</span>
+                    <span>Nodes</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="number" id="stat-edges">0</span>
+                    <span>Relationships</span>
+                </div>
+                <div class="stat-badge">
+                    <span class="number" id="stat-types">0</span>
+                    <span>Types</span>
+                </div>
+                <div style="flex: 1;"></div>
+                <button type="button" class="btn btn-secondary" onclick="resetGraph()">
+                    🔄 Reset View
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="fitGraph()">
+                    📐 Fit to Screen
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="exportGraph('svg')">
+                    📥 Export SVG
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="exportFilteredJSON()">
+                    💾 Export Filtered JSON
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="saveViewState()">
+                    💾 Save View
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="loadViewState()">
+                    📂 Load View
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="clearGraph()">
+                    ✖️ Clear
+                </button>
+            </div>
+            
+            <!-- Search Bar -->
+            <div class="card" style="margin-bottom: 24px;">
+                <div class="search-bar">
+                    <input type="text" id="search-input" class="form-control" placeholder="Search nodes by ID, name, value, description..." style="flex: 1;">
+                    <button type="button" class="btn btn-primary" onclick="searchNodes()">
+                        🔍 Search
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="clearSearch()">
+                        ✖️ Clear
+                    </button>
+                </div>
+                <div id="search-results" style="margin-top: 12px; display: none;">
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+                        <span id="search-count">0</span> matches found
+                    </div>
+                    <div id="search-results-list" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                </div>
+            </div>
+            
+            <!-- Start from One Mode -->
+            <div class="card" style="margin-bottom: 24px;">
+                <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 16px;">Start from One Object</h4>
+                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+                    Search and display a single object, then expand progressively
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <input type="text" id="start-from-one-input" class="form-control" placeholder="Search for object..." style="flex: 1;">
+                    <button type="button" class="btn btn-primary" onclick="startFromOne()">
+                        Start
+                    </button>
+                </div>
+                <div id="start-from-one-results" style="display: none; margin-top: 12px;">
+                    <div id="start-from-one-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;"></div>
+                </div>
+            </div>
+            
+            <!-- Expansion Breadcrumb -->
+            <div class="card" style="margin-bottom: 24px; display: none;" id="expansion-breadcrumb">
+                <!-- Dynamically populated -->
+            </div>
+            
+            <!-- Path Finding -->
+            <div class="card" style="margin-bottom: 24px; display: none;" id="path-finding-panel">
+                <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 16px;">Find Path Between Nodes</h4>
+                <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+                    <input type="text" id="path-from" class="form-control" placeholder="From node ID..." style="flex: 1;">
+                    <span style="color: var(--text-secondary);">→</span>
+                    <input type="text" id="path-to" class="form-control" placeholder="To node ID..." style="flex: 1;">
+                    <button type="button" class="btn btn-primary" onclick="findPath()">
+                        Find Path
+                    </button>
+                </div>
+                <div id="path-result" style="display: none; padding: 12px; background: rgba(139, 92, 246, 0.1); border-radius: 8px; font-size: 13px;"></div>
+            </div>
+
+            <div class="main-graph-layout">
+                <!-- Main Graph Area -->
+                <div>
+                    <!-- Graph Container -->
+                    <div id="stix-graph-container"></div>
+                    
+                    <!-- Timeline -->
+                    <div class="timeline-container" style="margin-top: 16px;" id="timeline-section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <label style="font-weight: 500;">Timeline Filter</label>
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <select id="timeline-scale" style="padding: 4px 8px; border-radius: 4px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); color: var(--text-primary); font-size: 12px;">
+                                    <option value="day">Day</option>
+                                    <option value="week">Week</option>
+                                    <option value="month" selected>Month</option>
+                                    <option value="year">Year</option>
+                                </select>
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                    <input type="checkbox" id="timeline-cumulative" checked>
+                                    Cumulative
+                                </label>
+                            </div>
+                        </div>
+                        <div style="position: relative;">
+                            <input type="range" class="timeline-slider" id="timeline-slider" min="0" max="100" value="100">
+                            <div id="timeline-milestones" style="position: absolute; top: -20px; left: 0; right: 0; height: 20px; pointer-events: none;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                            <span id="timeline-min">-</span>
+                            <span id="timeline-current" style="font-weight: 600; color: var(--violet-light);">All</span>
+                            <span id="timeline-max">-</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Filter Panel -->
+                    <div class="filter-panel" style="margin-top: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <label style="font-weight: 500;">Filters</label>
+                            <button type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="toggleAdvancedFilter()">
+                                <span id="advanced-filter-toggle">Show</span> Advanced
+                            </button>
+                        </div>
+                        
+                        <!-- Quick Filters -->
+                        <div id="quick-filters" style="margin-bottom: 12px;">
+                            <div style="margin-bottom: 12px;">
+                                <label style="font-size: 13px; font-weight: 500; margin-bottom: 8px; display: block;">Object Types:</label>
+                                <div id="type-filters" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 150px; overflow-y: auto; padding: 8px; background: rgba(139, 92, 246, 0.05); border-radius: 8px;">
+                                    <!-- Dynamically populated -->
+                                </div>
+                            </div>
+                            
+                            <div style="margin-bottom: 12px;">
+                                <label style="font-size: 13px; font-weight: 500; margin-bottom: 8px; display: block;">Relationship Types:</label>
+                                <div id="reltype-filters" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 100px; overflow-y: auto; padding: 8px; background: rgba(139, 92, 246, 0.05); border-radius: 8px;">
+                                    <!-- Dynamically populated -->
+                                </div>
+                            </div>
+                            
+                            <div style="margin-bottom: 12px;">
+                                <label style="font-size: 13px; font-weight: 500; margin-bottom: 8px; display: block;">Categories:</label>
+                                <div id="category-filters" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 100px; overflow-y: auto; padding: 8px; background: rgba(139, 92, 246, 0.05); border-radius: 8px;">
+                                    <!-- Dynamically populated -->
+                                </div>
+                            </div>
+                            
+                            <div style="margin-bottom: 12px;">
+                                <label style="font-size: 13px; font-weight: 500; margin-bottom: 8px; display: block;">Confidence Score:</label>
+                                <div style="display: flex; gap: 12px; align-items: center;">
+                                    <input type="range" id="confidence-slider" min="0" max="100" value="0" style="flex: 1;">
+                                    <span id="confidence-value" style="min-width: 60px; font-size: 12px; color: var(--violet-light);">All</span>
+                                </div>
+                                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                                    Hide objects with confidence &lt; <span id="confidence-threshold">0</span>%
+                                </div>
+                            </div>
+                            
+                            <div style="margin-bottom: 12px;">
+                                <label style="font-size: 13px; font-weight: 500; margin-bottom: 8px; display: block;">Source/Venue:</label>
+                                <input type="text" id="source-filter" class="form-control" placeholder="Filter by source name..." style="font-size: 12px; padding: 6px;" onkeyup="applySourceFilter()">
+                            </div>
+                            
+                            <div style="margin-bottom: 12px;">
+                                <label style="font-size: 13px; font-weight: 500; margin-bottom: 8px; display: block;">Options:</label>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; ody: pointer;">
+                                        <input type="checkbox" id="filter-revoked" onchange="applyQuickFilters()">
+                                        <span>Hide revoked objects</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; ody: pointer;">
+                                        <input type="checkbox" id="hierarchical-layout" onchange="toggleHierarchicalLayout()">
+                                        <span>Hierarchical DAG layout</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; ody: pointer;">
+                                        <input type="checkbox" id="edge-routing-orthogonal" onchange="toggleEdgeRouting()">
+                                        <span>Orthogonal edge routing</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Advanced Filter (JSON) -->
+                        <div id="advanced-filter" style="display: none;">
+                            <textarea id="filter-input" class="form-control" rows="3" placeholder='{"include": {"type": {"$in": ["indicator", "malware"]}}, "exclude": {"revoked": true}}'></textarea>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 8px; margin-bottom: 8px;">
+                                Operators: $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin, $exists, $and, $or, $not
+                            </div>
+                            <button type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px; width: 100%;" onclick="applyFilter()">
+                                Apply JSON Filter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Panel -->
+                <div>
+                    <!-- Legend -->
+                    <div class="details-panel" style="margin-bottom: 16px;">
+                        <h3>Legend</h3>
+                        <div id="legend-container" style="display: flex; flex-direction: column; gap: 6px;">
+                            <div style="color: var(--text-secondary); font-size: 13px;">Load a STIX bundle to see types</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Selected Object Details -->
+                    <div class="details-panel">
+                        <h3>Selected Object</h3>
+                        <div id="selected-object-details">
+                            <div style="color: var(--text-secondary); font-size: 13px;">Click on a node to see details</div>
+                        </div>
+                        
+                        <h3 style="margin-top: 24px;">Connections</h3>
+                        <div id="connections-list">
+                            <div style="color: var(--text-secondary); font-size: 13px;">Select a node to see connections</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- External Tool Information -->
+        <div class="thank-you-message" style="background: rgba(139, 92, 246, 0.1); border-left: 4px solid var(--violet-light); padding: 20px 24px; border-radius: 12px; margin-top: 60px; margin-bottom: 40px; font-size: 16px; line-height: 1.6;">
+            <strong style="color: var(--violet-light);">STIX Graph Visualization</strong><br>
+            This visualization tool is based on <a href="https://github.com/oasis-open/cti-stix-visualization" target="_blank" style="color: var(--violet-light); text-decoration: none;">cti-stix-visualization</a> by OASIS TC Open Repository. 
+            It enables interactive exploration of STIX 2.x threat intelligence data, supporting all SDOs, SCOs, and SROs with embedded relationship detection.<br><br>
+            <strong style="color: var(--violet-light);">Odysafe CTI Platform thanks the OASIS TC Open Repository</strong> for making this valuable visualization tool available to the community.<br><br>
+            <strong style="color: var(--violet-light);">100% Client-Side</strong> - All STIX data is processed locally in your browser. No data is transmitted to any server.
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Icon path for STIX icons (PNG images) - MUST be defined before stix2viz.js -->
+<script>
+const STIX_ICONS_BASE_PATH = "{{ url_for('static', filename='images/stix-icons') }}";
+</script>
+<script src="{{ url_for('static', filename='js/stix2viz/stix2viz.js') }}"></script>
+<script>
+// Global variables
+let graphView = null;
+let graphData = null;
+let stixBundle = null;
+let timelineDates = [];
+let fileContent = null;
+
+// Tab management (duplicated from upload.html)
+document.querySelectorAll('.import-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        
+        // Deactivate all tabs
+        document.querySelectorAll('.import-tab-btn').forEach(b => {
+            b.classList.remove('active');
+            b.style.color = 'var(--text-secondary)';
+            b.style.borderBottom = 'none';
+        });
+        
+        // Activate clicked tab
+        btn.classList.add('active');
+        btn.style.color = 'var(--text-primary)';
+        btn.style.borderBottom = '2px solid var(--violet-light)';
+        
+        // Show corresponding content
+        document.querySelectorAll('.import-tab-content').forEach(content => {
+            content.style.display = 'none';
+        });
+        const targetContent = document.getElementById(`import-tab-${tab}`);
+        if (targetContent) {
+            targetContent.style.display = 'block';
+        }
+        
+        // Load data if switching to specific tabs
+        if (tab === 'exports') {
+            if (typeof loadExportsList === 'function') {
+                loadExportsList();
+            }
+        } else if (tab === 'saved') {
+            if (typeof loadUploadedStixFiles === 'function') {
+                loadUploadedStixFiles();
+            }
+        }
+    });
+});
+
+// Drag & Drop (duplicated from upload.html)
+const stixDropZone = document.getElementById('stix-drop-zone');
+const stixFileInput = document.getElementById('stix-file-input');
+
+if (stixDropZone && stixFileInput) {
+    stixDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        stixDropZone.style.borderColor = 'var(--violet-light)';
+        stixDropZone.style.background = 'rgba(139, 92, 246, 0.1)';
+    });
+
+    stixDropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        stixDropZone.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+        stixDropZone.style.background = 'transparent';
+    });
+
+    stixDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        stixDropZone.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+        stixDropZone.style.background = 'transparent';
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFileSelect(files[0]);
+        }
+    });
+
+    stixFileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0]);
+        }
+    });
+}
+
+
+// Load buttons (duplicated from upload.html)
+const loadFileBtn = document.getElementById('load-file-btn');
+const loadPasteBtn = document.getElementById('load-paste-btn');
+
+if (loadFileBtn) {
+    loadFileBtn.addEventListener('click', () => {
+        if (fileContent) {
+            loadStixData(fileContent);
+        } else {
+            showFeedback('Please select a file first', 'warning');
+        }
+    });
+}
+
+if (loadPasteBtn) {
+    loadPasteBtn.addEventListener('click', () => {
+        const pasteInput = document.getElementById('stix-paste-input');
+        if (pasteInput && pasteInput.value.trim()) {
+            loadStixData(pasteInput.value.trim());
+        } else {
+            showFeedback('Please paste STIX JSON content', 'warning');
+        }
+    });
+}
+
+function handleFileSelect(file) {
+    if (!file.name.endsWith('.json')) {
+        showFeedback('Please select a JSON file', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        fileContent = e.target.result;
+        const fileNameEl = document.getElementById('stix-file-name');
+        if (fileNameEl) {
+            fileNameEl.textContent = file.name;
+            fileNameEl.style.display = 'block';
+        }
+        if (loadFileBtn) {
+            loadFileBtn.disabled = false;
+        }
+    };
+    reader.onerror = () => {
+        showFeedback('Error reading file', 'error');
+    };
+    reader.readAsText(file);
+}
+
+
+// Load exports list
+async function loadExportsList() {
+    const container = document.getElementById('exports-list');
+    container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">Loading...</div>';
+    
+    try {
+        const response = await fetch('/api/stix/files');
+        const data = await response.json();
+        
+        if (data.success && data.files && data.files.length > 0) {
+            let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+            for (const file of data.files) {
+                html += `
+                    <div class="connection-item" onclick="loadFromExport('${escapeHtml(file.path)}')">
+                        <span style="font-size: 20px;">📄</span>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500;">${escapeHtml(file.name)}</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">
+                                ${file.size ? formatBytes(file.size) : 'Unknown size'} • 
+                                ${file.converted_at ? new Date(file.converted_at).toLocaleString() : 'Unknown date'}
+                            </div>
+                        </div>
+                        <span style="color: var(--violet-light);">→</span>
+                    </div>
+                `;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No STIX exports available. Generate exports from the Export page.</div>';
+        }
+    } catch (error) {
+        container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--error);">Error loading exports: ' + error.message + '</div>';
+    }
+}
+
+// Load uploaded STIX files list
+async function loadUploadedStixFiles() {
+    const container = document.getElementById('saved-models-list');
+    container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">Loading...</div>';
+    
+    try {
+        const response = await fetch('/api/stix/files');
+        const data = await response.json();
+        
+        if (data.success && data.files && data.files.length > 0) {
+            let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+            for (const file of data.files) {
+                html += `
+                    <div class="connection-item" style="position: relative;">
+                        <span style="font-size: 20px;">📄</span>
+                        <div style="flex: 1; ody: pointer;" onclick="loadFromUploadedFile('${escapeHtml(file.path)}')">
+                            <div style="font-weight: 500;">${escapeHtml(file.name)}</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">
+                                ${file.size_formatted || formatBytes(file.size || 0)} • 
+                                ${file.converted_at ? new Date(file.converted_at).toLocaleString() : 'Unknown date'}
+                                ${file.source === 'import' ? ' • Imported' : ' • Exported'}
+                            </div>
+                        </div>
+                        <button onclick="deleteUploadedStixFile('${escapeHtml(file.path)}', event)" style="background: none; border: none; color: var(--error); ody: pointer; padding: 4px 8px; font-size: 18px; line-height: 1;" title="Delete file">✕</button>
+                    </div>
+                `;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No uploaded STIX files. Import a STIX file to see it here.</div>';
+        }
+    } catch (error) {
+        container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--error);">Error loading uploaded STIX files: ' + error.message + '</div>';
+    }
+}
+
+// Load from uploaded file
+async function loadFromUploadedFile(filePath) {
+    showFeedback('Loading STIX file...', 'info');
+    
+    try {
+        const response = await fetch(`/api/stix/files/${encodeURIComponent(filePath)}/download`);
+        if (!response.ok) {
+            throw new Error('Failed to load file');
+        }
+        const content = await response.text();
+        loadStixData(content);
+    } catch (error) {
+        showFeedback('Error loading file: ' + error.message, 'error');
+    }
+}
+
+// Delete uploaded STIX file
+async function deleteUploadedStixFile(filePath, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    if (!confirm('Are you sure you want to delete this STIX file?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/stix/files/${encodeURIComponent(filePath)}/delete`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            showFeedback('File deleted successfully', 'success');
+            loadUploadedStixFiles();
+        } else {
+            showFeedback('Failed to delete file: ' + (data.error || 'Unknown error'), 'error');
+        }
+    } catch (error) {
+        showFeedback('Error deleting file: ' + error.message, 'error');
+    }
+}
+
+// Load a saved model
+async function loadSavedModel(modelId) {
+    try {
+        showFeedback('Loading saved model...', 'info');
+        const response = await fetch(`/api/stix/models/${modelId}`);
+        const data = await response.json();
+        
+        if (data.success && data.model) {
+            loadStixData(data.model.stix_content);
+            showFeedback('Model loaded successfully', 'success');
+        } else {
+            showFeedback('Failed to load model', 'error');
+        }
+    } catch (error) {
+        showFeedback('Error loading model: ' + error.message, 'error');
+    }
+}
+
+// Delete a saved model
+async function deleteSavedModel(modelId, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    if (!confirm('Are you sure you want to delete this saved model?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/stix/models/${modelId}`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            showFeedback('Model deleted successfully', 'success');
+            loadSavedModelsList();
+        } else {
+            showFeedback('Failed to delete model', 'error');
+        }
+    } catch (error) {
+        showFeedback('Error deleting model: ' + error.message, 'error');
+    }
+}
+
+// Save current model
+async function saveCurrentModel() {
+    if (!fileContent) {
+        showFeedback('No graph loaded to save', 'warning');
+        return;
+    }
+    
+    const name = prompt('Enter a name for this model:');
+    if (!name || !name.trim()) {
+        return;
+    }
+    
+    const description = prompt('Enter a description (optional):') || '';
+    
+    try {
+        // Get current graph stats if available
+        let nodeCount = 0;
+        let edgeCount = 0;
+        if (graphData && graphData.stats) {
+            nodeCount = graphData.stats.nodeCount || 0;
+            edgeCount = graphData.stats.edgeCount || 0;
+        }
+        
+        const response = await fetch('/api/stix/models', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: name.trim(),
+                description: description.trim(),
+                stix_content: fileContent,
+                node_count: nodeCount,
+                edge_count: edgeCount
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showFeedback('Model saved successfully', 'success');
+            loadSavedModelsList();
+        } else {
+            showFeedback('Failed to save model: ' + (data.message || 'Unknown error'), 'error');
+        }
+    } catch (error) {
+        showFeedback('Error saving model: ' + error.message, 'error');
+    }
+}
+
+// Load from export file
+async function loadFromExport(filePath) {
+    showFeedback('Loading STIX file...', 'info');
+    
+    try {
+        const response = await fetch(`/api/stix/files/${encodeURIComponent(filePath)}/download`);
+        if (!response.ok) {
+            throw new Error('Failed to load file');
+        }
+        const content = await response.text();
+        loadStixData(content);
+    } catch (error) {
+        showFeedback('Error loading file: ' + error.message, 'error');
+    }
+}
+
+// Main function to load and visualize STIX data
+function loadStixData(content) {
+    try {
+        // Parse and validate
+        graphData = stix2viz.makeGraphData(content);
+        stixBundle = stix2viz.parseStixContent(content);
+        
+        if (graphData.nodes.length === 0) {
+            showFeedback('No visualizable objects found in the STIX bundle', 'warning');
+            return;
+        }
+        
+        // Show graph section
+        document.getElementById('graph-section').style.display = 'block';
+        
+        // Update stats
+        document.getElementById('stat-objects').textContent = graphData.stats.totalObjects;
+        document.getElementById('stat-nodes').textContent = graphData.stats.nodeCount;
+        document.getElementById('stat-edges').textContent = graphData.stats.edgeCount;
+        document.getElementById('stat-types').textContent = Object.keys(graphData.stats.typeCount).length;
+        
+        // Create graph view
+        const container = document.getElementById('stix-graph-container');
+        container.innerHTML = ''; // Clear previous
+        
+        // Get current edge routing preference
+        const orthogonal = document.getElementById('edge-routing-orthogonal')?.checked || false;
+        const config = { edgeRouting: orthogonal ? 'orthogonal' : 'curved' };
+        
+        graphView = stix2viz.makeGraphView(
+            container,
+            graphData.nodes,
+            graphData.edges,
+            graphData.stixIdToObject,
+            config
+        );
+        
+        if (!graphView) {
+            showFeedback('Failed to create graph view', 'error');
+            return;
+        }
+        
+        // Setup event handlers
+        graphView.on('selectNode', onNodeSelect);
+        graphView.on('deselectNode', onNodeDeselect);
+        
+        // Render legend
+        renderLegend(graphData.stats);
+        
+        // Render quick filters
+        renderQuickFilters();
+        
+        // Setup timeline
+        setupTimeline(graphData.nodes);
+        
+        // Show path finding panel if graph is large
+        if (graphData.stats.nodeCount > 10) {
+            document.getElementById('path-finding-panel').style.display = 'block';
+        }
+        
+        showFeedback(`Loaded ${graphData.stats.totalObjects} objects with ${graphData.stats.edgeCount} relationships`, 'success');
+        
+        // Auto-save the imported STIX file
+        autoSaveStixFile(content);
+        
+        // Scroll to graph
+        document.getElementById('graph-section').scrollIntoView({ behavior: 'smooth' });
+        
+    } catch (error) {
+        showFeedback('Error parsing STIX content: ' + error.message, 'error');
+        console.error('STIX parsing error:', error);
+    }
+}
+
+// Auto-save imported STIX file
+async function autoSaveStixFile(stixContent) {
+    try {
+        // Generate a filename based on timestamp and bundle ID if available
+        let filename = `stix_import_${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
+        try {
+            const parsed = JSON.parse(stixContent);
+            if (parsed.id) {
+                filename = parsed.id.replace(/[^a-zA-Z0-9_-]/g, '_') + '.json';
+            } else if (parsed.objects && parsed.objects.length > 0 && parsed.objects[0].id) {
+                filename = parsed.objects[0].id.replace(/[^a-zA-Z0-9_-]/g, '_') + '.json';
+            }
+        } catch (e) {
+            // Use default filename
+        }
+        
+        const formData = new FormData();
+        const blob = new Blob([stixContent], { type: 'application/json' });
+        formData.append('file', blob, filename);
+        
+        const response = await fetch('/api/stix/files/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            // Refresh the uploaded files list if we're on that tab
+            const savedTab = document.getElementById('import-tab-saved');
+            if (savedTab && savedTab.style.display !== 'none') {
+                loadUploadedStixFiles();
+            }
+        }
+    } catch (error) {
+        console.error('Error auto-saving STIX file:', error);
+        // Don't show error to user, this is a background operation
+    }
+}
+
+// Render legend
+function renderLegend(stats) {
+    const container = document.getElementById('legend-container');
+    const legendData = stix2viz.makeLegendData(stats);
+    
+    if (!legendData.nodes || legendData.nodes.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-secondary); font-size: 13px;">No types found</div>';
+        return;
+    }
+    
+    const iconPath = typeof STIX_ICONS_BASE_PATH !== 'undefined' ? STIX_ICONS_BASE_PATH : null;
+    const defaultIconUrl = iconPath ? (iconPath.endsWith('/') ? iconPath : iconPath + '/') + 'stix2_custom_object_icon_tiny_round_v1.svg' : 'stix2_custom_object_icon_tiny_round_v1.svg';
+    
+    let html = '';
+    // Render node types
+    for (const item of legendData.nodes) {
+        const iconUrl = item.iconUrl || item.icon || defaultIconUrl;
+        html += `
+            <div class="legend-item" data-type="${escapeHtml(item.type)}" onclick="toggleType('${escapeHtml(item.type)}', this)">
+                <img src="${iconUrl}" alt="${escapeHtml(item.type)}" style="width: 20px; height: 20px; flex-shrink: 0;" onerror="this.src='${defaultIconUrl}';">
+                <span style="flex: 1;">${escapeHtml(item.type)}</span>
+                <span style="color: var(--text-secondary);">(${item.count})</span>
+            </div>
+        `;
+    }
+    
+    // Render relationship types if available
+    if (legendData.relationships && legendData.relationships.length > 0) {
+        html += '<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(139, 92, 246, 0.2);"><div style="font-size: 12px; font-weight: 600; color: var(--violet-light); margin-bottom: 8px;">Relationships:</div>';
+        for (const rel of legendData.relationships) {
+            const dashStyle = rel.dashes ? 'border-top: 2px dashed ' + rel.color : 'border-top: 2px solid ' + rel.color;
+            html += `
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 12px;">
+                    <div style="width: 30px; ${dashStyle};"></div>
+                    <span style="color: var(--text-primary);">${escapeHtml(rel.description || rel.type)}</span>
+                </div>
+            `;
+        }
+        html += '</div>';
+    }
+    
+    container.innerHTML = html;
+}
+
+// Toggle type visibility
+function toggleType(type, element) {
+    if (!graphView) return;
+    
+    const isHidden = element.classList.contains('hidden');
+    element.classList.toggle('hidden');
+    graphView.toggleType(type, isHidden);
+}
+
+// Setup timeline with milestones
+function setupTimeline(nodes) {
+    // Collect all timestamps with milestones (important events)
+    timelineDates = [];
+    const milestones = [];
+    
+    for (const node of nodes) {
+        if (node.timestamp) {
+            timelineDates.push(node.timestamp);
+            
+            // Identify milestones: campaigns, incidents, major malware
+            const obj = graphView ? graphView.stixIdToObject.get(node.id) : null;
+            if (obj && (obj.type === 'campaign' || obj.type === 'incident' || 
+                (obj.type === 'malware' && node.relationshipCount > 5))) {
+                milestones.push({
+                    date: node.timestamp,
+                    label: obj.name || obj.type,
+                    type: obj.type
+                });
+            }
+        }
+    }
+    
+    if (timelineDates.length === 0) {
+        document.getElementById('timeline-section').style.display = 'none';
+        return;
+    }
+    
+    document.getElementById('timeline-section').style.display = 'block';
+    
+    // Sort dates
+    timelineDates.sort((a, b) => a - b);
+    milestones.sort((a, b) => a.date - b.date);
+    
+    // Set min/max labels
+    const minDate = timelineDates[0];
+    const maxDate = timelineDates[timelineDates.length - 1];
+    document.getElementById('timeline-min').textContent = minDate.toLocaleDateString();
+    document.getElementById('timeline-max').textContent = maxDate.toLocaleDateString();
+    
+    // Render milestones
+    renderTimelineMilestones(milestones, minDate, maxDate);
+    
+    // Setup slider
+    const slider = document.getElementById('timeline-slider');
+    slider.min = 0;
+    slider.max = 100;
+    slider.value = 100;
+    
+    slider.oninput = () => {
+        updateTimeline(slider.value);
+    };
+    
+    document.getElementById('timeline-cumulative').onchange = () => {
+        updateTimeline(slider.value);
+    };
+    
+    // Setup scale selector
+    document.getElementById('timeline-scale').onchange = () => {
+        updateTimelineScale();
+    };
+}
+
+// Render timeline milestones
+function renderTimelineMilestones(milestones, minDate, maxDate) {
+    const container = document.getElementById('timeline-milestones');
+    if (milestones.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    const range = maxDate.getTime() - minDate.getTime();
+    let html = '';
+    milestones.forEach(milestone => {
+        const position = ((milestone.date.getTime() - minDate.getTime()) / range) * 100;
+        html += `<div style="position: absolute; left: ${position}%; top: 0; width: 2px; height: 100%; background: var(--violet-light); ody: pointer;" title="${escapeHtml(milestone.label)}"></div>`;
+    });
+    container.innerHTML = html;
+}
+
+// Update timeline scale
+function updateTimelineScale() {
+    const scale = document.getElementById('timeline-scale').value;
+    // Scale affects how dates are calculated, but for now we keep the same logic
+    // This can be enhanced to filter by day/week/month/year ranges
+    updateTimeline(document.getElementById('timeline-slider').value);
+}
+
+function updateTimeline(value) {
+    if (!graphView || timelineDates.length === 0) return;
+    
+    if (value >= 100) {
+        document.getElementById('timeline-current').textContent = 'All';
+        graphView.resetFilters();
+        // Re-apply type filters
+        document.querySelectorAll('.legend-item.hidden').forEach(el => {
+            const type = el.dataset.type;
+            graphView.toggleType(type, false);
+        });
+        return;
+    }
+    
+    const minDate = timelineDates[0].getTime();
+    const maxDate = timelineDates[timelineDates.length - 1].getTime();
+    const range = maxDate - minDate;
+    const targetTime = minDate + (range * value / 100);
+    const targetDate = new Date(targetTime);
+    
+    // Format date based on scale
+    const scale = document.getElementById('timeline-scale').value;
+    let dateFormat = targetDate.toLocaleDateString();
+    if (scale === 'day') {
+        dateFormat = targetDate.toLocaleDateString() + ' ' + targetDate.toLocaleTimeString();
+    } else if (scale === 'week') {
+        dateFormat = 'Week of ' + targetDate.toLocaleDateString();
+    } else if (scale === 'month') {
+        dateFormat = targetDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    } else if (scale === 'year') {
+        dateFormat = targetDate.getFullYear().toString();
+    }
+    
+    document.getElementById('timeline-current').textContent = dateFormat;
+    
+    const cumulative = document.getElementById('timeline-cumulative').checked;
+    graphView.filterByTimeline(targetDate, cumulative);
+    
+    // Highlight milestones in the visible range
+    highlightTimelineMilestones(targetDate, cumulative);
+}
+
+// Highlight milestones in timeline range
+function highlightTimelineMilestones(targetDate, cumulative) {
+    // This can be enhanced to highlight nodes related to milestones
+    // For now, it's a placeholder for future enhancement
+}
+
+// Node selection handlers
+function onNodeSelect(params) {
+    if (params.nodes.length === 0) return;
+    
+    const nodeId = params.nodes[0];
+    const stixObject = graphView.stixIdToObject.get(nodeId);
+    
+    if (stixObject) {
+        renderObjectDetails(stixObject);
+        renderConnections(nodeId);
+        
+        // Add expand/collapse buttons
+        const detailsContainer = document.getElementById('selected-object-details');
+        const buttonContainer = detailsContainer.querySelector('.node-action-buttons');
+        if (!buttonContainer) {
+            const btnContainer = document.createElement('div');
+            btnContainer.className = 'node-action-buttons';
+            btnContainer.style.cssText = 'margin-top: 12px; display: flex; gap: 8px;';
+            
+            const expandBtn = document.createElement('button');
+            expandBtn.className = 'btn btn-primary expand-node-btn';
+            expandBtn.style.cssText = 'padding: 6px 12px; font-size: 12px; flex: 1;';
+            expandBtn.textContent = '🔍 Expand with Filters';
+            expandBtn.onclick = () => expandNode(nodeId);
+            
+            const collapseBtn = document.createElement('button');
+            collapseBtn.className = 'btn btn-secondary collapse-node-btn';
+            collapseBtn.style.cssText = 'padding: 6px 12px; font-size: 12px; flex: 1;';
+            collapseBtn.textContent = '↩️ Collapse';
+            collapseBtn.onclick = () => collapseNode(nodeId);
+            
+            btnContainer.appendChild(expandBtn);
+            btnContainer.appendChild(collapseBtn);
+            detailsContainer.appendChild(btnContainer);
+        } else {
+            // Update existing buttons
+            const expandBtn = buttonContainer.querySelector('.expand-node-btn');
+            const collapseBtn = buttonContainer.querySelector('.collapse-node-btn');
+            if (expandBtn) expandBtn.onclick = () => expandNode(nodeId);
+            if (collapseBtn) collapseBtn.onclick = () => collapseNode(nodeId);
+        }
+    }
+}
+
+// Expansion history tracking
+let expansionHistory = []; // Array of { nodeId, timestamp, filters: { types, relations } }
+
+// Expand node with filter popup
+function expandNode(nodeId) {
+    if (!graphView) return;
+    
+    // Get connection info for filter options
+    const info = graphView.getNodeConnectionInfo(nodeId);
+    if (info.types.length === 0 && info.relations.length === 0) {
+        showFeedback('No connections found for this node', 'warning');
+        return;
+    }
+    
+    // Show filter popup
+    showExpandFilterPopup(nodeId, info);
+}
+
+// Show expand filter popup
+function showExpandFilterPopup(nodeId, connectionInfo) {
+    const node = graphView.nodesDataSet.get(nodeId);
+    const obj = graphView.stixIdToObject.get(nodeId);
+    const nodeLabel = obj ? (obj.name || obj.value || obj.type || nodeId) : nodeId;
+    
+    // Create popup overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'expand-filter-overlay';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+    
+    // Create popup content
+    const popup = document.createElement('div');
+    popup.style.cssText = 'background: rgba(30, 27, 46, 0.98); border: 2px solid #8B5CF6; border-radius: 12px; padding: 24px; max-width: 600px; max-height: 80vh; overflow-y: auto; color: #fff;';
+    
+    popup.innerHTML = `
+        <div style="margin-bottom: 16px;">
+            <h3 style="margin: 0 0 8px 0; color: #8B5CF6; font-size: 18px;">Expand Connections</h3>
+            <div style="font-size: 13px; color: var(--text-secondary);">
+                Node: <strong>${escapeHtml(nodeLabel.substring(0, 50))}${nodeLabel.length > 50 ? '...' : ''}</strong>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="font-size: 13px; font-weight: 600; margin-bottom: 8px; display: block; color: var(--violet-light);">Entity Types:</label>
+            <div id="expand-type-filters" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 150px; overflow-y: auto; padding: 8px; background: rgba(139, 92, 246, 0.1); border-radius: 8px;">
+                ${connectionInfo.types.map(type => {
+                    const count = connectionInfo.types.filter(t => t === type).length;
+                    return `
+                        <label style="display: flex; align-items: center; gap: 6px; ody: pointer; font-size: 12px;">
+                            <input type="checkbox" class="expand-type-checkbox" data-type="${escapeHtml(type)}" checked>
+                            <span>${escapeHtml(type)}</span>
+                        </label>
+                    `;
+                }).join('')}
+            </div>
+            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                Leave all unchecked to show all types
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <label style="font-size: 13px; font-weight: 600; margin-bottom: 8px; display: block; color: var(--violet-light);">Relationship Types:</label>
+            <div id="expand-relation-filters" style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 150px; overflow-y: auto; padding: 8px; background: rgba(139, 92, 246, 0.1); border-radius: 8px;">
+                ${connectionInfo.relations.map(rel => {
+                    return `
+                        <label style="display: flex; align-items: center; gap: 6px; ody: pointer; font-size: 12px;">
+                            <input type="checkbox" class="expand-relation-checkbox" data-relation="${escapeHtml(rel)}" checked>
+                            <span>${escapeHtml(rel)}</span>
+                        </label>
+                    `;
+                }).join('')}
+            </div>
+            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                Leave all unchecked to show all relations
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+            <button type="button" class="btn btn-secondary" onclick="closeExpandFilterPopup()" style="padding: 8px 16px;">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="applyExpandFilters('${escapeHtml(nodeId)}')" style="padding: 8px 16px;">Expand</button>
+        </div>
+    `;
+    
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            closeExpandFilterPopup();
+        }
+    });
+}
+
+// Close expand filter popup
+function closeExpandFilterPopup() {
+    const overlay = document.getElementById('expand-filter-overlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+// Apply expand filters
+function applyExpandFilters(nodeId) {
+    if (!graphView) return;
+    
+    // Get selected type filters
+    const typeFilters = [];
+    document.querySelectorAll('.expand-type-checkbox:checked').forEach(checkbox => {
+        typeFilters.push(checkbox.dataset.type);
+    });
+    
+    // Get selected relation filters
+    const relationFilters = [];
+    document.querySelectorAll('.expand-relation-checkbox:checked').forEach(checkbox => {
+        relationFilters.push(checkbox.dataset.relation);
+    });
+    
+    // Apply expansion with filters
+    const result = graphView.expandNodeWithFilters(nodeId, typeFilters, relationFilters);
+    
+    // Record in history
+    expansionHistory.push({
+        nodeId: nodeId,
+        timestamp: Date.now(),
+        filters: {
+            types: typeFilters,
+            relations: relationFilters
+        }
+    });
+    
+    // Update expansion breadcrumb
+    updateExpansionBreadcrumb();
+    
+    closeExpandFilterPopup();
+    
+    if (result.added > 0) {
+        showFeedback(`Expanded: ${result.added} node(s) added${result.filtered > 0 ? `, ${result.filtered} filtered out` : ''}`, 'success');
+    } else {
+        showFeedback('No nodes match the selected filters', 'warning');
+    }
+}
+
+// Update expansion breadcrumb
+function updateExpansionBreadcrumb() {
+    const container = document.getElementById('expansion-breadcrumb');
+    if (!container) return;
+    
+    if (expansionHistory.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    container.style.display = 'block';
+    let html = '<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Expansion History:</div>';
+    html += '<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">';
+    
+    expansionHistory.forEach((entry, index) => {
+        const node = graphView.nodesDataSet.get(entry.nodeId);
+        const obj = graphView.stixIdToObject.get(entry.nodeId);
+        const label = obj ? (obj.name || obj.value || obj.type || entry.nodeId) : entry.nodeId;
+        const shortLabel = label.substring(0, 20) + (label.length > 20 ? '...' : '');
+        
+        html += `
+            <div style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: rgba(139, 92, 246, 0.2); border-radius: 6px; font-size: 11px;">
+                <span>${escapeHtml(shortLabel)}</span>
+                ${index < expansionHistory.length - 1 ? '<span style="color: var(--violet-light);">→</span>' : ''}
+            </div>
+        `;
+    });
+    
+    html += `
+        <button type="button" class="btn btn-secondary" onclick="clearExpansionHistory()" style="padding: 4px 8px; font-size: 11px; margin-left: 8px;">
+            Clear
+        </button>
+    `;
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+// Clear expansion history
+function clearExpansionHistory() {
+    expansionHistory = [];
+    updateExpansionBreadcrumb();
+    showFeedback('Expansion history cleared', 'info');
+}
+
+// Collapse node (remove from expansion)
+function collapseNode(nodeId) {
+    if (!graphView) return;
+    graphView.collapseNode(nodeId);
+    
+    // Remove from history
+    expansionHistory = expansionHistory.filter(entry => entry.nodeId !== nodeId);
+    updateExpansionBreadcrumb();
+    
+    showFeedback('Node connections collapsed', 'success');
+}
+
+function onNodeDeselect() {
+    document.getElementById('selected-object-details').innerHTML = 
+        '<div style="color: var(--text-secondary); font-size: 13px;">Click on a node to see details</div>';
+    document.getElementById('connections-list').innerHTML = 
+        '<div style="color: var(--text-secondary); font-size: 13px;">Select a node to see connections</div>';
+}
+
+// Render object details
+function renderObjectDetails(obj) {
+    const container = document.getElementById('selected-object-details');
+    const iconPath = typeof STIX_ICONS_BASE_PATH !== 'undefined' ? STIX_ICONS_BASE_PATH : null;
+    const defaultIconUrl = iconPath ? (iconPath.endsWith('/') ? iconPath : iconPath + '/') + 'stix2_custom_object_icon_tiny_round_v1.svg' : 'stix2_custom_object_icon_tiny_round_v1.svg';
+    const iconUrl = stix2viz.getStixIconURL ? stix2viz.getStixIconURL(obj.type) : (stix2viz.stixTypeToIconURL ? stix2viz.stixTypeToIconURL(obj.type) : defaultIconUrl);
+    
+    // Get relationship count from graph data
+    let relationshipCount = 0;
+    if (graphView && graphView.graphData) {
+        const node = graphView.graphData.nodes.find(n => n.id === obj.id);
+        relationshipCount = node ? (node.relationshipCount || 0) : 0;
+    }
+    
+    // Count external references (sources/reports)
+    const sourceCount = obj.external_references ? obj.external_references.length : 0;
+    const uniqueSources = new Set();
+    if (obj.external_references) {
+        obj.external_references.forEach(ref => {
+            if (ref.source_name) uniqueSources.add(ref.source_name);
+        });
+    }
+    
+    let html = `
+        <div style="margin-bottom: 12px;">
+            <img src="${iconUrl}" alt="${escapeHtml(obj.type)}" style="width: 48px; height: 48px;" onerror="this.src='${defaultIconUrl}';">
+        </div>
+        <div class="property-row">
+            <span class="property-label">Type:</span>
+            <span class="property-value"><code>${escapeHtml(obj.type)}</code></span>
+        </div>
+        <div class="property-row">
+            <span class="property-label">ID:</span>
+            <span class="property-value" style="font-size: 11px;">${escapeHtml(obj.id)}</span>
+        </div>
+    `;
+    
+    // Enhanced metrics section
+    html += `<div style="margin: 16px 0; padding: 12px; background: rgba(139, 92, 246, 0.1); border-radius: 8px; border-left: 3px solid var(--violet-light);">`;
+    
+    // Confidence score with visual indicator
+    if (obj.confidence !== undefined) {
+        const confColor = obj.confidence >= 80 ? '#32CD32' : (obj.confidence >= 50 ? '#FFA500' : '#FF4444');
+        html += `
+            <div style="margin-bottom: 8px;">
+                <span class="property-label">Confidence:</span>
+                <span style="color: ${confColor}; font-weight: bold; font-size: 14px;">${obj.confidence}%</span>
+                <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 4px; overflow: hidden;">
+                    <div style="width: ${obj.confidence}%; height: 100%; background: ${confColor}; transition: width 0.3s;"></div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Relationship count
+    html += `
+        <div style="margin-bottom: 8px;">
+            <span class="property-label">Relationships:</span>
+            <span style="color: var(--violet-light); font-weight: bold;">${relationshipCount}</span>
+        </div>
+    `;
+    
+    // Source count
+    if (sourceCount > 0) {
+        html += `
+            <div style="margin-bottom: 8px;">
+                <span class="property-label">Sources/Reports:</span>
+                <span style="color: var(--violet-light); font-weight: bold;">${sourceCount}</span>
+                ${uniqueSources.size > 0 ? `<div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">${Array.from(uniqueSources).slice(0, 3).join(', ')}${uniqueSources.size > 3 ? '...' : ''}</div>` : ''}
+            </div>
+        `;
+    }
+    
+    html += `</div>`;
+    
+    // Add common properties
+    const displayProps = ['name', 'value', 'description', 'pattern', 'created', 'modified', 'labels'];
+    for (const prop of displayProps) {
+        if (obj[prop] !== undefined && obj[prop] !== null) {
+            let value = obj[prop];
+            if (Array.isArray(value)) {
+                value = value.join(', ');
+            } else if (typeof value === 'object') {
+                value = JSON.stringify(value, null, 2);
+            }
+            
+            if (prop === 'created' || prop === 'modified') {
+                value = new Date(value).toLocaleString();
+            }
+            
+            html += `
+                <div class="property-row">
+                    <span class="property-label">${capitalizeFirst(prop)}:</span>
+                    <span class="property-value">${escapeHtml(String(value).substring(0, 200))}${String(value).length > 200 ? '...' : ''}</span>
+                </div>
+            `;
+        }
+    }
+    
+    // Show all properties button
+    html += `
+        <button type="button" class="btn btn-secondary" style="margin-top: 12px; padding: 6px 12px; font-size: 12px;" onclick="showFullObject()">
+            Show Full JSON
+        </button>
+    `;
+    
+    container.innerHTML = html;
+    container.dataset.currentObject = JSON.stringify(obj);
+}
+
+// Render connections
+function renderConnections(nodeId) {
+    const container = document.getElementById('connections-list');
+    
+    // Find all edges connected to this node
+    const incoming = [];
+    const outgoing = [];
+    
+    graphData.edges.forEach(edge => {
+        if (edge.to === nodeId) {
+            const sourceObj = graphView.stixIdToObject.get(edge.from);
+            if (sourceObj) {
+                incoming.push({ edge, obj: sourceObj });
+            }
+        }
+        if (edge.from === nodeId) {
+            const targetObj = graphView.stixIdToObject.get(edge.to);
+            if (targetObj) {
+                outgoing.push({ edge, obj: targetObj });
+            }
+        }
+    });
+    
+    if (incoming.length === 0 && outgoing.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-secondary); font-size: 13px;">No connections</div>';
+        return;
+    }
+    
+    let html = '';
+    
+    const iconPath = typeof STIX_ICONS_BASE_PATH !== 'undefined' ? STIX_ICONS_BASE_PATH : null;
+    const defaultIconUrl = iconPath ? (iconPath.endsWith('/') ? iconPath : iconPath + '/') + 'stix2_custom_object_icon_tiny_round_v1.svg' : 'stix2_custom_object_icon_tiny_round_v1.svg';
+    
+    if (incoming.length > 0) {
+        html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Incoming (${incoming.length})</div>`;
+        for (const { edge, obj } of incoming) {
+            const iconUrl = stix2viz.getStixIconURL ? stix2viz.getStixIconURL(obj.type) : (stix2viz.stixTypeToIconURL ? stix2viz.stixTypeToIconURL(obj.type) : defaultIconUrl);
+            html += `
+                <div class="connection-item" onclick="selectNode('${escapeHtml(obj.id)}')">
+                    <img src="${iconUrl}" alt="${escapeHtml(obj.type)}" style="width: 20px; height: 20px; flex-shrink: 0;" onerror="this.src='${defaultIconUrl}';">
+                    <span class="connection-arrow">→</span>
+                    <span style="flex: 1;">${escapeHtml(obj.name || obj.value || obj.type)}</span>
+                    <span style="font-size: 10px; color: var(--text-secondary);">${escapeHtml(edge.label || 'related')}</span>
+                </div>
+            `;
+        }
+    }
+    
+    if (outgoing.length > 0) {
+        html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; margin-top: 16px;">Outgoing (${outgoing.length})</div>`;
+        for (const { edge, obj } of outgoing) {
+            const iconUrl = stix2viz.getStixIconURL ? stix2viz.getStixIconURL(obj.type) : (stix2viz.stixTypeToIconURL ? stix2viz.stixTypeToIconURL(obj.type) : defaultIconUrl);
+            html += `
+                <div class="connection-item" onclick="selectNode('${escapeHtml(obj.id)}')">
+                    <span style="font-size: 10px; color: var(--text-secondary);">${escapeHtml(edge.label || 'related')}</span>
+                    <span class="connection-arrow">→</span>
+                    <img src="${iconUrl}" alt="${escapeHtml(obj.type)}" style="width: 20px; height: 20px; flex-shrink: 0;" onerror="this.src='${defaultIconUrl}';">
+                    <span style="flex: 1;">${escapeHtml(obj.name || obj.value || obj.type)}</span>
+                </div>
+            `;
+        }
+    }
+    
+    container.innerHTML = html;
+}
+
+// Select a node programmatically
+function selectNode(nodeId) {
+    if (!graphView) return;
+    graphView.network.selectNodes([nodeId]);
+    graphView.network.focus(nodeId, { scale: 1, animation: true });
+    onNodeSelect({ nodes: [nodeId] });
+}
+
+// Show full JSON object
+function showFullObject() {
+    const container = document.getElementById('selected-object-details');
+    if (!container.dataset.currentObject) return;
+    
+    const obj = JSON.parse(container.dataset.currentObject);
+    const json = JSON.stringify(obj, null, 2);
+    
+    // Create modal
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px;';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    
+    modal.innerHTML = `
+        <div class="card" style="max-width: 800px; width: 100%; max-height: 80vh; overflow: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0;">Full STIX Object</h3>
+                <button type="button" class="btn btn-secondary" onclick="this.closest('div[style*=fixed]').remove()">✕ Close</button>
+            </div>
+            <pre style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 12px;">${escapeHtml(json)}</pre>
+            <button type="button" class="btn btn-primary" style="margin-top: 16px;" onclick="navigator.clipboard.writeText(\`${json.replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`); this.textContent = 'Copied!';">
+                📋 Copy JSON
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+// Apply filter
+function applyFilter() {
+    const filterInput = document.getElementById('filter-input').value.trim();
+    
+    if (!filterInput) {
+        // Reset to original data
+        if (stixBundle) {
+            loadStixData(JSON.stringify(stixBundle));
+        }
+        return;
+    }
+    
+    try {
+        const filterConfig = JSON.parse(filterInput);
+        graphData = stix2viz.makeGraphData(stixBundle, filterConfig);
+        
+        // Recreate graph
+        const container = document.getElementById('stix-graph-container');
+        container.innerHTML = '';
+        
+        // Get current edge routing preference
+        const orthogonal = document.getElementById('edge-routing-orthogonal')?.checked || false;
+        const viewConfig = { edgeRouting: orthogonal ? 'orthogonal' : 'curved' };
+        
+        graphView = stix2viz.makeGraphView(
+            container,
+            graphData.nodes,
+            graphData.edges,
+            graphData.stixIdToObject,
+            viewConfig
+        );
+        
+        if (!graphView) {
+            showFeedback('Failed to create graph view', 'error');
+            return;
+        }
+        
+        graphView.on('selectNode', onNodeSelect);
+        graphView.on('deselectNode', onNodeDeselect);
+        
+        // Update stats
+        document.getElementById('stat-nodes').textContent = graphData.stats.nodeCount;
+        document.getElementById('stat-edges').textContent = graphData.stats.edgeCount;
+        
+        renderLegend(graphData.stats);
+        renderQuickFilters();
+        setupTimeline(graphData.nodes);
+        
+        showFeedback(`Filter applied: ${graphData.stats.nodeCount} nodes, ${graphData.stats.edgeCount} edges`, 'success');
+        
+    } catch (error) {
+        showFeedback('Invalid filter JSON: ' + error.message, 'error');
+    }
+}
+
+// Control functions
+function resetGraph() {
+    if (!graphView) return;
+    graphView.resetFilters();
+    document.querySelectorAll('.legend-item.hidden').forEach(el => el.classList.remove('hidden'));
+    document.getElementById('timeline-slider').value = 100;
+    document.getElementById('timeline-current').textContent = 'All';
+}
+
+function fitGraph() {
+    if (!graphView) return;
+    graphView.fit();
+}
+
+function clearGraph() {
+    if (graphView) {
+        graphView.destroy();
+        graphView = null;
+    }
+    
+    // Clean up tooltip
+    const tooltip = document.getElementById('stix-custom-tooltip');
+    if (tooltip) {
+        tooltip.style.display = 'none';
+    }
+    
+    graphData = null;
+    stixBundle = null;
+    document.getElementById('graph-section').style.display = 'none';
+    document.getElementById('stix-feedback').innerHTML = '';
+    
+    // Reset import fields
+    document.getElementById('stix-file-name').style.display = 'none';
+    document.getElementById('load-file-btn').disabled = true;
+    document.getElementById('stix-paste-input').value = '';
+    fileContent = null;
+}
+
+// Utility functions
+function showFeedback(message, type) {
+    const container = document.getElementById('stix-feedback');
+    const alertClass = type === 'error' ? 'alert-error' : type === 'warning' ? 'alert-warning' : type === 'success' ? 'alert-success' : 'alert-info';
+    container.innerHTML = `<div class="alert ${alertClass}">${escapeHtml(message)}</div>`;
+}
+
+function capitalizeFirst(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// Search nodes
+function searchNodes() {
+    if (!graphView) {
+        showFeedback('No graph loaded', 'warning');
+        return;
+    }
+    
+    const query = document.getElementById('search-input').value.trim();
+    if (!query) {
+        clearSearch();
+        return;
+    }
+    
+    const matches = graphView.searchNodes(query);
+    const resultsDiv = document.getElementById('search-results');
+    const resultsList = document.getElementById('search-results-list');
+    const countDiv = document.getElementById('search-count');
+    
+    if (matches.length === 0) {
+        resultsDiv.style.display = 'block';
+        countDiv.textContent = '0';
+        resultsList.innerHTML = '<div style="color: var(--text-secondary); font-size: 13px;">No matches found</div>';
+        graphView.highlightNodes([]);
+        return;
+    }
+    
+    resultsDiv.style.display = 'block';
+    countDiv.textContent = matches.length;
+    
+    // Display matches
+    let html = '';
+    matches.slice(0, 20).forEach(nodeId => {
+        const obj = graphView.stixIdToObject.get(nodeId);
+        if (obj) {
+            const label = obj.name || obj.value || obj.type || nodeId;
+            html += `
+                <button type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="selectNode('${escapeHtml(nodeId)}')">
+                    ${escapeHtml(label.substring(0, 30))}${label.length > 30 ? '...' : ''}
+                </button>
+            `;
+        }
+    });
+    if (matches.length > 20) {
+        html += `<span style="color: var(--text-secondary); font-size: 12px;">... and ${matches.length - 20} more</span>`;
+    }
+    resultsList.innerHTML = html;
+    
+    // Highlight matches
+    graphView.highlightNodes(matches);
+    
+    // Focus on first match
+    if (matches.length > 0) {
+        graphView.network.focus(matches[0], { scale: 1.5, animation: true });
+    }
+}
+
+function clearSearch() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-results').style.display = 'none';
+    if (graphView) {
+        graphView.highlightNodes([]);
+    }
+}
+
+// Start from One mode: search and display single object
+function startFromOne() {
+    if (!graphView || !graphData) {
+        showFeedback('No graph loaded', 'warning');
+        return;
+    }
+    
+    const query = document.getElementById('start-from-one-input').value.trim();
+    if (!query) {
+        showFeedback('Please enter a search query', 'warning');
+        return;
+    }
+    
+    // Search for matching nodes
+    const matches = graphView.searchNodes(query);
+    const resultsDiv = document.getElementById('start-from-one-results');
+    const resultsList = document.getElementById('start-from-one-list');
+    
+    if (matches.length === 0) {
+        resultsDiv.style.display = 'block';
+        resultsList.innerHTML = '<div style="color: var(--text-secondary); font-size: 13px; padding: 16px; text-align: center;">No matches found</div>';
+        return;
+    }
+    
+    resultsDiv.style.display = 'block';
+    
+    // Display matches (limit to 10)
+    let html = '';
+    matches.slice(0, 10).forEach(nodeId => {
+        const obj = graphView.stixIdToObject.get(nodeId);
+        if (obj) {
+            const label = obj.name || obj.value || obj.type || nodeId;
+            const type = obj.type || 'unknown';
+            html += `
+                <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(139, 92, 246, 0.1); border-radius: 8px; ody: pointer;" onclick="loadSingleObject('${escapeHtml(nodeId)}')">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 500; font-size: 13px; color: #fff;">${escapeHtml(label.substring(0, 60))}${label.length > 60 ? '...' : ''}</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">${escapeHtml(type)}</div>
+                    </div>
+                    <button type="button" class="btn btn-primary" style="padding: 4px 12px; font-size: 12px;" onclick="event.stopPropagation(); loadSingleObject('${escapeHtml(nodeId)}')">
+                        Load
+                    </button>
+                </div>
+            `;
+        }
+    });
+    
+    if (matches.length > 10) {
+        html += `<div style="text-align: center; color: var(--text-secondary); font-size: 12px; padding: 8px;">... and ${matches.length - 10} more matches. Refine your search.</div>`;
+    }
+    
+    resultsList.innerHTML = html;
+}
+
+// Load single object (hide all others, show only selected)
+function loadSingleObject(nodeId) {
+    if (!graphView || !graphData) return;
+    
+    const node = graphView.nodesDataSet.get(nodeId);
+    if (!node) {
+        showFeedback('Node not found', 'error');
+        return;
+    }
+    
+    // Hide all nodes except the selected one
+    const updates = [];
+    graphView.nodesDataSet.forEach(n => {
+        if (n.id !== nodeId) {
+            updates.push({ id: n.id, hidden: true });
+        } else {
+            updates.push({ id: n.id, hidden: false });
+        }
+    });
+    graphView.nodesDataSet.update(updates);
+    
+    // Clear expansion history
+    expansionHistory = [];
+    updateExpansionBreadcrumb();
+    
+    // Focus on the selected node
+    graphView.network.focus(nodeId, { scale: 2.0, animation: true });
+    graphView.network.selectNodes([nodeId]);
+    
+    // Close results
+    document.getElementById('start-from-one-results').style.display = 'none';
+    document.getElementById('start-from-one-input').value = '';
+    
+    showFeedback('Single object loaded. Use Expand to add connections progressively.', 'success');
+}
+
+// Export graph
+function exportGraph(format) {
+    if (!graphView) {
+        showFeedback('No graph loaded', 'warning');
+        return;
+    }
+    
+    try {
+        const dataURL = graphView.exportGraph(format);
+        if (!dataURL) {
+            showFeedback('Export failed', 'error');
+            return;
+        }
+        
+        // Create download link
+        const link = document.createElement('a');
+        link.download = `stix-graph-${Date.now()}.${format}`;
+        link.href = dataURL;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up blob URL if it's a blob (for SVG)
+        if (format === 'svg' && dataURL.startsWith('blob:')) {
+            setTimeout(() => URL.revokeObjectURL(dataURL), 100);
+        }
+        
+        showFeedback(`Graph exported as ${format.toUpperCase()}`, 'success');
+    } catch (error) {
+        showFeedback('Export error: ' + error.message, 'error');
+        console.error('Export error details:', error);
+    }
+}
+
+// Export filtered JSON
+function exportFilteredJSON() {
+    if (!graphView || !stixBundle) {
+        showFeedback('No graph loaded', 'warning');
+        return;
+    }
+    
+    try {
+        const filteredBundle = graphView.getFilteredBundle();
+        const json = JSON.stringify(filteredBundle, null, 2);
+        
+        // Create download link
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `stix-filtered-${Date.now()}.json`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+        
+        showFeedback(`Exported ${filteredBundle.objects.length} objects`, 'success');
+    } catch (error) {
+        showFeedback('Export error: ' + error.message, 'error');
+    }
+}
+
+// Toggle advanced filter
+function toggleAdvancedFilter() {
+    const advancedDiv = document.getElementById('advanced-filter');
+    const toggleBtn = document.getElementById('advanced-filter-toggle');
+    if (advancedDiv.style.display === 'none') {
+        advancedDiv.style.display = 'block';
+        toggleBtn.textContent = 'Hide';
+    } else {
+        advancedDiv.style.display = 'none';
+        toggleBtn.textContent = 'Show';
+    }
+}
+
+// Render quick filters
+function renderQuickFilters() {
+    if (!graphData) return;
+    
+    // Render category filters
+    const categoryContainer = document.getElementById('category-filters');
+    const categories = {
+        'ttps': { label: 'TTPs', types: ['attack-pattern', 'malware', 'tool'] },
+        'threat-actors': { label: 'Threat Actors', types: ['intrusion-set', 'threat-actor', 'campaign'] },
+        'evidence': { label: 'Evidence', types: ['observed-data', 'indicator'] },
+        'infrastructure': { label: 'Infrastructure', types: ['infrastructure', 'malware-analysis'] },
+        'context': { label: 'Context', types: ['vulnerability', 'course-of-action', 'identity', 'location'] }
+    };
+    
+    let categoryHtml = '';
+    Object.entries(categories).forEach(([key, cat]) => {
+        const count = graphData.nodes.filter(n => cat.types.includes(n.stixType)).length;
+        if (count > 0) {
+            categoryHtml += `
+                <label style="display: flex; align-items: center; gap: 6px; ody: pointer; font-size: 12px;">
+                    <input type="checkbox" class="category-filter-checkbox" data-category="${key}" checked onchange="applyQuickFilters()">
+                    <span>${escapeHtml(cat.label)}</span>
+                    <span style="color: var(--text-secondary);">(${count})</span>
+                </label>
+            `;
+        }
+    });
+    categoryContainer.innerHTML = categoryHtml || '<div style="color: var(--text-secondary); font-size: 12px;">No categories</div>';
+    
+    // Render type filters
+    const typeContainer = document.getElementById('type-filters');
+    const legendData = stix2viz.makeLegendData(graphData.stats);
+    
+    const iconPath = typeof STIX_ICONS_BASE_PATH !== 'undefined' ? STIX_ICONS_BASE_PATH : null;
+    const defaultIconUrl = iconPath ? (iconPath.endsWith('/') ? iconPath : iconPath + '/') + 'stix2_custom_object_icon_tiny_round_v1.svg' : 'stix2_custom_object_icon_tiny_round_v1.svg';
+    
+    let typeHtml = '';
+    if (legendData.nodes && legendData.nodes.length > 0) {
+        legendData.nodes.forEach(item => {
+            const iconUrl = item.iconUrl || item.icon || defaultIconUrl;
+            typeHtml += `
+                <label style="display: flex; align-items: center; gap: 6px; ody: pointer; font-size: 12px;">
+                    <input type="checkbox" class="type-filter-checkbox" data-type="${escapeHtml(item.type)}" checked onchange="applyQuickFilters()">
+                    <img src="${iconUrl}" alt="${escapeHtml(item.type)}" style="width: 16px; height: 16px; flex-shrink: 0;" onerror="this.src='${defaultIconUrl}';">
+                    <span>${escapeHtml(item.type)}</span>
+                    <span style="color: var(--text-secondary);">(${item.count})</span>
+                </label>
+            `;
+        });
+    }
+    typeContainer.innerHTML = typeHtml || '<div style="color: var(--text-secondary); font-size: 12px;">No types</div>';
+    
+    // Render relationship type filters
+    const relTypeContainer = document.getElementById('reltype-filters');
+    const relTypes = new Set();
+    graphData.edges.forEach(edge => {
+        if (edge.label) relTypes.add(edge.label);
+    });
+    
+    const relTypesArray = Array.from(relTypes).sort();
+    let relHtml = '';
+    relTypesArray.forEach(relType => {
+        const count = graphData.edges.filter(e => e.label === relType).length;
+        relHtml += `
+            <label style="display: flex; align-items: center; gap: 6px; ody: pointer; font-size: 12px;">
+                <input type="checkbox" class="reltype-filter-checkbox" data-reltype="${escapeHtml(relType)}" checked onchange="applyQuickFilters()">
+                <span>${escapeHtml(relType)}</span>
+                <span style="color: var(--text-secondary);">(${count})</span>
+            </label>
+        `;
+    });
+    relTypeContainer.innerHTML = relHtml || '<div style="color: var(--text-secondary); font-size: 12px;">No relationships</div>';
+}
+
+// Apply quick filters
+function applyQuickFilters() {
+    if (!graphView || !graphData) return;
+    
+    // Filter by categories
+    document.querySelectorAll('.category-filter-checkbox').forEach(checkbox => {
+        const category = checkbox.dataset.category;
+        const visible = checkbox.checked;
+        graphView.toggleCategory(category, visible);
+    });
+    
+    // Filter by object types
+    document.querySelectorAll('.type-filter-checkbox').forEach(checkbox => {
+        const type = checkbox.dataset.type;
+        const visible = checkbox.checked;
+        graphView.toggleType(type, visible);
+        
+        // Update legend item
+        const legendItem = document.querySelector(`.legend-item[data-type="${type}"]`);
+        if (legendItem) {
+            if (visible) {
+                legendItem.classList.remove('hidden');
+            } else {
+                legendItem.classList.add('hidden');
+            }
+        }
+    });
+    
+    // Filter by relationship types
+    document.querySelectorAll('.reltype-filter-checkbox').forEach(checkbox => {
+        const relType = checkbox.dataset.reltype;
+        const visible = checkbox.checked;
+        graphView.toggleRelationshipType(relType, visible);
+    });
+    
+    // Filter revoked objects
+    const hideRevoked = document.getElementById('filter-revoked').checked;
+    if (hideRevoked) {
+        const updates = [];
+        graphView.nodesDataSet.forEach(node => {
+            const obj = graphView.stixIdToObject.get(node.id);
+            if (obj && obj.revoked === true) {
+                updates.push({ id: node.id, hidden: true });
+            }
+        });
+        graphView.nodesDataSet.update(updates);
+    }
+    
+    // Filter by confidence score (from slider)
+    const confidenceThreshold = parseInt(document.getElementById('confidence-slider').value);
+    const updates = [];
+    graphView.nodesDataSet.forEach(node => {
+        const obj = graphView.stixIdToObject.get(node.id);
+        if (confidenceThreshold > 0) {
+            // Hide nodes with confidence below threshold
+            if (obj && (obj.confidence === undefined || obj.confidence < confidenceThreshold)) {
+                updates.push({ id: node.id, hidden: true });
+            } else {
+                // Restore visibility for nodes above threshold (check if not hidden by type filter)
+                const isTypeHidden = document.querySelector(`.legend-item[data-type="${node.stixType}"]`)?.classList.contains('hidden');
+                if (!isTypeHidden) {
+                    updates.push({ id: node.id, hidden: false });
+                }
+            }
+        } else {
+            // Reset: show all nodes (unless hidden by type filter)
+            const isTypeHidden = document.querySelector(`.legend-item[data-type="${node.stixType}"]`)?.classList.contains('hidden');
+            if (!isTypeHidden) {
+                updates.push({ id: node.id, hidden: false });
+            }
+        }
+    });
+    if (updates.length > 0) {
+        graphView.nodesDataSet.update(updates);
+    }
+}
+
+// Apply source filter
+function applySourceFilter() {
+    if (!graphView) return;
+    const sourcePattern = document.getElementById('source-filter').value.trim();
+    if (sourcePattern) {
+        graphView.filterBySource(sourcePattern, true);
+    } else {
+        // Reset: show all nodes
+        const updates = [];
+        graphView.nodesDataSet.forEach(node => {
+            updates.push({ id: node.id, hidden: false });
+        });
+        graphView.nodesDataSet.update(updates);
+    }
+}
+
+// Toggle hierarchical layout
+function toggleHierarchicalLayout() {
+    if (!graphView || !graphData) return;
+    
+    const hierarchical = document.getElementById('hierarchical-layout').checked;
+    const config = { 
+        hierarchical: hierarchical,
+        edgeRouting: document.getElementById('edge-routing-orthogonal')?.checked ? 'orthogonal' : 'curved'
+    };
+    
+    // Recreate graph with new layout
+    if (graphView.destroy) {
+        graphView.destroy();
+    }
+    
+    const container = document.getElementById('stix-graph-container');
+    container.innerHTML = '';
+    
+    graphView = stix2viz.makeGraphView(
+        container,
+        graphData.nodes,
+        graphData.edges,
+        graphData.stixIdToObject,
+        config
+    );
+    
+    if (!graphView) {
+        showFeedback('Failed to recreate graph', 'error');
+        return;
+    }
+    
+    graphView.on('selectNode', onNodeSelect);
+    graphView.on('deselectNode', onNodeDeselect);
+    
+    applyQuickFilters();
+    showFeedback(`Layout changed to ${hierarchical ? 'hierarchical DAG' : 'force-directed'}`, 'success');
+}
+
+// Toggle edge routing
+function toggleEdgeRouting() {
+    if (!graphView || !graphData) return;
+    
+    const orthogonal = document.getElementById('edge-routing-orthogonal').checked;
+    const config = { edgeRouting: orthogonal ? 'orthogonal' : 'curved' };
+    
+    // Destroy old view
+    if (graphView.destroy) {
+        graphView.destroy();
+    }
+    
+    // Recreate graph with new routing
+    const container = document.getElementById('stix-graph-container');
+    container.innerHTML = '';
+    
+    graphView = stix2viz.makeGraphView(
+        container,
+        graphData.nodes,
+        graphData.edges,
+        graphData.stixIdToObject,
+        config
+    );
+    
+    if (!graphView) {
+        showFeedback('Failed to recreate graph', 'error');
+        return;
+    }
+    
+    graphView.on('selectNode', onNodeSelect);
+    graphView.on('deselectNode', onNodeDeselect);
+    
+    // Re-apply current filters
+    applyQuickFilters();
+    
+    showFeedback(`Edge routing changed to ${orthogonal ? 'orthogonal' : 'curved'}`, 'success');
+}
+
+// Find path between nodes (improved: shows all paths)
+function findPath() {
+    if (!graphView) {
+        showFeedback('No graph loaded', 'warning');
+        return;
+    }
+    
+    const fromId = document.getElementById('path-from').value.trim();
+    const toId = document.getElementById('path-to').value.trim();
+    
+    if (!fromId || !toId) {
+        showFeedback('Please enter both node IDs', 'warning');
+        return;
+    }
+    
+    // Verify nodes exist
+    if (!graphView.stixIdToObject.has(fromId)) {
+        showFeedback('From node not found', 'error');
+        return;
+    }
+    if (!graphView.stixIdToObject.has(toId)) {
+        showFeedback('To node not found', 'error');
+        return;
+    }
+    
+    const paths = graphView.findPath(fromId, toId, 10);
+    const resultDiv = document.getElementById('path-result');
+    
+    if (!paths) {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div style="color: #e74c3c;">No path found between these nodes</div>';
+        return;
+    }
+    
+    // Handle single path or multiple paths
+    const pathArray = Array.isArray(paths[0]) ? paths : [paths];
+    
+    // Display paths
+    let html = '<div style="font-weight: 600; margin-bottom: 8px;">';
+    if (pathArray.length === 1) {
+        html += `Path found (${pathArray[0].length} nodes):`;
+    } else {
+        html += `${pathArray.length} paths found:`;
+    }
+    html += '</div>';
+    
+    pathArray.forEach((path, pathIndex) => {
+        if (pathArray.length > 1) {
+            html += `<div style="margin-bottom: 12px; padding: 8px; background: rgba(139, 92, 246, 0.1); border-radius: 8px;">`;
+            html += `<div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Path ${pathIndex + 1} (${path.length} nodes):</div>`;
+        }
+        html += '<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">';
+        path.forEach((nodeId, index) => {
+            const obj = graphView.stixIdToObject.get(nodeId);
+            const label = obj ? (obj.name || obj.value || obj.type || nodeId) : nodeId;
+            html += `
+                <button type="button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="selectNode('${escapeHtml(nodeId)}')">
+                    ${index + 1}. ${escapeHtml(label.substring(0, 20))}${label.length > 20 ? '...' : ''}
+                </button>
+            `;
+            if (index < path.length - 1) {
+                html += '<span style="color: var(--violet-light);">→</span>';
+            }
+        });
+        html += '</div>';
+        if (pathArray.length > 1) {
+            html += '</div>';
+        }
+    });
+    
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = html;
+    
+    // Highlight first path
+    if (pathArray.length > 0) {
+        graphView.highlightNodes(pathArray[0]);
+        if (pathArray[0].length > 0) {
+            graphView.network.focus(pathArray[0][0], { scale: 1.2, animation: true });
+        }
+    }
+}
+
+// Save view state
+function saveViewState() {
+    if (!graphView) {
+        showFeedback('No graph loaded', 'warning');
+        return;
+    }
+    
+    try {
+        const stateJson = graphView.saveViewState();
+        localStorage.setItem('stix_graph_view_state', stateJson);
+        showFeedback('View state saved to browser storage', 'success');
+    } catch (error) {
+        showFeedback('Failed to save view state: ' + error.message, 'error');
+    }
+}
+
+// Load view state
+function loadViewState() {
+    if (!graphView) {
+        showFeedback('No graph loaded', 'warning');
+        return;
+    }
+    
+    try {
+        const stateJson = localStorage.getItem('stix_graph_view_state');
+        if (!stateJson) {
+            showFeedback('No saved view state found', 'warning');
+            return;
+        }
+        
+        graphView.loadViewState(stateJson);
+        showFeedback('View state loaded from browser storage', 'success');
+    } catch (error) {
+        showFeedback('Failed to load view state: ' + error.message, 'error');
+    }
+}
+
+// Handle window resize for graph
+let resizeTimeout;
+function handleResize() {
+    if (graphView && graphView.network) {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            graphView.network.redraw();
+            if (typeof fitGraph === 'function') {
+                // Optionally fit graph after resize
+                // fitGraph();
+            }
+        }, 250);
+    }
+}
+
+window.addEventListener('resize', handleResize);
+window.addEventListener('orientationchange', () => {
+    setTimeout(handleResize, 500);
+});
+
+// Initialize everything on page load
+document.addEventListener('DOMContentLoaded', () => {
+    // Check for vis.js
+    if (typeof vis === 'undefined') {
+        showFeedback('Warning: vis.js library not loaded. Graph visualization may not work.', 'warning');
+    }
+    
+    // Ensure first tab is visible (like upload.html)
+    const firstTabContent = document.getElementById('import-tab-file');
+    if (firstTabContent) {
+        firstTabContent.style.display = 'block';
+    }
+    
+    // Hide other tabs
+    document.querySelectorAll('.import-tab-content').forEach(content => {
+        if (content.id !== 'import-tab-file') {
+            content.style.display = 'none';
+        }
+    });
+    
+    // All event listeners are set up above (outside DOMContentLoaded, like upload.html)
+    
+    // Search on Enter key
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchNodes();
+            }
+        });
+    }
+    
+    // Path finding inputs - allow selecting from search
+    const pathFrom = document.getElementById('path-from');
+    const pathTo = document.getElementById('path-to');
+    if (pathFrom) {
+        pathFrom.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                findPath();
+            }
+        });
+    }
+    if (pathTo) {
+        pathTo.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                findPath();
+            }
+        });
+    }
+    
+    // Confidence slider
+    const confidenceSlider = document.getElementById('confidence-slider');
+    const confidenceValue = document.getElementById('confidence-value');
+    const confidenceThreshold = document.getElementById('confidence-threshold');
+    if (confidenceSlider) {
+        confidenceSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            if (value === 0) {
+                confidenceValue.textContent = 'All';
+                confidenceThreshold.textContent = '0';
+            } else {
+                confidenceValue.textContent = '≥' + value + '%';
+                confidenceThreshold.textContent = value;
+            }
+            applyQuickFilters();
+        });
+    }
+    
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="On-premise CTI platform for extraction, organization and enrichment of IOCs">
+    <title>{% block title %}CTI Platform{% endblock %}</title>
+    <!-- Preload critical resources -->
+    <link rel="preload" href="{{ url_for('static', filename='css/style.css') }}" as="style">
+    <link rel="preload" href="{{ url_for('static', filename='js/main.js') }}" as="script">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Static background with sphere-background -->
+    <div class="sphere-background">
+        <img src="{{ url_for('static', filename='images/sphere-background.jpg') }}" alt="Background Sphere" loading="eager" fetchpriority="high">
+    </div>
+    
+    <!-- Clean navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="{{ url_for('dashboard') }}" class="nav-brand">
+                <img src="{{ url_for('static', filename='images/logo-c.png') }}" alt="Odysafe">
+                <span class="logo-text">CTI Platform</span>
+            </a>
+            <ul class="nav-menu">
+                <li>
+                    <a href="{{ url_for('dashboard') }}" class="nav-link">
+                        Home
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('upload') }}" class="nav-link">
+                        IOC Extractions
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('iocs_list') }}" class="nav-link">
+                        IOCs
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('sources_list') }}" class="nav-link">
+                        Sources
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('export') }}" class="nav-link">
+                        Export
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('stix_graph') }}" class="nav-link">
+                        STIX Graph
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('cti_resources') }}" class="nav-link">
+                        CTI Resources
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('settings') }}" class="nav-link">
+                        ⚙️ Settings
+                    </a>
+                </li>
+                <li id="auth-menu-item" style="display: none;">
+                    <form id="logout-form" method="POST" action="{{ url_for('logout') }}" style="display: inline;">
+                        <button type="submit" class="nav-link" style="background: none; border: none; ody: pointer; color: inherit; font-size: inherit;">
+                            🚪 Déconnexion
+                        </button>
+                    </form>
+                </li>
+            </ul>
+            <button class="menu-toggle" aria-label="Mobile menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 Odysafe CTI Platform. On-premise application for IOC management.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // Vérifier le statut d'authentification et afficher le bouton de déconnexion
+        (async function() {
+            try {
+                const response = await fetch('/api/auth/status');
+                const data = await response.json();
+                if (data.success && data.data.auth_enabled && data.data.is_logged_in) {
+                    const authMenuItem = document.getElementById('auth-menu-item');
+                    if (authMenuItem) {
+                        authMenuItem.style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking auth status:', error);
+            }
+        })();
+    </script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
+

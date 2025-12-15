@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Application specific
+*.db
+*.db-wal
+*.db-shm
+*.log
+uploads/*
+!uploads/.gitkeep
+outputs/*
+!outputs/.gitkeep
+database/*.db
+database/*.db-wal
+database/*.db-shm
+modules/cache/*
+!modules/cache/.gitkeep
+modules/deepdarkCTI-main/
+
+# SSL certificates (ne pas versionner les certificats)
+ssl/*.pem
+ssl/*.key
+
+# Temporary files
+*.tmp
+*.bak
+
+# Duplicate dependencies (use dependencies/repos/ instead)
+pdfalyzer/
+rienavoir/
+
+# Example data (not needed in repository)
+exemple/

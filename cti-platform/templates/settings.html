@@ -1,0 +1,1306 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - CTI Platform{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <!-- Hero Section -->
+        <div style="text-align: center; margin-bottom: 60px;">
+            <h1 style="font-size: clamp(32px, 5vw, 48px); font-weight: 700; margin-bottom: 24px; background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                Settings
+            </h1>
+            <p style="font-size: 18px; color: var(--text-secondary); max-width: 800px; margin: 0 auto 32px; line-height: 1.6;">
+                Configure your CTI platform according to your needs. Manage authentication, auto-tagging, source rotation, automatic cleanup, and monitor your system's storage usage.
+            </p>
+            
+            <!-- Available Settings -->
+            <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 16px; padding: 32px; margin-top: 40px; text-align: left;">
+                <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 20px; color: var(--text-primary); text-align: center;">
+                    🔍 Available Settings
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; font-size: 14px;">
+                    <div><strong>Authentication:</strong> Enable/disable authentication, create and change passwords</div>
+                    <div><strong>Auto-tagging:</strong> Automatic tag assignment to IOCs based on type, source, and date</div>
+                    <div><strong>Source Rotation:</strong> Automatic deletion of oldest sources based on a limit</div>
+                    <div><strong>Trash Cleanup:</strong> Automatic deletion after a configurable number of days</div>
+                    <div><strong>Storage Monitoring:</strong> Monitor disk usage and used spaces</div>
+                    <div><strong>Display Limits:</strong> Configure number of recent sources to display</div>
+                    <div><strong>Manual Cleanup:</strong> Manually trigger trash cleanup</div>
+                    <div><strong>Statistics:</strong> Detailed view of usage by uploads, database, and outputs</div>
+                </div>
+                <p style="text-align: center; margin-top: 20px; color: var(--text-secondary); font-size: 13px;">
+                    All settings are automatically saved and applied immediately
+                </p>
+            </div>
+        </div>
+
+        <!-- Authentication Configuration -->
+        <div class="card" style="margin-bottom: 32px;">
+            <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 24px;">Authentication</h2>
+            
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+                <label style="display: flex; align-items: center; gap: 12px; ody: pointer;">
+                    <input type="checkbox" id="auth-toggle" style="width: 20px; height: 20px; ody: pointer;">
+                    <span style="font-weight: 500;">Enable authentication</span>
+                </label>
+            </div>
+            
+            <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">
+                When authentication is enabled, users must log in to access the application. 
+                The default username is "odysafe".
+            </p>
+
+            <!-- Create User Section -->
+            <div id="create-user-section" style="display: none; padding: 20px; background: rgba(139, 92, 246, 0.05); border-radius: 8px; margin-bottom: 24px;">
+                <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Create User</h3>
+                <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
+                    Create the initial user account. Username must be "odysafe".
+                </p>
+                <div style="margin-bottom: 12px;">
+                    <label class="form-label" style="display: block; margin-bottom: 8px; font-weight: 500;">Username</label>
+                    <input type="text" id="create-username" class="form-control" value="odysafe" readonly style="max-width: 300px; background: #f3f4f6; color: #8B5CF6; font-weight: 600;">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label class="form-label" style="display: block; margin-bottom: 8px; font-weight: 500;">Password</label>
+                    <input type="password" id="create-password" class="form-control" placeholder="Enter password" style="max-width: 300px;">
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label class="form-label" style="display: block; margin-bottom: 8px; font-weight: 500;">Confirm Password</label>
+                    <input type="password" id="create-password-confirm" class="form-control" placeholder="Confirm password" style="max-width: 300px;">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="createUser()" id="create-user-btn" style="max-width: 300px;">
+                    Create User
+                </button>
+                <div id="create-user-message" style="margin-top: 12px; font-size: 13px; display: none;"></div>
+            </div>
+
+            <!-- Change Password Section -->
+            <div id="change-password-section" style="display: none; padding: 20px; background: rgba(139, 92, 246, 0.05); border-radius: 8px;">
+                <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Change Password</h3>
+                <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
+                    Change your password. You must enter your current password.
+                </p>
+                <div style="margin-bottom: 12px;">
+                    <label class="form-label" style="display: block; margin-bottom: 8px; font-weight: 500;">Current Password</label>
+                    <input type="password" id="change-old-password" class="form-control" placeholder="Enter current password" style="max-width: 300px;">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label class="form-label" style="display: block; margin-bottom: 8px; font-weight: 500;">New Password</label>
+                    <input type="password" id="change-new-password" class="form-control" placeholder="Enter new password" style="max-width: 300px;">
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label class="form-label" style="display: block; margin-bottom: 8px; font-weight: 500;">Confirm New Password</label>
+                    <input type="password" id="change-new-password-confirm" class="form-control" placeholder="Confirm new password" style="max-width: 300px;">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="changePassword()" id="change-password-btn" style="max-width: 300px;">
+                    Change Password
+                </button>
+                <div id="change-password-message" style="margin-top: 12px; font-size: 13px; display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Auto-tagging configuration -->
+        <div class="card" style="margin-bottom: 32px;">
+            <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 24px;">Auto-tagging Configuration</h2>
+            
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 12px; ody: pointer;">
+                    <input type="checkbox" id="auto-tag-toggle" style="width: 20px; height: 20px; ody: pointer;">
+                    <span style="font-weight: 500;">Enable IOC auto-tagging</span>
+                </label>
+            </div>
+            
+            <p style="color: var(--text-secondary); font-size: 14px; margin: 0;">
+                When auto-tagging is enabled, extracted IOCs automatically receive tags based on their type, 
+                source, date, and other metadata. Manual tags remain always available.
+            </p>
+        </div>
+
+        <!-- Source Management -->
+        <div class="card" style="margin-bottom: 32px;">
+            <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 24px;">Source Management</h2>
+            
+            <!-- Auto-rotation -->
+            <div style="margin-bottom: 24px;">
+                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
+                    <label style="display: flex; align-items: center; gap: 12px; ody: pointer;">
+                        <input type="checkbox" id="auto-rotation-toggle" style="width: 20px; height: 20px; ody: pointer;">
+                        <span style="font-weight: 500;">Enable automatic source rotation</span>
+                    </label>
+                </div>
+                <div id="rotation-warning" style="display: none; padding: 12px; background: rgba(220, 38, 38, 0.1); border-left: 4px solid #DC2626; border-radius: 4px; margin-bottom: 12px;">
+                    <p style="color: #DC2626; font-size: 14px; margin: 0; font-weight: 500;">
+                        ⚠️ Warning: When enabled, oldest sources will be automatically deleted when limit is reached. This action cannot be undone.
+                    </p>
+                </div>
+                <p style="color: var(--text-secondary); font-size: 14px; margin: 0;">
+                    When enabled, the system will automatically delete the oldest sources when the maximum limit is reached.
+                </p>
+            </div>
+
+            <!-- Maximum sources to keep -->
+            <div style="margin-bottom: 24px;">
+                <label class="form-label" style="display: block; margin-bottom: 8px; font-weight: 500;">Maximum sources to keep</label>
+                <input type="number" id="max-sources-input" class="form-control" min="1" style="max-width: 200px;">
+                <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px; margin-bottom: 0;">
+                    When auto-rotation is enabled, sources exceeding this limit will be automatically deleted.
+                </p>
+            </div>
+
+            <!-- Recent sources display limit -->
+            <div style="margin-bottom: 24px;">
+                <label class="form-label" style="display: block; margin-bottom: 8px; font-weight: 500;">Recent sources display limit</label>
+                <input type="number" id="recent-sources-limit-input" class="form-control" min="1" style="max-width: 200px;">
+                <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px; margin-bottom: 0;">
+                    Number of recent sources to display on the dashboard.
+                </p>
+            </div>
+
+            <!-- Trash cleanup -->
+            <div style="margin-bottom: 24px;">
+                <label class="form-label" style="display: block; margin-bottom: 8px; font-weight: 500;">Trash cleanup after (days)</label>
+                <input type="number" id="trash-cleanup-days-input" class="form-control" min="1" style="max-width: 200px;">
+                <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px; margin-bottom: 0;">
+                    Sources in trash will be permanently deleted after this number of days.
+                </p>
+            </div>
+
+            <!-- Manual cleanup button -->
+            <div>
+                <button type="button" class="btn btn-secondary" onclick="cleanupTrashNow()" id="cleanup-trash-btn">
+                    🗑️ Clean trash now
+                </button>
+                <p style="color: var(--text-secondary); font-size: 13px; margin-top: 8px; margin-bottom: 0;">
+                    Manually trigger cleanup of sources in trash older than the configured days.
+                </p>
+            </div>
+        </div>
+
+
+        <!-- Storage monitoring -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h2 style="font-size: 24px; font-weight: 600;">Storage Monitoring</h2>
+                <button type="button" class="btn btn-secondary" onclick="refreshStorage()" id="refresh-storage-btn">
+                    🔄 Refresh
+                </button>
+            </div>
+
+            <!-- Main gauge -->
+            <div style="margin-bottom: 32px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="font-weight: 500;">Total disk space</span>
+                    <span id="storage-percent" style="font-weight: 600;">-</span>
+                </div>
+                <div style="width: 100%; height: 24px; background: rgba(139, 92, 246, 0.1); border-radius: 12px; overflow: hidden; position: relative;">
+                    <div id="storage-bar" style="height: 100%; background: linear-gradient(90deg, #22C55E 0%, #F59E0B 80%, #DC2626 100%); transition: width 0.5s ease; width: 0%;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: var(--text-secondary);">
+                    <span id="storage-used">-</span>
+                    <span id="storage-free">-</span>
+                </div>
+            </div>
+
+            <!-- Application usage detail -->
+            <div>
+                <h3 style="font-size: 18px; font-weight: 500; margin-bottom: 16px;">Application Usage</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                    <div style="padding: 16px; background: rgba(139, 92, 246, 0.05); border-radius: 8px;">
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Uploads</div>
+                        <div id="app-uploads" style="font-size: 20px; font-weight: 600;">-</div>
+                    </div>
+                    <div style="padding: 16px; background: rgba(139, 92, 246, 0.05); border-radius: 8px;">
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Database</div>
+                        <div id="app-database" style="font-size: 20px; font-weight: 600;">-</div>
+                    </div>
+                    <div style="padding: 16px; background: rgba(139, 92, 246, 0.05); border-radius: 8px;">
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Outputs</div>
+                        <div id="app-outputs" style="font-size: 20px; font-weight: 600;">-</div>
+                    </div>
+                    <div style="padding: 16px; background: rgba(139, 92, 246, 0.1); border-radius: 8px;">
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Total application</div>
+                        <div id="app-total" style="font-size: 20px; font-weight: 600;">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerte si espace faible -->
+            <div id="storage-alert" style="display: none; margin-top: 24px; padding: 16px; border-radius: 8px; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 24px;">⚠️</span>
+                    <div>
+                        <div style="font-weight: 600; color: #DC2626; margin-bottom: 4px;">Low disk space</div>
+                        <div style="font-size: 14px; color: var(--text-secondary);">
+                            Available disk space is below <span id="alert-threshold">10%</span>. 
+                            Please free up space or archive data.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nettoyage -->
+        <div class="card" style="margin-top: 32px;">
+            <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 24px;">Cleanup</h2>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                <div style="padding: 20px; background: rgba(139, 92, 246, 0.05); border-radius: 8px;">
+                    <div style="font-size: 16px; font-weight: 500; margin-bottom: 8px;">Uploads</div>
+                    <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+                        Delete all uploaded files (files, paste, URLs)
+                    </p>
+                    <button type="button" class="btn btn-secondary" onclick="cleanupUploads()" style="background: rgba(220, 38, 38, 0.1); color: #DC2626; border-color: #DC2626; width: 100%;">
+                        🗑️ Clean uploads
+                    </button>
+                </div>
+                
+                <div style="padding: 20px; background: rgba(139, 92, 246, 0.05); border-radius: 8px;">
+                    <div style="font-size: 16px; font-weight: 500; margin-bottom: 8px;">Outputs</div>
+                    <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+                        Delete all generated files (TXT, JSON, CSV, STIX exports)
+                    </p>
+                    <button type="button" class="btn btn-secondary" onclick="cleanupOutputs()" style="background: rgba(220, 38, 38, 0.1); color: #DC2626; border-color: #DC2626; width: 100%;">
+                        🗑️ Clean outputs
+                    </button>
+                </div>
+                
+                <div style="padding: 20px; background: rgba(220, 38, 38, 0.1); border-radius: 8px; border: 2px solid rgba(220, 38, 38, 0.3);">
+                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px; color: #DC2626;">⚠️ All Sources</div>
+                    <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+                        Permanently delete ALL sources and their associated IOCs. This action cannot be undone!
+                    </p>
+                    <button type="button" class="btn btn-secondary" onclick="cleanupAllSources()" style="background: rgba(220, 38, 38, 0.2); color: #DC2626; border-color: #DC2626; width: 100%; font-weight: 600;">
+                        🗑️ Delete All Sources
+                    </button>
+                </div>
+                
+                <div style="padding: 20px; background: rgba(220, 38, 38, 0.1); border-radius: 8px; border: 2px solid rgba(220, 38, 38, 0.3);">
+                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px; color: #DC2626;">⚠️ All IOCs</div>
+                    <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+                        Permanently delete ALL IOCs from the database. This action cannot be undone!
+                    </p>
+                    <button type="button" class="btn btn-secondary" onclick="cleanupAllIocs()" style="background: rgba(220, 38, 38, 0.2); color: #DC2626; border-color: #DC2626; width: 100%; font-weight: 600;">
+                        🗑️ Delete All IOCs
+                    </button>
+                </div>
+                
+                <div style="padding: 20px; background: rgba(220, 38, 38, 0.1); border-radius: 8px; border: 2px solid rgba(220, 38, 38, 0.3);">
+                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px; color: #DC2626;">⚠️ All STIX Uploads</div>
+                    <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+                        Permanently delete ALL uploaded STIX files from stix and stix_conversions directories. This action cannot be undone!
+                    </p>
+                    <button type="button" class="btn btn-secondary" onclick="cleanupAllStixFiles()" style="background: rgba(220, 38, 38, 0.2); color: #DC2626; border-color: #DC2626; width: 100%; font-weight: 600;">
+                        🗑️ Delete All STIX Files
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export & Import -->
+        <div class="card" style="margin-top: 32px;">
+            <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 24px;">Export & Import</h2>
+            
+            <div style="padding: 20px; background: rgba(139, 92, 246, 0.05); border-radius: 8px; margin-bottom: 16px;">
+                <div style="font-size: 16px; font-weight: 500; margin-bottom: 12px;">Export to ZIP</div>
+                <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+                    Export all IOCs, sources, groups, configuration, and CTI favorites to a ZIP file. This file can be imported into another instance of the application.
+                </p>
+                <button type="button" class="btn btn-primary" onclick="exportToZip()" id="export-zip-btn" style="width: 100%;">
+                    📦 Export to ZIP
+                </button>
+            </div>
+            
+            <div style="padding: 20px; background: rgba(16, 185, 129, 0.05); border-radius: 8px; margin-bottom: 16px;">
+                <div style="font-size: 16px; font-weight: 500; margin-bottom: 12px;">Import from ZIP</div>
+                <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+                    Import IOCs, sources, groups, and configuration from a ZIP file exported from another instance.
+                </p>
+                <div style="margin-bottom: 16px;">
+                    <input type="file" id="import-zip-file" accept=".zip" style="display: none;" onchange="handleZipFileSelect(event)">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('import-zip-file').click()" style="width: 100%; background: rgba(16, 185, 129, 0.1); color: #10B981; border-color: #10B981;">
+                        📁 Select ZIP file
+                    </button>
+                    <div id="import-file-name" style="margin-top: 8px; font-size: 13px; color: var(--text-secondary); display: none;"></div>
+                </div>
+                <button type="button" class="btn btn-primary" onclick="importFromZip()" id="import-zip-btn" style="width: 100%; background: rgba(16, 185, 129, 0.2); color: #10B981; border-color: #10B981;" disabled>
+                    📥 Import from ZIP
+                </button>
+                <div id="import-progress" style="display: none; margin-top: 16px; padding: 12px; background: rgba(139, 92, 246, 0.1); border-radius: 8px;">
+                    <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">Import progress:</div>
+                    <div id="import-progress-text" style="font-size: 13px; color: var(--text-secondary);"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent outputs -->
+        <div class="card" style="margin-top: 32px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h2 style="font-size: 24px; font-weight: 600;">5 latest outputs</h2>
+                <button type="button" class="btn btn-secondary" onclick="loadRecentOutputs()" id="refresh-outputs-btn">
+                    🔄 Refresh
+                </button>
+            </div>
+            
+            <div id="recent-outputs-content">
+                <div style="text-align: center; padding: 32px; color: var(--text-secondary);">
+                    <div class="spinner-border text-info" role="status" style="width: 2rem; height: 2rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+let storageInterval = null;
+
+// Load settings on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadAutoTagSetting();
+    loadStorageInfo();
+    loadAuthSettings();
+    
+    // Refresh storage every hour
+    storageInterval = setInterval(loadStorageInfo, 3600000); // 1 heure
+});
+
+// Authentication management
+async function loadAuthSettings() {
+    try {
+        const response = await fetch('/api/auth/status');
+        const data = await response.json();
+        
+        if (data.success) {
+            const authEnabled = data.data.auth_enabled;
+            const isLoggedIn = data.data.is_logged_in;
+            
+            document.getElementById('auth-toggle').checked = authEnabled;
+            
+            // Afficher les sections appropriées
+            if (authEnabled && !isLoggedIn) {
+                // Auth activée mais pas connecté - afficher create user
+                document.getElementById('create-user-section').style.display = 'block';
+                document.getElementById('change-password-section').style.display = 'none';
+            } else if (authEnabled && isLoggedIn) {
+                // Auth activée et connecté - afficher change password
+                document.getElementById('create-user-section').style.display = 'none';
+                document.getElementById('change-password-section').style.display = 'block';
+            } else {
+                // Auth désactivée
+                document.getElementById('create-user-section').style.display = 'none';
+                document.getElementById('change-password-section').style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading auth settings:', error);
+    }
+}
+
+document.getElementById('auth-toggle').addEventListener('change', async function() {
+    const isChecked = this.checked;
+    
+    // Si on active l'auth, afficher le formulaire de création d'utilisateur
+    if (isChecked) {
+        // Vérifier si un utilisateur existe déjà
+        try {
+            const statusResponse = await fetch('/api/auth/status');
+            const statusData = await statusResponse.json();
+            
+            if (statusData.success && statusData.data.is_logged_in) {
+                // L'utilisateur existe déjà et est connecté, on peut juste activer
+                // Mais normalement l'auth devrait déjà être activée dans ce cas
+                document.getElementById('create-user-section').style.display = 'none';
+                document.getElementById('change-password-section').style.display = 'block';
+            } else {
+                // Afficher le formulaire de création d'utilisateur
+                document.getElementById('create-user-section').style.display = 'block';
+                document.getElementById('change-password-section').style.display = 'none';
+                // Ne pas appeler l'API toggle, l'auth sera activée après création de l'utilisateur
+                return;
+            }
+        } catch (error) {
+            console.error('Error checking auth status:', error);
+            // En cas d'erreur, afficher quand même le formulaire
+            document.getElementById('create-user-section').style.display = 'block';
+            document.getElementById('change-password-section').style.display = 'none';
+            return;
+        }
+    } else {
+        // Si on désactive l'auth, appeler l'API pour désactiver
+        if (!confirm('Are you sure you want to disable authentication? You will be logged out.')) {
+            this.checked = true; // Revert
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/auth/toggle', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({enabled: false})
+            });
+            
+            const data = await response.json();
+            if (!response.ok) {
+                alert('Error: ' + (data.error || 'Unknown error'));
+                this.checked = true; // Revert
+            } else {
+                // Reload auth settings
+                loadAuthSettings();
+                
+                // Rediriger vers le dashboard
+                window.location.href = '/';
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+            this.checked = true; // Revert
+        }
+    }
+});
+
+async function createUser() {
+    const username = document.getElementById('create-username').value.trim();
+    const password = document.getElementById('create-password').value;
+    const passwordConfirm = document.getElementById('create-password-confirm').value;
+    const messageDiv = document.getElementById('create-user-message');
+    const btn = document.getElementById('create-user-btn');
+    
+    messageDiv.style.display = 'none';
+    
+    if (!password || !passwordConfirm) {
+        messageDiv.style.display = 'block';
+        messageDiv.style.color = '#DC2626';
+        messageDiv.textContent = 'Password and confirmation are required';
+        return;
+    }
+    
+    if (password !== passwordConfirm) {
+        messageDiv.style.display = 'block';
+        messageDiv.style.color = '#DC2626';
+        messageDiv.textContent = 'Passwords do not match';
+        return;
+    }
+    
+    if (password.length < 8) {
+        messageDiv.style.display = 'block';
+        messageDiv.style.color = '#DC2626';
+        messageDiv.textContent = 'Password must be at least 8 characters long';
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+    
+    try {
+        const response = await fetch('/api/auth/create-user', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                username: username,
+                password: password,
+                password_confirm: passwordConfirm
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            messageDiv.style.display = 'block';
+            messageDiv.style.color = '#10B981';
+            messageDiv.textContent = 'User created successfully! Authentication is now enabled. Redirecting to login...';
+            
+            // Mettre à jour le toggle
+            document.getElementById('auth-toggle').checked = true;
+            
+            // Vider les champs
+            document.getElementById('create-password').value = '';
+            document.getElementById('create-password-confirm').value = '';
+            
+            // Rediriger vers login après 2 secondes
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+        } else {
+            messageDiv.style.display = 'block';
+            messageDiv.style.color = '#DC2626';
+            messageDiv.textContent = data.error || 'Error creating user';
+            btn.disabled = false;
+            btn.textContent = 'Create User';
+        }
+    } catch (error) {
+        messageDiv.style.display = 'block';
+        messageDiv.style.color = '#DC2626';
+        messageDiv.textContent = 'Error: ' + error.message;
+        btn.disabled = false;
+        btn.textContent = 'Create User';
+    }
+}
+
+async function changePassword() {
+    const oldPassword = document.getElementById('change-old-password').value;
+    const newPassword = document.getElementById('change-new-password').value;
+    const newPasswordConfirm = document.getElementById('change-new-password-confirm').value;
+    const messageDiv = document.getElementById('change-password-message');
+    const btn = document.getElementById('change-password-btn');
+    
+    messageDiv.style.display = 'none';
+    
+    if (!oldPassword || !newPassword || !newPasswordConfirm) {
+        messageDiv.style.display = 'block';
+        messageDiv.style.color = '#DC2626';
+        messageDiv.textContent = 'All fields are required';
+        return;
+    }
+    
+    if (newPassword !== newPasswordConfirm) {
+        messageDiv.style.display = 'block';
+        messageDiv.style.color = '#DC2626';
+        messageDiv.textContent = 'New passwords do not match';
+        return;
+    }
+    
+    if (newPassword.length < 8) {
+        messageDiv.style.display = 'block';
+        messageDiv.style.color = '#DC2626';
+        messageDiv.textContent = 'New password must be at least 8 characters long';
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.textContent = 'Changing...';
+    
+    try {
+        const response = await fetch('/api/auth/change-password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                old_password: oldPassword,
+                new_password: newPassword,
+                new_password_confirm: newPasswordConfirm
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            messageDiv.style.display = 'block';
+            messageDiv.style.color = '#10B981';
+            messageDiv.textContent = 'Password changed successfully!';
+            
+            // Vider les champs
+            document.getElementById('change-old-password').value = '';
+            document.getElementById('change-new-password').value = '';
+            document.getElementById('change-new-password-confirm').value = '';
+            
+            btn.disabled = false;
+            btn.textContent = 'Change Password';
+        } else {
+            messageDiv.style.display = 'block';
+            messageDiv.style.color = '#DC2626';
+            messageDiv.textContent = data.error || 'Error changing password';
+            btn.disabled = false;
+            btn.textContent = 'Change Password';
+        }
+    } catch (error) {
+        messageDiv.style.display = 'block';
+        messageDiv.style.color = '#DC2626';
+        messageDiv.textContent = 'Error: ' + error.message;
+        btn.disabled = false;
+        btn.textContent = 'Change Password';
+    }
+}
+
+// Auto-tagging management
+async function loadAutoTagSetting() {
+    try {
+        const response = await fetch('/api/settings/auto-tag');
+        const data = await response.json();
+        document.getElementById('auto-tag-toggle').checked = data.enabled === true;
+    } catch (error) {
+        console.error('Error loading setting:', error);
+    }
+}
+
+document.getElementById('auto-tag-toggle').addEventListener('change', async function() {
+    try {
+        const response = await fetch('/api/settings/auto-tag', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({enabled: this.checked})
+        });
+        
+        const data = await response.json();
+        if (!response.ok) {
+            alert('Error: ' + (data.error || 'Unknown error'));
+            this.checked = !this.checked; // Revert
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+        this.checked = !this.checked; // Revert
+    }
+});
+
+// Source Management Settings
+async function loadSourceManagementSettings() {
+    try {
+        // Load auto-rotation
+        const rotationResponse = await fetch('/api/settings/source-rotation');
+        const rotationData = await rotationResponse.json();
+        if (rotationResponse.ok) {
+            document.getElementById('auto-rotation-toggle').checked = rotationData.enabled === true;
+            document.getElementById('rotation-warning').style.display = rotationData.enabled ? 'block' : 'none';
+        }
+
+        // Load max sources
+        const maxSourcesResponse = await fetch('/api/settings/max-sources');
+        const maxSourcesData = await maxSourcesResponse.json();
+        if (maxSourcesResponse.ok) {
+            document.getElementById('max-sources-input').value = maxSourcesData.max_sources;
+        }
+
+        // Load recent sources limit
+        const recentLimitResponse = await fetch('/api/settings/recent-sources-limit');
+        const recentLimitData = await recentLimitResponse.json();
+        if (recentLimitResponse.ok) {
+            document.getElementById('recent-sources-limit-input').value = recentLimitData.limit;
+        }
+
+        // Load trash cleanup days
+        const cleanupDaysResponse = await fetch('/api/settings/trash-cleanup-days');
+        const cleanupDaysData = await cleanupDaysResponse.json();
+        if (cleanupDaysResponse.ok) {
+            document.getElementById('trash-cleanup-days-input').value = cleanupDaysData.days;
+        }
+    } catch (error) {
+        console.error('Error loading source management settings:', error);
+    }
+}
+
+// Auto-rotation toggle
+document.getElementById('auto-rotation-toggle').addEventListener('change', async function() {
+    const warning = document.getElementById('rotation-warning');
+    
+    if (this.checked) {
+        if (!confirm('Are you sure you want to enable automatic source rotation? Oldest sources will be automatically deleted when the limit is reached. This action cannot be undone.')) {
+            this.checked = false;
+            return;
+        }
+        warning.style.display = 'block';
+    } else {
+        warning.style.display = 'none';
+    }
+    
+    try {
+        const response = await fetch('/api/settings/source-rotation', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({enabled: this.checked})
+        });
+        
+        const data = await response.json();
+        if (!response.ok) {
+            alert('Error: ' + (data.error || 'Unknown error'));
+            this.checked = !this.checked; // Revert
+            warning.style.display = this.checked ? 'block' : 'none';
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+        this.checked = !this.checked; // Revert
+        warning.style.display = this.checked ? 'block' : 'none';
+    }
+});
+
+// Max sources input
+document.getElementById('max-sources-input').addEventListener('blur', async function() {
+    const value = parseInt(this.value);
+    if (isNaN(value) || value < 1) {
+        alert('Maximum sources must be at least 1');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/settings/max-sources', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({max_sources: value})
+        });
+        
+        const data = await response.json();
+        if (!response.ok) {
+            alert('Error: ' + (data.error || 'Unknown error'));
+            loadSourceManagementSettings(); // Reload
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+        loadSourceManagementSettings(); // Reload
+    }
+});
+
+// Recent sources limit input
+document.getElementById('recent-sources-limit-input').addEventListener('blur', async function() {
+    const value = parseInt(this.value);
+    if (isNaN(value) || value < 1) {
+        alert('Display limit must be at least 1');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/settings/recent-sources-limit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({limit: value})
+        });
+        
+        const data = await response.json();
+        if (!response.ok) {
+            alert('Error: ' + (data.error || 'Unknown error'));
+            loadSourceManagementSettings(); // Reload
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+        loadSourceManagementSettings(); // Reload
+    }
+});
+
+// Trash cleanup days input
+document.getElementById('trash-cleanup-days-input').addEventListener('blur', async function() {
+    const value = parseInt(this.value);
+    if (isNaN(value) || value < 1) {
+        alert('Cleanup days must be at least 1');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/settings/trash-cleanup-days', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({days: value})
+        });
+        
+        const data = await response.json();
+        if (!response.ok) {
+            alert('Error: ' + (data.error || 'Unknown error'));
+            loadSourceManagementSettings(); // Reload
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+        loadSourceManagementSettings(); // Reload
+    }
+});
+
+// Cleanup trash now
+async function cleanupTrashNow() {
+    if (!confirm('Are you sure you want to permanently delete all sources in trash older than the configured days? This action cannot be undone.')) {
+        return;
+    }
+    
+    const btn = document.getElementById('cleanup-trash-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Cleaning...';
+    
+    try {
+        const response = await fetch('/api/settings/cleanup-trash-now', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+            alert(data.message || `Successfully deleted ${data.deleted_count || 0} source(s) from trash`);
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🗑️ Clean trash now';
+    }
+}
+
+// Load settings on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadSourceManagementSettings();
+});
+
+// Storage management
+async function loadStorageInfo() {
+    const btn = document.getElementById('refresh-storage-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Actualisation...';
+    
+    try {
+        const response = await fetch('/api/settings/storage');
+        const data = await response.json();
+        
+        if (response.ok) {
+            updateStorageDisplay(data);
+        }
+    } catch (error) {
+        console.error('Error loading storage:', error);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🔄 Refresh';
+    }
+}
+
+function updateStorageDisplay(data) {
+    const percent = data.percent_used;
+    const formatted = data.formatted;
+    
+    // Jauge principale
+    document.getElementById('storage-bar').style.width = percent + '%';
+    document.getElementById('storage-percent').textContent = percent.toFixed(1) + '%';
+    document.getElementById('storage-used').textContent = 'Used: ' + formatted.used;
+    document.getElementById('storage-free').textContent = 'Libre: ' + formatted.free;
+    
+    // Application detail
+    document.getElementById('app-uploads').textContent = formatted.uploads;
+    document.getElementById('app-database').textContent = formatted.database;
+    document.getElementById('app-outputs').textContent = formatted.outputs;
+    document.getElementById('app-total').textContent = formatted.total_app;
+    
+    // Alerte si espace faible
+    const alertDiv = document.getElementById('storage-alert');
+    if (percent >= 90) {
+        alertDiv.style.display = 'block';
+        document.getElementById('alert-threshold').textContent = '10%';
+        alertDiv.style.background = 'rgba(220, 38, 38, 0.1)';
+        alertDiv.style.borderColor = 'rgba(220, 38, 38, 0.3)';
+    } else if (percent >= 95) {
+        alertDiv.style.display = 'block';
+        document.getElementById('alert-threshold').textContent = '5%';
+        alertDiv.style.background = 'rgba(220, 38, 38, 0.15)';
+        alertDiv.style.borderColor = 'rgba(220, 38, 38, 0.5)';
+    } else {
+        alertDiv.style.display = 'none';
+    }
+    
+    // Couleur de la barre selon le pourcentage
+    const bar = document.getElementById('storage-bar');
+    if (percent >= 90) {
+        bar.style.background = '#DC2626';
+    } else if (percent >= 75) {
+        bar.style.background = '#F59E0B';
+    } else {
+        bar.style.background = '#22C55E';
+    }
+}
+
+function refreshStorage() {
+    loadStorageInfo();
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Load recent outputs on page load
+loadRecentOutputs();
+
+// Nettoyage
+async function cleanupUploads() {
+    if (!confirm('Delete all uploaded files? This action is irreversible.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/settings/cleanup/uploads', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(`Cleanup completed: ${data.message}`);
+            loadStorageInfo();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function cleanupOutputs() {
+    if (!confirm('Delete all outputs? This action is irreversible.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/settings/cleanup/outputs', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(`Cleanup completed: ${data.message}`);
+            loadStorageInfo();
+            loadRecentOutputs();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function cleanupAllSources() {
+    if (!confirm('⚠️ WARNING: This will permanently delete ALL sources and their associated IOCs!\n\nThis action cannot be undone. Are you absolutely sure?')) {
+        return;
+    }
+    
+    if (!confirm('This is your last chance. Are you REALLY sure you want to delete ALL sources and IOCs?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/settings/cleanup/all-sources', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(`All sources and IOCs have been deleted: ${data.message}`);
+            loadStorageInfo();
+            // Redirect to sources page
+            window.location.href = '/sources';
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function cleanupAllIocs() {
+    if (!confirm('⚠️ WARNING: This will permanently delete ALL IOCs from the database!\n\nThis action cannot be undone. Are you absolutely sure?')) {
+        return;
+    }
+    
+    if (!confirm('This is your last chance. Are you REALLY sure you want to delete ALL IOCs?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/settings/cleanup/all-iocs', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(`All IOCs have been deleted: ${data.message}`);
+            loadStorageInfo();
+            // Redirect to IOCs page
+            window.location.href = '/iocs';
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function cleanupAllStixFiles() {
+    if (!confirm('⚠️ WARNING: This will permanently delete ALL STIX files from stix and stix_conversions directories!\n\nThis action cannot be undone. Are you absolutely sure?')) {
+        return;
+    }
+    
+    if (!confirm('This is your last chance. Are you REALLY sure you want to delete ALL STIX files?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/settings/cleanup/all-stix-files', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(`All STIX files have been deleted: ${data.message}`);
+            loadStorageInfo();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// Recent outputs
+async function loadRecentOutputs() {
+    const btn = document.getElementById('refresh-outputs-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Loading...';
+    }
+    
+    try {
+        const response = await fetch('/api/settings/outputs/recent');
+        const data = await response.json();
+        
+        if (response.ok) {
+            renderRecentOutputs(data.outputs || []);
+        } else {
+            const container = document.getElementById('recent-outputs-content');
+            if (container) {
+                container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No recent output</div>';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading recent outputs:', error);
+        const container = document.getElementById('recent-outputs-content');
+        if (container) {
+            container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No recent output</div>';
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🔄 Refresh';
+        }
+    }
+}
+
+function renderRecentOutputs(outputs) {
+    const container = document.getElementById('recent-outputs-content');
+    
+    if (outputs.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 64px; color: var(--text-secondary);"><div style="font-size: 48px; margin-bottom: 16px;">📁</div><p>No recent output</p></div>';
+        return;
+    }
+    
+    let html = '<div class="table-responsive" style="overflow-x: auto;"><table class="table"><thead><tr><th>Name</th><th>Folder</th><th>Size</th><th>Modified</th><th>Actions</th></tr></thead><tbody>';
+    
+    outputs.forEach(output => {
+        const modifiedDate = new Date(output.modified).toLocaleString('en-US');
+        const folderLabels = {
+            'iocs': 'IOCs',
+            'stix': 'STIX',
+            'reports': 'Reports'
+        };
+        
+        html += `
+            <tr>
+                <td style="font-weight: 500;">${escapeHtml(output.name)}</td>
+                <td><span class="badge">${folderLabels[output.folder] || output.folder}</span></td>
+                <td style="color: var(--text-secondary);">${output.size_formatted || '-'}</td>
+                <td style="color: var(--text-secondary);">${modifiedDate}</td>
+                <td>
+                    <div style="display: flex; gap: 4px;">
+                        <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="downloadRecentOutput('${escapeHtml(output.path.replace(/'/g, "\\'"))}')">
+                            📥 Download
+                        </button>
+                        <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; background: rgba(220, 38, 38, 0.1); color: #DC2626; border-color: #DC2626;" onclick="deleteOutput('${escapeHtml(output.path.replace(/'/g, "\\'"))}')">
+                            🗑️
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+async function downloadRecentOutput(filePath) {
+    try {
+        // Extract relative path from OUTPUT_FOLDER
+        const relativePath = filePath.replace(/^.*outputs[\/\\]/, '');
+        const url = `/api/settings/outputs/${relativePath}/download`;
+        
+        const response = await fetch(url);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = filePath.split(/[\/\\]/).pop();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        } else {
+            const error = await response.json();
+            alert('Error: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function deleteOutput(filePath) {
+    if (!confirm('Permanently delete this file? This action is irreversible.')) {
+        return;
+    }
+    
+    try {
+        // Extract relative path from OUTPUT_FOLDER
+        const relativePath = filePath.replace(/^.*outputs[\/\\]/, '');
+        const response = await fetch(`/api/outputs/${encodeURIComponent(relativePath)}/delete`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('File deleted successfully');
+            loadRecentOutputs();
+            loadStorageInfo();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// Import from ZIP
+let selectedZipFile = null;
+
+function handleZipFileSelect(event) {
+    const file = event.target.files[0];
+    if (file) {
+        if (!file.name.endsWith('.zip')) {
+            alert('Please select a ZIP file');
+            event.target.value = '';
+            return;
+        }
+        selectedZipFile = file;
+        document.getElementById('import-file-name').textContent = `Selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+        document.getElementById('import-file-name').style.display = 'block';
+        document.getElementById('import-zip-btn').disabled = false;
+    }
+}
+
+async function importFromZip() {
+    if (!selectedZipFile) {
+        alert('Please select a ZIP file first');
+        return;
+    }
+    
+    if (!confirm('This will import IOCs, sources, groups, and optionally configuration from the ZIP file. Continue?')) {
+        return;
+    }
+    
+    const btn = document.getElementById('import-zip-btn');
+    const progressDiv = document.getElementById('import-progress');
+    const progressText = document.getElementById('import-progress-text');
+    
+    btn.disabled = true;
+    btn.textContent = '⏳ Importing...';
+    progressDiv.style.display = 'block';
+    progressText.textContent = 'Uploading file...';
+    
+    try {
+        const formData = new FormData();
+        formData.append('file', selectedZipFile);
+        
+        const response = await fetch('/api/settings/import-zip', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            progressText.innerHTML = `
+                <div style="color: #10B981; font-weight: 500;">✓ Import completed successfully!</div>
+                <div style="margin-top: 8px; font-size: 12px;">
+                    <div>• Groups imported: ${data.groups_imported || 0}</div>
+                    <div>• Sources imported: ${data.sources_imported || 0}</div>
+                    <div>• IOCs imported: ${data.iocs_imported || 0}</div>
+                    ${data.config_imported ? '<div>• Configuration imported: Yes</div>' : ''}
+                </div>
+            `;
+            alert('Import completed successfully!');
+            
+            // Reset form
+            setTimeout(() => {
+                document.getElementById('import-zip-file').value = '';
+                selectedZipFile = null;
+                document.getElementById('import-file-name').style.display = 'none';
+                progressDiv.style.display = 'none';
+                btn.textContent = '📥 Import from ZIP';
+                btn.disabled = true;
+            }, 3000);
+        } else {
+            progressText.innerHTML = `<div style="color: #DC2626; font-weight: 500;">✗ Error: ${data.error || 'Unknown error'}</div>`;
+            alert('Error: ' + (data.error || 'Unknown error'));
+            btn.disabled = false;
+            btn.textContent = '📥 Import from ZIP';
+        }
+    } catch (error) {
+        progressText.innerHTML = `<div style="color: #DC2626; font-weight: 500;">✗ Error: ${error.message}</div>`;
+        alert('Error: ' + error.message);
+        btn.disabled = false;
+        btn.textContent = '📥 Import from ZIP';
+    }
+}
+
+// Export to ZIP
+async function exportToZip() {
+    const btn = document.getElementById('export-zip-btn');
+    
+    btn.disabled = true;
+    btn.textContent = '⏳ Exporting...';
+    
+    try {
+        const response = await fetch('/api/settings/export-zip', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            
+            // Get filename from Content-Disposition header or use default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'cti-export.zip';
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+            
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+            
+            alert('Export completed successfully!');
+        } else {
+            const error = await response.json();
+            alert('Error: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '📦 Export to ZIP';
+    }
+}
+
+// Clear interval on close
+window.addEventListener('beforeunload', function() {
+    if (storageInterval) {
+        clearInterval(storageInterval);
+    }
+});
+</script>
+{% endblock %}
+

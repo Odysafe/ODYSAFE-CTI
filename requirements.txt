@@ -1,0 +1,18 @@
+# ODYSAFE CTI Platform - Python Dependencies
+# This file is the central requirements file for the project.
+# The installation script uses scripts/requirements.txt which should match this file.
+#
+# To install dependencies:
+#   pip install -r requirements.txt
+#
+# For installation script compatibility, this file should be kept in sync with scripts/requirements.txt
+
+Flask==3.0.0
+Werkzeug==3.0.1
+requests>=2.31.0
+stix2>=3.0.0
+markdown>=3.4.0
+beautifulsoup4>=4.12.0
+python-magic>=0.4.27
+openpyxl>=3.1.0
+iocsearcher>=1.0.0

@@ -1,0 +1,34 @@
+Odysafe CTI Platform
+Copyright (C) 2025 Bastien GUIDONE
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+================================================================================
+THIRD-PARTY COMPONENTS
+================================================================================
+
+This software includes the following third-party components with their own
+licenses:
+
+1. iocsearcher
+   - Installed via pip (see requirements.txt)
+   - License: MIT License
+   - Copyright: MaliciaLab
+   - Source: https://github.com/malicialab/iocsearcher
+
+2. Python Dependencies
+   - Flask, Werkzeug, and other dependencies listed in requirements.txt
+   - Each dependency has its own license (see their respective packages)
+
+================================================================================
+LICENSE INFORMATION
+================================================================================
+
+The main application code is licensed under the GNU Affero General Public
+License v3.0 (AGPL-3.0). See the LICENSE file for the full license text.
+
+For the complete AGPL v3.0 license text, see the COPYING file.
+

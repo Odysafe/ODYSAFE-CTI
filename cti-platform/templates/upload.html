@@ -1,0 +1,806 @@
+{% extends "base.html" %}
+
+{% block title %}IOC Extractions - CTI Platform{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <!-- Hero Section -->
+        <div style="text-align: center; margin-bottom: 60px;">
+            <h1 style="font-size: clamp(32px, 5vw, 48px); font-weight: 700; margin-bottom: 24px; background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                IOC Extractions
+            </h1>
+            <p style="font-size: 18px; color: var(--text-secondary); max-width: 800px; margin: 0 auto 32px; line-height: 1.6;">
+                Collect and extract Indicators of Compromise (IOCs) from multiple sources. Upload files, paste text, or fetch content from URLs. Our platform automatically identifies and extracts over 50 different IOC types from your security reports, threat intelligence feeds, and analysis documents.
+            </p>
+            
+            <!-- Supported IOC Types -->
+            <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 16px; padding: 32px; margin-top: 40px; text-align: left;">
+                <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 20px; color: var(--text-primary); text-align: center;">
+                    🔍 Supported IOC Types (50+)
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; font-size: 14px;">
+                    <div><strong>Network Indicators:</strong> URL, FQDN (Domain), IPv4, IPv6, IPv4 Subnet, Tor v3 Address</div>
+                    <div><strong>File Hashes:</strong> MD5, SHA1, SHA256</div>
+                    <div><strong>Communication:</strong> Email Address, Phone Number</div>
+                    <div><strong>Blockchain Addresses:</strong> Bitcoin, Bitcoin Cash, Cardano, Dashcoin, Dogecoin, Ethereum, Litecoin, Monero, Ripple, Solana, Stellar, Tezos, Tron, Zcash</div>
+                    <div><strong>Social Media:</strong> Facebook Handle, GitHub Handle, Instagram Handle, LinkedIn Handle, Pinterest Handle, Telegram Handle, Twitter Handle, WhatsApp Handle, YouTube Handle, YouTube Channel</div>
+                    <div><strong>Identifiers:</strong> CVE, MITRE ATT&CK Technique (TTP), UUID, Android Package Name, Amazon Resource Name (ARN)</div>
+                    <div><strong>Financial:</strong> IBAN (Bank Account), WebMoney</div>
+                    <div><strong>Legal & Compliance:</strong> Copyright, Trademark, Chinese ICP License, Spanish NIF</div>
+                    <div><strong>Other:</strong> TOX Identifier</div>
+                </div>
+                <p style="text-align: center; margin-top: 20px; color: var(--text-secondary); font-size: 13px;">
+                    All IOC types are automatically detected, including defanged indicators (e.g., hxxp://example[DOT]com)
+                </p>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div style="display: flex; gap: 16px; justify-content: center; margin-bottom: 40px; border-bottom: 1px solid rgba(167, 139, 250, 0.1);">
+            <button class="tab-btn active" data-tab="file" style="padding: 12px 24px; background: none; border: none; color: var(--text-primary); ody: pointer; border-bottom: 2px solid var(--violet-light); font-weight: 500;">
+                📁 File
+            </button>
+            <button class="tab-btn" data-tab="paste" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); ody: pointer; font-weight: 500;">
+                📋 Paste
+            </button>
+            <button class="tab-btn" data-tab="url" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); ody: pointer; font-weight: 500;">
+                🔗 URL
+            </button>
+            <button class="tab-btn" data-tab="quick-export" style="padding: 12px 24px; background: none; border: none; color: var(--text-secondary); ody: pointer; font-weight: 500;">
+                ⚡ Quick Export
+            </button>
+        </div>
+
+        <!-- File tab -->
+        <div id="tab-file" class="tab-content">
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+                <!-- Main area: File selection -->
+                <div class="card">
+                    <form id="upload-form" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Select a file</label>
+                            <div class="drop-zone" id="drop-zone" style="min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 40px;">
+                                <div class="drop-zone-icon" style="font-size: 64px; margin-bottom: 16px;">📁</div>
+                                <p style="margin-bottom: 24px; color: var(--text-secondary); font-size: 16px; text-align: center;">
+                                    Drag and drop a file here or click to select
+                                </p>
+                                <input type="file" name="file" id="file-input" class="form-control" style="display: none;" required>
+                                <button type="button" class="btn btn-primary" onclick="document.getElementById('file-input').click()" style="padding: 12px 24px; font-size: 16px;">
+                                    Select a file
+                                </button>
+                                <div id="file-name" style="margin-top: 24px; color: var(--violet-light); font-weight: 500; font-size: 14px; display: none;"></div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 16px; margin-top: 16px;">
+                            Process file
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Side panel: Name, context -->
+                <div class="card">
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 24px;">Settings</h3>
+                    <div class="form-group">
+                        <label class="form-label">Source name <span style="color: #DC2626;">*</span></label>
+                        <input type="text" name="name" id="upload-name" class="form-control" placeholder="Ex: Forensic report 2024" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Context (optional - auto-filled if empty)</label>
+                        <textarea name="context" id="upload-context" class="form-control" rows="6" placeholder="Auto-filled with: File upload - Date and time"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paste tab -->
+        <div id="tab-paste" class="tab-content" style="display: none;">
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+                <!-- Main area: Text -->
+                <div class="card">
+                    <form id="paste-form">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Text to analyze</label>
+                            <textarea name="text" class="form-control" rows="15" placeholder="Paste your text here..." required style="min-height: 400px;"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 16px; margin-top: 16px;">
+                            Process text
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Side panel: Name, context -->
+                <div class="card">
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 24px;">Settings</h3>
+                    <div class="form-group">
+                        <label class="form-label">Source name <span style="color: #DC2626;">*</span></label>
+                        <input type="text" name="name" id="paste-name" class="form-control" placeholder="Ex: Manual paste" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Context (optional - auto-filled if empty)</label>
+                        <textarea name="context" id="paste-context" class="form-control" rows="6" placeholder="Auto-filled with: Paste - Date and time"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- URL tab -->
+        <div id="tab-url" class="tab-content" style="display: none;">
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+                <!-- Main area: URL -->
+                <div class="card">
+                    <form id="url-form">
+                        <div class="form-group">
+                            <label class="form-label" style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">URL to analyze</label>
+                            <input type="url" name="url" class="form-control" placeholder="https://example.com/page" required style="padding: 16px; font-size: 16px;">
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 16px; margin-top: 16px;">
+                            Process URL
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- Side panel: Name, context -->
+                <div class="card">
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 24px;">Settings</h3>
+                    <div class="form-group">
+                        <label class="form-label">Source name <span style="color: #DC2626;">*</span></label>
+                        <input type="text" name="name" id="url-name" class="form-control" placeholder="Ex: Attack web page" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Context (optional - auto-filled if empty)</label>
+                        <textarea name="context" id="url-context" class="form-control" rows="6" placeholder="Auto-filled with: URL - Date and time"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Export tab -->
+        <div id="tab-quick-export" class="tab-content" style="display: none;">
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+                <!-- Main area: Input selection -->
+                <div class="card">
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 24px;">Input Method</h3>
+                    <div class="form-group">
+                        <label class="form-label">Input Type</label>
+                        <select id="quick-export-input-type" class="form-control" style="margin-bottom: 16px;">
+                            <option value="file">File Upload</option>
+                            <option value="paste">Paste Text</option>
+                            <option value="url">URL</option>
+                        </select>
+                    </div>
+
+                    <!-- File input -->
+                    <div id="quick-export-file-section" class="quick-export-input-section">
+                        <div class="drop-zone" id="quick-export-drop-zone" style="min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 40px;">
+                            <div class="drop-zone-icon" style="font-size: 48px; margin-bottom: 16px;">📁</div>
+                            <p style="margin-bottom: 24px; color: var(--text-secondary); font-size: 14px; text-align: center;">
+                                Drag and drop a file here or click to select
+                            </p>
+                            <input type="file" id="quick-export-file-input" class="form-control" style="display: none;">
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('quick-export-file-input').click()" style="padding: 10px 20px; font-size: 14px;">
+                                Select File
+                            </button>
+                            <div id="quick-export-file-name" style="margin-top: 16px; color: var(--violet-light); font-weight: 500; font-size: 13px; display: none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Paste input -->
+                    <div id="quick-export-paste-section" class="quick-export-input-section" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Paste Text Content</label>
+                            <textarea id="quick-export-text" class="form-control" rows="10" placeholder="Paste your text content here..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- URL input -->
+                    <div id="quick-export-url-section" class="quick-export-input-section" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">URL to Analyze</label>
+                            <input type="url" id="quick-export-url" class="form-control" placeholder="https://example.com/page">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Side panel: Export format -->
+                <div class="card">
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 24px;">Export Format</h3>
+                    <div class="form-group">
+                        <label class="form-label">Format <span style="color: #DC2626;">*</span></label>
+                        <select id="quick-export-format" class="form-control" required>
+                            <option value="txt">TXT (with types)</option>
+                            <option value="txt-simple">TXT (values only)</option>
+                            <option value="csv">CSV (detailed)</option>
+                            <option value="csv-firewall">CSV (simplified)</option>
+                            <option value="json">JSON (complete)</option>
+                            <option value="json-simple">JSON (simplified)</option>
+                            <option value="xlsx">XLSX (Excel)</option>
+                        </select>
+                    </div>
+                    <div style="background: rgba(139, 92, 246, 0.1); border-left: 4px solid var(--violet-light); padding: 16px; border-radius: 8px; margin-top: 24px; font-size: 13px; color: var(--text-secondary);">
+                        <strong style="color: var(--violet-light);">Quick Export</strong><br>
+                        Extract IOCs and export immediately without saving to database. Perfect for quick analysis and sharing.
+                    </div>
+                    <button type="button" id="quick-export-btn" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 16px; margin-top: 24px;">
+                        Extract & Export
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback area -->
+        <div id="feedback" style="margin-top: 24px;"></div>
+        
+        
+        <!-- Progress modal for long actions -->
+        <div id="progress-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 10000; align-items: center; justify-content: center;">
+            <div class="card" style="max-width: 500px; width: 90%; padding: 32px;">
+                <h2 style="margin-bottom: 24px; font-size: 24px;">Processing...</h2>
+                <div id="progress-container">
+                    <div class="progress-bar-wrapper" style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; height: 32px; position: relative; overflow: hidden; margin-bottom: 16px;">
+                        <div id="progress-bar" style="background: linear-gradient(90deg, #8B5CF6 0%, #7C3AED 100%); height: 100%; width: 0%; transition: width 0.3s ease; border-radius: 12px;"></div>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; font-weight: 600; color: #8B5CF6; z-index: 1;">
+                            <span id="progress-percentage">0%</span>
+                        </div>
+                    </div>
+                    <div id="progress-message" style="text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">
+                        Preparing...
+                    </div>
+                    <div style="text-align: center;">
+                        <button type="button" id="upload-stop-btn" class="btn btn-secondary" style="background: rgba(220, 38, 38, 0.1); color: #DC2626; border-color: #DC2626; display: none;" onclick="stopUploadTask()">
+                            ⏹️ Stop
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+
+// Tab management
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        
+        // Deactivate all tabs
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('active');
+            b.style.color = 'var(--text-secondary)';
+            b.style.borderBottom = 'none';
+        });
+        
+        // Activate clicked tab
+        btn.classList.add('active');
+        btn.style.color = 'var(--text-primary)';
+        btn.style.borderBottom = '2px solid var(--violet-light)';
+        
+        // Show corresponding content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.style.display = 'none';
+        });
+        document.getElementById(`tab-${tab}`).style.display = 'block';
+        
+    });
+});
+
+// Drag & Drop
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        fileInput.files = files;
+        document.getElementById('file-name').textContent = files[0].name;
+        document.getElementById('file-name').style.display = 'block';
+    }
+});
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        const fileName = e.target.files[0].name;
+        document.getElementById('file-name').textContent = fileName;
+        document.getElementById('file-name').style.display = 'block';
+        
+        // Pre-fill name if empty
+        const nameField = document.getElementById('upload-name');
+        if (!nameField.value) {
+            // Remove extension for a cleaner name
+            const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
+            nameField.value = nameWithoutExt || fileName;
+        }
+    }
+});
+
+// Function to auto-fill context if empty
+function autoFillContext(contextFieldId, sourceType) {
+    const contextField = document.getElementById(contextFieldId);
+    if (contextField && !contextField.value.trim()) {
+        const now = new Date();
+        const dateTime = now.toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).replace(/,/g, '');
+        contextField.value = `${sourceType} - ${dateTime}`;
+    }
+}
+
+// Upload form
+document.getElementById('upload-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    // Auto-fill context if empty
+    autoFillContext('upload-context', 'File upload');
+    
+    const formData = new FormData(e.target);
+    
+    // Ensure name and context are included in FormData
+    const nameField = document.getElementById('upload-name');
+    const contextField = document.getElementById('upload-context');
+    if (nameField) formData.set('name', nameField.value);
+    if (contextField) formData.set('context', contextField.value);
+    
+    const feedback = document.getElementById('feedback');
+    
+    feedback.innerHTML = '<div class="alert alert-info">Processing...</div>';
+    
+    // Initialize progress intervals storage if needed
+    if (!window.progressIntervals) {
+        window.progressIntervals = {};
+    }
+    
+    let progressTimeout;
+    let progressInterval;
+    let sourceId = null;
+    
+    // Show progress bar after 3 seconds
+    progressTimeout = setTimeout(() => {
+        document.getElementById('progress-modal').style.display = 'flex';
+        // Start progress polling if we have a source_id
+        if (sourceId) {
+            progressInterval = setInterval(() => {
+                updateProgress(sourceId);
+            }, 1000);
+            window.progressIntervals[sourceId] = progressInterval;
+        }
+    }, 3000);
+    
+    try {
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        clearTimeout(progressTimeout);
+        
+        if (response.ok) {
+            sourceId = data.source_id;
+            
+            // If progress bar is already displayed, start polling
+            if (document.getElementById('progress-modal').style.display === 'flex') {
+                document.getElementById('upload-stop-btn').style.display = 'inline-block';
+                document.getElementById('upload-stop-btn').setAttribute('data-source-id', sourceId);
+                progressInterval = setInterval(() => {
+                    updateProgress(sourceId);
+                }, 1000);
+                window.progressIntervals[sourceId] = progressInterval;
+            } else {
+                // Otherwise, show progress bar now
+                document.getElementById('progress-modal').style.display = 'flex';
+                document.getElementById('upload-stop-btn').style.display = 'inline-block';
+                document.getElementById('upload-stop-btn').setAttribute('data-source-id', sourceId);
+                progressInterval = setInterval(() => {
+                    updateProgress(sourceId);
+                }, 1000);
+                window.progressIntervals[sourceId] = progressInterval;
+            }
+        } else {
+            document.getElementById('progress-modal').style.display = 'none';
+            feedback.innerHTML = `<div class="alert alert-error">${data.error}</div>`;
+        }
+    } catch (error) {
+        clearTimeout(progressTimeout);
+        document.getElementById('progress-modal').style.display = 'none';
+        feedback.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    }
+});
+
+// Global function for progress updates (used by all forms)
+function updateProgress(sourceId) {
+    const feedback = document.getElementById('feedback');
+    const progressInterval = window.progressIntervals ? window.progressIntervals[sourceId] : null;
+    
+    fetch(`/api/progress/source_${sourceId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.progress) {
+                const progress = data.progress;
+                const percentage = progress.percentage || 0;
+                const message = progress.message || 'Processing...';
+                
+                document.getElementById('progress-bar').style.width = percentage + '%';
+                document.getElementById('progress-percentage').textContent = percentage + '%';
+                document.getElementById('progress-message').textContent = message;
+                
+                if (progress.status === 'completed' || progress.status === 'error' || progress.status === 'stopping') {
+                    if (progressInterval) {
+                        clearInterval(progressInterval);
+                        if (window.progressIntervals) {
+                            delete window.progressIntervals[sourceId];
+                        }
+                    }
+                    document.getElementById('upload-stop-btn').style.display = 'none';
+                    
+                    if (progress.status === 'completed') {
+                        document.getElementById('progress-modal').style.display = 'none';
+                        feedback.innerHTML = `<div class="alert alert-success">Processing completed successfully</div>`;
+                        
+                        // For other analyses (file, paste, url), redirect to IOCs page
+                        setTimeout(() => {
+                            window.location.href = '/iocs';
+                        }, 2000);
+                    } else if (progress.status === 'stopping') {
+                        document.getElementById('progress-modal').style.display = 'none';
+                        feedback.innerHTML = `<div class="alert alert-warning">Processing stopped by user</div>`;
+                    } else {
+                        document.getElementById('progress-modal').style.display = 'none';
+                        feedback.innerHTML = `<div class="alert alert-error">Error: ${message}</div>`;
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching progress:', error);
+        });
+}
+
+// Pre-fill name for paste
+document.getElementById('paste-form').querySelector('textarea[name="text"]').addEventListener('input', function() {
+    const nameField = document.getElementById('paste-name');
+    
+    // Pre-fill only if field is empty
+    if (!nameField.value) {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-US');
+        nameField.value = `Paste - ${dateStr}`;
+    }
+});
+
+// Paste form
+document.getElementById('paste-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    // Auto-fill context if empty
+    autoFillContext('paste-context', 'Paste');
+    
+    // Get values from form and side panel fields
+    const formData = new FormData(e.target);
+    const nameField = document.getElementById('paste-name');
+    const contextField = document.getElementById('paste-context');
+    
+    const data = {
+        text: formData.get('text') || '',
+        name: nameField ? nameField.value.trim() : '',
+        context: contextField ? contextField.value.trim() : ''
+    };
+    
+    const feedback = document.getElementById('feedback');
+    
+    feedback.innerHTML = '<div class="alert alert-info">Processing...</div>';
+    
+    // Initialize progress intervals storage if needed
+    if (!window.progressIntervals) {
+        window.progressIntervals = {};
+    }
+    
+    // Display progress modal immediately
+    const progressModal = document.getElementById('progress-modal');
+    progressModal.style.display = 'flex';
+    document.getElementById('progress-bar').style.width = '10%';
+    document.getElementById('progress-percentage').textContent = '10%';
+    document.getElementById('progress-message').textContent = 'Starting extraction...';
+    
+    let progressInterval;
+    let sourceId = null;
+    
+    try {
+        const response = await fetch('/api/paste', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            sourceId = result.source_id;
+            // Start polling immediately
+            progressInterval = setInterval(() => updateProgress(sourceId), 1000);
+            window.progressIntervals[sourceId] = progressInterval;
+            // First update immediately
+            updateProgress(sourceId);
+        } else {
+            progressModal.style.display = 'none';
+            feedback.innerHTML = `<div class="alert alert-error">${result.error}</div>`;
+        }
+    } catch (error) {
+        progressModal.style.display = 'none';
+        feedback.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    }
+});
+
+// Pre-fill name for URL
+document.getElementById('url-form').querySelector('input[name="url"]').addEventListener('input', function() {
+    const url = this.value.trim();
+    const nameField = document.getElementById('url-name');
+    
+    // Pre-fill only if field is empty
+    if (url && !nameField.value) {
+        try {
+            const urlObj = new URL(url);
+            const domain = urlObj.hostname.replace('www.', '');
+            nameField.value = domain;
+        } catch (e) {
+            // If URL is not valid, do nothing
+        }
+    }
+});
+
+// URL form
+document.getElementById('url-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    // Auto-fill context if empty
+    autoFillContext('url-context', 'URL');
+    
+    // Get values from form and side panel fields
+    const formData = new FormData(e.target);
+    const nameField = document.getElementById('url-name');
+    const contextField = document.getElementById('url-context');
+    
+    const data = {
+        url: formData.get('url') || '',
+        name: nameField ? nameField.value.trim() : '',
+        context: contextField ? contextField.value.trim() : ''
+    };
+    
+    const feedback = document.getElementById('feedback');
+    
+    feedback.innerHTML = '<div class="alert alert-info">Processing...</div>';
+    
+    // Initialize progress intervals storage if needed
+    if (!window.progressIntervals) {
+        window.progressIntervals = {};
+    }
+    
+    // Display progress modal immediately
+    const progressModal = document.getElementById('progress-modal');
+    progressModal.style.display = 'flex';
+    document.getElementById('progress-bar').style.width = '10%';
+    document.getElementById('progress-percentage').textContent = '10%';
+    document.getElementById('progress-message').textContent = 'Starting extraction...';
+    
+    let progressInterval;
+    let sourceId = null;
+    
+    try {
+        const response = await fetch('/api/url', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            sourceId = result.source_id;
+            // Start polling immediately
+            progressInterval = setInterval(() => updateProgress(sourceId), 1000);
+            window.progressIntervals[sourceId] = progressInterval;
+            // First update immediately
+            updateProgress(sourceId);
+        } else {
+            progressModal.style.display = 'none';
+            feedback.innerHTML = `<div class="alert alert-error">${result.error}</div>`;
+        }
+    } catch (error) {
+        progressModal.style.display = 'none';
+        feedback.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    }
+});
+
+// Function to stop an upload
+async function stopUploadTask() {
+    const btn = document.getElementById('upload-stop-btn');
+    const sourceId = btn ? btn.getAttribute('data-source-id') : null;
+    
+    if (!sourceId) {
+        return;
+    }
+    
+    if (!confirm('Do you really want to stop this processing?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/progress/source_${sourceId}/stop`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            btn.style.display = 'none';
+            document.getElementById('progress-message').textContent = 'Stopping...';
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// Quick Export functionality
+const quickExportInputType = document.getElementById('quick-export-input-type');
+const quickExportFileSection = document.getElementById('quick-export-file-section');
+const quickExportPasteSection = document.getElementById('quick-export-paste-section');
+const quickExportUrlSection = document.getElementById('quick-export-url-section');
+
+// Switch input type
+quickExportInputType.addEventListener('change', (e) => {
+    const inputType = e.target.value;
+    quickExportFileSection.style.display = inputType === 'file' ? 'block' : 'none';
+    quickExportPasteSection.style.display = inputType === 'paste' ? 'block' : 'none';
+    quickExportUrlSection.style.display = inputType === 'url' ? 'block' : 'none';
+});
+
+// File drag and drop for quick export
+const quickExportDropZone = document.getElementById('quick-export-drop-zone');
+const quickExportFileInput = document.getElementById('quick-export-file-input');
+
+quickExportDropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    quickExportDropZone.classList.add('dragover');
+});
+
+quickExportDropZone.addEventListener('dragleave', () => {
+    quickExportDropZone.classList.remove('dragover');
+});
+
+quickExportDropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    quickExportDropZone.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        quickExportFileInput.files = files;
+        document.getElementById('quick-export-file-name').textContent = files[0].name;
+        document.getElementById('quick-export-file-name').style.display = 'block';
+    }
+});
+
+quickExportFileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        const fileName = e.target.files[0].name;
+        document.getElementById('quick-export-file-name').textContent = fileName;
+        document.getElementById('quick-export-file-name').style.display = 'block';
+    }
+});
+
+// Quick Export button
+document.getElementById('quick-export-btn').addEventListener('click', async () => {
+    const inputType = quickExportInputType.value;
+    const format = document.getElementById('quick-export-format').value;
+    const feedback = document.getElementById('feedback');
+    
+    let inputData = null;
+    
+    // Get input data based on type
+    if (inputType === 'file') {
+        const fileInput = quickExportFileInput;
+        if (!fileInput.files || fileInput.files.length === 0) {
+            feedback.innerHTML = '<div class="alert alert-error">Please select a file</div>';
+            return;
+        }
+        inputData = { type: 'file', file: fileInput.files[0] };
+    } else if (inputType === 'paste') {
+        const text = document.getElementById('quick-export-text').value.trim();
+        if (!text) {
+            feedback.innerHTML = '<div class="alert alert-error">Please paste some text</div>';
+            return;
+        }
+        inputData = { type: 'paste', text: text };
+    } else if (inputType === 'url') {
+        const url = document.getElementById('quick-export-url').value.trim();
+        if (!url) {
+            feedback.innerHTML = '<div class="alert alert-error">Please enter a URL</div>';
+            return;
+        }
+        inputData = { type: 'url', url: url };
+    }
+    
+    if (!inputData) {
+        return;
+    }
+    
+    feedback.innerHTML = '<div class="alert alert-info">Extracting IOCs and preparing export...</div>';
+    
+    try {
+        const formData = new FormData();
+        formData.append('input_type', inputData.type);
+        formData.append('format', format);
+        
+        if (inputData.type === 'file') {
+            formData.append('file', inputData.file);
+        } else if (inputData.type === 'paste') {
+            formData.append('text', inputData.text);
+        } else if (inputData.type === 'url') {
+            formData.append('url', inputData.url);
+        }
+        
+        const response = await fetch('/api/quick-export', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            // Get filename from Content-Disposition header
+            const contentDisposition = response.headers.get('content-disposition');
+            let filename = 'iocs_export';
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+            }
+            
+            // Download file
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            feedback.innerHTML = '<div class="alert alert-success">Export completed! File downloaded.</div>';
+        } else {
+            const error = await response.json();
+            feedback.innerHTML = `<div class="alert alert-error">Error: ${error.error || 'Export failed'}</div>`;
+        }
+    } catch (error) {
+        feedback.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    }
+});
+
+
+</script>
+{% endblock %}
+
