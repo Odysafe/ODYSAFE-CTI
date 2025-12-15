@@ -378,11 +378,7 @@ def get_query_urls(ioc_type: str, ioc_value: str) -> list:
         })
     
     # Technical identifiers
-    elif ioc_type_upper == 'PACKAGE_ANDROID' or ioc_type_lower == 'packagename':
-        urls.append({
-            'name': 'Google Play',
-            'url': f'https://play.google.com/store/apps/details?id={ioc_value_clean}'
-        })
+    # PACKAGE_ANDROID removed - no external service available
     
     # Financial identifiers
     elif ioc_type_upper == 'WEBMONEY' or ioc_type_lower == 'webmoney':

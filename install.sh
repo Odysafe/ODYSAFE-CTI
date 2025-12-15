@@ -166,7 +166,7 @@ check_network_connectivity() {
     # Check network connectivity with multiple test URLs and methods
     # Returns 0 if network is available, 1 otherwise
     local network_available=false
-    local test_urls=("https://www.python.org" "https://pypi.org" "https://github.com" "https://www.google.com")
+    local test_urls=("https://www.python.org" "https://pypi.org" "https://github.com")
     local test_url=""
     
     log_info "Checking network connectivity..."
@@ -1790,7 +1790,7 @@ create_venv_robust() {
             # Try to install pip using get-pip.py if curl or wget is available
             # First check network connectivity with multiple methods
             NETWORK_AVAILABLE=false
-            local network_test_urls=("https://www.python.org" "https://pypi.org" "https://www.google.com")
+            local network_test_urls=("https://www.python.org" "https://pypi.org")
             
             for test_url in "${network_test_urls[@]}"; do
                 if command -v curl &>/dev/null; then
