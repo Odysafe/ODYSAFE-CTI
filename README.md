@@ -101,7 +101,7 @@ sudo apt install git -y
 
 # Clone the repository
 git clone https://github.com/Odysafe/ODYSAFE-CTI.git
-cd ODYSAFE-CTI-beta
+cd ODYSAFE-CTI
 
 # Run the installation script
 ./install.sh
