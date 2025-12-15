@@ -810,19 +810,19 @@ class Database:
         Automatically adds tags based on type, source, etc.
         """
         conn = self.get_connection()
-        ody = conn.cursor()
+        cursor = conn.cursor()
 
         # Check if IOC already exists for this source
-        ody.execute("""
+        cursor.execute("""
             SELECT id, last_seen FROM iocs 
             WHERE source_id = ? AND ioc_type = ? AND ioc_value = ?
         """, (source_id, ioc_type, ioc_value))
 
-        existing = ody.fetchone()
+        existing = cursor.fetchone()
 
         if existing:
             # Update last_seen
-            ody.execute("""
+            cursor.execute("""
                 UPDATE iocs 
                 SET last_seen = ?
                 WHERE id = ?
@@ -831,23 +831,21 @@ class Database:
         else:
             # Create new IOC with explicit local timestamps
             local_ts = get_local_timestamp()
-            # Generate partition_key for temporal partitioning (YYYY-MM format)
-            partition_key = datetime.now().strftime('%Y-%m')
-            ody.execute("""
-                INSERT INTO iocs (source_id, ioc_type, ioc_value, raw_value, first_seen, last_seen, created_at, partition_key)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (source_id, ioc_type, ioc_value, raw_value or ioc_value, local_ts, local_ts, local_ts, partition_key))
-            ioc_id = ody.lastrowid
+            cursor.execute("""
+                INSERT INTO iocs (source_id, ioc_type, ioc_value, raw_value, first_seen, last_seen, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (source_id, ioc_type, ioc_value, raw_value or ioc_value, local_ts, local_ts, local_ts))
+            ioc_id = cursor.lastrowid
             
             # Add automatic tags
-            self._add_auto_tags(ody, ioc_id, ioc_type, source_id, source_info)
+            self._add_auto_tags(cursor, ioc_id, ioc_type, source_id, source_info)
             
             # Add a tag based on value if it's an appropriate type
-            self._add_value_based_tag(ody, ioc_id, ioc_type, ioc_value)
+            self._add_value_based_tag(cursor, ioc_id, ioc_type, ioc_value)
             
             conn.commit()
 
-        self._close_connection_if_needed(conn)
+        conn.close()
         return ioc_id
     
     def _add_auto_tags(self, ody, ioc_id: int, ioc_type: str, source_id: int, source_info: Optional[Dict] = None):
@@ -1102,189 +1100,137 @@ class Database:
             where_clause += " AND (EXISTS (SELECT 1 FROM source_groups sg WHERE sg.source_id = s.id AND sg.group_id = ?) OR EXISTS (SELECT 1 FROM ioc_groups iog WHERE iog.ioc_id = i.id AND iog.group_id = ?))"
             params.extend([filters["group_id"], filters["group_id"]])
         
-        # Date/time filters - optimized to use direct timestamp comparisons for better index usage
+        # Date/time filters
         if filters.get("date_from"):
-            # Convert date string to timestamp range (start of day)
-            date_from = filters["date_from"]
-            if isinstance(date_from, str) and len(date_from) == 10:  # YYYY-MM-DD format
-                date_from_ts = f"{date_from} 00:00:00"
-            else:
-                date_from_ts = date_from
-            where_clause += " AND i.created_at >= ?"
-            params.append(date_from_ts)
+            where_clause += " AND DATE(i.created_at) >= ?"
+            params.append(filters["date_from"])
         if filters.get("date_to"):
-            # Convert date string to timestamp range (end of day)
-            date_to = filters["date_to"]
-            if isinstance(date_to, str) and len(date_to) == 10:  # YYYY-MM-DD format
-                date_to_ts = f"{date_to} 23:59:59"
-            else:
-                date_to_ts = date_to
-            where_clause += " AND i.created_at <= ?"
-            params.append(date_to_ts)
+            where_clause += " AND DATE(i.created_at) <= ?"
+            params.append(filters["date_to"])
         if filters.get("year"):
-            # Use range comparison instead of strftime for better index usage
-            year = str(filters["year"])
-            where_clause += " AND i.created_at >= ? AND i.created_at < ?"
-            params.extend([f"{year}-01-01 00:00:00", f"{int(year)+1}-01-01 00:00:00"])
+            where_clause += " AND strftime('%Y', i.created_at) = ?"
+            params.append(str(filters["year"]))
         if filters.get("month"):
-            # Use range comparison instead of strftime
-            year = filters.get("year", datetime.now().year)
-            month = str(filters["month"]).zfill(2)
-            # Calculate next month
-            if int(month) == 12:
-                next_month = f"{int(year)+1}-01"
-            else:
-                next_month = f"{year}-{int(month)+1:02d}"
-            where_clause += " AND i.created_at >= ? AND i.created_at < ?"
-            params.extend([f"{year}-{month}-01 00:00:00", f"{next_month}-01 00:00:00"])
+            where_clause += " AND strftime('%m', i.created_at) = ?"
+            params.append(str(filters["month"]).zfill(2))
         if filters.get("day"):
-            # Use range comparison instead of strftime
-            year = filters.get("year", datetime.now().year)
-            month = filters.get("month", datetime.now().month)
-            day = str(filters["day"]).zfill(2)
-            where_clause += " AND i.created_at >= ? AND i.created_at < ?"
-            next_day = (datetime(int(year), int(month), int(day)) + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
-            params.extend([f"{year}-{month:02d}-{day} 00:00:00", next_day])
+            where_clause += " AND strftime('%d', i.created_at) = ?"
+            params.append(str(filters["day"]).zfill(2))
         if filters.get("hour"):
-            # Use range comparison instead of strftime
-            year = filters.get("year", datetime.now().year)
-            month = filters.get("month", datetime.now().month)
-            day = filters.get("day", datetime.now().day)
-            hour = str(filters["hour"]).zfill(2)
-            where_clause += " AND i.created_at >= ? AND i.created_at < ?"
-            next_hour = (datetime(int(year), int(month), int(day), int(hour)) + timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S')
-            params.extend([f"{year}-{month:02d}-{day:02d} {hour}:00:00", next_hour])
+            where_clause += " AND strftime('%H', i.created_at) = ?"
+            params.append(str(filters["hour"]).zfill(2))
         
         # Duplicate filter (IOCs appearing in multiple sources)
-        # Optimized: Use INNER JOIN with pre-aggregated duplicate detection
-        # This is much faster than EXISTS for large datasets
         if filters.get("show_duplicates"):
-            # Store flag to use optimized duplicate join in main query
-            filters["_use_duplicate_join"] = True
+            # Utiliser une sous-requête pour trouver les IOCs en double
+            where_clause += """ AND EXISTS (
+                SELECT 1 FROM iocs i2
+                JOIN sources s2 ON i2.source_id = s2.id
+                WHERE i2.ioc_type = i.ioc_type 
+                AND i2.ioc_value = i.ioc_value
+                AND i2.id != i.id
+                AND i2.is_deleted = 0
+                AND s2.is_deleted = 0
+            )"""
         
         return where_clause, params
 
     def get_all_iocs(self, filters: Optional[Dict] = None, limit: int = 100, 
                     offset: int = 0) -> Tuple[List[Dict], int]:
         """Retrieves all IOCs with optional filters (including tag filtering)"""
-        with self.connection() as conn:
-            ody = conn.cursor()
+        conn = self.get_connection()
+        cursor = conn.cursor()
 
-            # Build filters once
-            where_clause, params = self._build_filter_query(filters)
+        # Build filters once
+        where_clause, params = self._build_filter_query(filters)
 
-        # Optimize duplicate filter: use CTE for better performance
-        duplicate_cte = ""
-        duplicate_join = ""
-        if filters and filters.get("_use_duplicate_join"):
-            duplicate_cte = """
-            WITH duplicate_iocs AS (
-                SELECT ioc_type, ioc_value
-                FROM iocs i2
-                JOIN sources s2 ON i2.source_id = s2.id
-                WHERE i2.is_deleted = 0 AND s2.is_deleted = 0
-                GROUP BY i2.ioc_type, i2.ioc_value
-                HAVING COUNT(*) > 1
-            )
-            """
-            duplicate_join = "INNER JOIN duplicate_iocs dup ON dup.ioc_type = i.ioc_type AND dup.ioc_value = i.ioc_value"
+        query = f"""
+            SELECT i.*, s.name as source_name, s.context as source_context,
+                   s.source_type, s.created_at as source_created_at,
+                   GROUP_CONCAT(DISTINCT g.id || '|||' || g.name || '|||' || COALESCE(g.color, '')) as source_group_data,
+                   GROUP_CONCAT(DISTINCT ig.id || '|||' || ig.name || '|||' || COALESCE(ig.color, '')) as ioc_group_data,
+                   GROUP_CONCAT(DISTINCT ex.group_id) as excluded_group_ids
+            FROM iocs i
+            JOIN sources s ON i.source_id = s.id
+            LEFT JOIN source_groups sg ON s.id = sg.source_id
+            LEFT JOIN groups g ON sg.group_id = g.id
+            LEFT JOIN ioc_groups iog ON i.id = iog.ioc_id
+            LEFT JOIN groups ig ON iog.group_id = ig.id
+            LEFT JOIN ioc_source_group_exclusions ex ON i.id = ex.ioc_id
+            {where_clause}
+            GROUP BY i.id
+            ORDER BY i.created_at DESC LIMIT ? OFFSET ?
+        """
+        params.extend([limit, offset])
 
-            query = f"""
-                {duplicate_cte}
-                SELECT i.*, s.name as source_name, s.context as source_context,
-                       s.source_type, s.created_at as source_created_at,
-                       GROUP_CONCAT(DISTINCT g.id || '|||' || g.name || '|||' || COALESCE(g.color, '')) as source_group_data,
-                       GROUP_CONCAT(DISTINCT ig.id || '|||' || ig.name || '|||' || COALESCE(ig.color, '')) as ioc_group_data,
-                       GROUP_CONCAT(DISTINCT ex.group_id) as excluded_group_ids
-                FROM iocs i
-                JOIN sources s ON i.source_id = s.id
-                {duplicate_join}
-                LEFT JOIN source_groups sg ON s.id = sg.source_id
-                LEFT JOIN groups g ON sg.group_id = g.id
-                LEFT JOIN ioc_groups iog ON i.id = iog.ioc_id
-                LEFT JOIN groups ig ON iog.group_id = ig.id
-                LEFT JOIN ioc_source_group_exclusions ex ON i.id = ex.ioc_id
-                {where_clause}
-                GROUP BY i.id
-                ORDER BY i.created_at DESC LIMIT ? OFFSET ?
-            """
-            params.extend([limit, offset])
-
-            ody.execute(query, params)
-            iocs = []
-            for row in ody.fetchall():
-                ioc = dict(row)
-                # Parse excluded group IDs
-                excluded_group_ids = set()
-                if ioc.get("excluded_group_ids"):
-                    for group_id_str in ioc["excluded_group_ids"].split(","):
-                        if group_id_str:
-                            try:
-                                excluded_group_ids.add(int(group_id_str))
-                            except ValueError:
-                                pass
-                
-                # Parse source groups (excluding those in exclusions)
-                source_groups_list = []
-                if ioc.get("source_group_data"):
-                    for group_str in ioc["source_group_data"].split(","):
-                        if group_str:
-                            parts = group_str.split("|||", 2)
-                            if len(parts) >= 2:
-                                group_id = int(parts[0])
-                                # Skip if this group is excluded
-                                if group_id not in excluded_group_ids:
-                                    group_info = {
-                                        "id": group_id,
-                                        "name": parts[1],
-                                        "color": parts[2] if len(parts) > 2 and parts[2] else None
-                                    }
-                                    source_groups_list.append(group_info)
-                
-                # Parse IOC groups (directly associated)
-                ioc_groups_list = []
-                if ioc.get("ioc_group_data"):
-                    for group_str in ioc["ioc_group_data"].split(","):
-                        if group_str:
-                            parts = group_str.split("|||", 2)
-                            if len(parts) >= 2:
+        cursor.execute(query, params)
+        iocs = []
+        for row in cursor.fetchall():
+            ioc = dict(row)
+            # Parse excluded group IDs
+            excluded_group_ids = set()
+            if ioc.get("excluded_group_ids"):
+                for group_id_str in ioc["excluded_group_ids"].split(","):
+                    if group_id_str:
+                        try:
+                            excluded_group_ids.add(int(group_id_str))
+                        except ValueError:
+                            pass
+            
+            # Parse source groups (excluding those in exclusions)
+            source_groups_list = []
+            if ioc.get("source_group_data"):
+                for group_str in ioc["source_group_data"].split(","):
+                    if group_str:
+                        parts = group_str.split("|||", 2)
+                        if len(parts) >= 2:
+                            group_id = int(parts[0])
+                            # Skip if this group is excluded
+                            if group_id not in excluded_group_ids:
                                 group_info = {
-                                    "id": int(parts[0]),
+                                    "id": group_id,
                                     "name": parts[1],
                                     "color": parts[2] if len(parts) > 2 and parts[2] else None
                                 }
-                                ioc_groups_list.append(group_info)
-                
-                # Combine both lists, removing duplicates
-                all_groups = {}
-                for group in source_groups_list + ioc_groups_list:
-                    all_groups[group["id"]] = group
-                ioc["groups"] = list(all_groups.values())
-                ioc["source_groups"] = source_groups_list  # Keep source groups separate for hashtag display
-                ioc["ioc_groups"] = ioc_groups_list  # Keep direct IOC groups separate for hashtag display
-                iocs.append(ioc)
-
-            # Count total with same filters - use cache if available
-            count_cache_key = self._get_cache_key("ioc_count", filters or {})
-            cached_total = self._get_cached_count(count_cache_key)
+                                source_groups_list.append(group_info)
             
-            if cached_total is not None:
-                total = cached_total
-            else:
-                count_where_clause, count_params = self._build_filter_query(filters)
-                count_query = f"""
-                    SELECT COUNT(DISTINCT i.id) 
-                    FROM iocs i
-                    JOIN sources s ON i.source_id = s.id
-                    {count_where_clause}
-                """
-                
-                ody.execute(count_query, count_params)
-                total = ody.fetchone()[0]
-                # Cache the result
-                self._set_cached_count(count_cache_key, total)
+            # Parse IOC groups (directly associated)
+            ioc_groups_list = []
+            if ioc.get("ioc_group_data"):
+                for group_str in ioc["ioc_group_data"].split(","):
+                    if group_str:
+                        parts = group_str.split("|||", 2)
+                        if len(parts) >= 2:
+                            group_info = {
+                                "id": int(parts[0]),
+                                "name": parts[1],
+                                "color": parts[2] if len(parts) > 2 and parts[2] else None
+                            }
+                            ioc_groups_list.append(group_info)
+            
+            # Combine both lists, removing duplicates
+            all_groups = {}
+            for group in source_groups_list + ioc_groups_list:
+                all_groups[group["id"]] = group
+            ioc["groups"] = list(all_groups.values())
+            ioc["source_groups"] = source_groups_list  # Keep source groups separate for hashtag display
+            ioc["ioc_groups"] = ioc_groups_list  # Keep direct IOC groups separate for hashtag display
+            iocs.append(ioc)
 
-            return iocs, total
+        # Count total with same filters
+        count_where_clause, count_params = self._build_filter_query(filters)
+        count_query = f"""
+            SELECT COUNT(DISTINCT i.id) 
+            FROM iocs i
+            JOIN sources s ON i.source_id = s.id
+            {count_where_clause}
+        """
+
+        cursor.execute(count_query, count_params)
+        total = cursor.fetchone()[0]
+
+        conn.close()
+        return iocs, total
 
     def get_all_iocs_streaming(self, filters: Optional[Dict] = None, 
                                 limit: Optional[int] = None, 
