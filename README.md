@@ -97,7 +97,7 @@ Centralize your IOCs, visualize threats with STIX 2.1, and export to your securi
 
 ```bash
 # Install git if not already installed
-sudo apt install git
+sudo apt install git -y
 
 # Clone the repository
 git clone https://github.com/Odysafe/ODYSAFE-CTI.git
