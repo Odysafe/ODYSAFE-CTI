@@ -44,7 +44,7 @@ cryptography==48.0.1
 # Utilities
 six==1.17.0
 pytz==2026.2
-PyYAML==6.0.2
+PyYAML==6.0.3
 
 # Excel generation
 openpyxl==3.1.5
