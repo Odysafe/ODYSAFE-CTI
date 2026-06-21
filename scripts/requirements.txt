@@ -39,7 +39,7 @@ regex==2026.4.4
 
 # System
 python-magic==0.4.27
-cryptography==48.0.1
+cryptography==49.0.0
 
 # Utilities
 six==1.17.0
