@@ -35,7 +35,7 @@ readabilipy==0.3.0
 # Text & language
 Markdown==3.10.2
 langdetect==1.0.9
-regex==2026.4.4
+regex==2026.5.9
 
 # System
 python-magic==0.4.27
