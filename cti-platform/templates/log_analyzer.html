@@ -1,0 +1,1018 @@
+{% extends "base.html" %}
+
+{% block title %}Log Analyzer - CTI Platform{% endblock %}
+
+{% block extra_head %}
+<style>
+.log-analyzer-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.log-analyzer-hero {
+    text-align: center;
+    padding: 30px 0;
+    margin-bottom: 20px;
+}
+
+.log-analyzer-hero h1 {
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 700;
+    background: linear-gradient(135deg, #e53e3e, #dd6b20);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+}
+
+.upload-area {
+    border: 2px dashed rgba(139, 92, 246, 0.4);
+    border-radius: 16px;
+    padding: 60px 40px;
+    text-align: center;
+    background: rgba(15, 10, 28, 0.6);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.upload-area:hover, .upload-area.dragover {
+    border-color: #8b5cf6;
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.upload-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.file-input {
+    display: none;
+}
+
+.results-container {
+    display: none;
+}
+
+.timeline-section {
+    margin-top: 30px;
+}
+
+/* Kill Chain Visual Styles */
+.kill-chain-phase {
+    flex: 1;
+    min-width: 70px;
+    padding: 12px 8px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.kill-chain-phase.detected {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    transform: scale(1.05);
+}
+
+.kill-chain-phase.not-detected {
+    background: rgba(100, 100, 100, 0.15);
+    color: rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(100, 100, 100, 0.3);
+}
+
+.kill-chain-phase .phase-number {
+    font-size: 10px;
+    opacity: 0.7;
+    margin-bottom: 4px;
+}
+
+.kill-chain-phase .phase-name {
+    line-height: 1.3;
+    font-size: 10px;
+}
+
+.kill-chain-phase .phase-count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.kill-chain-arrow {
+    color: rgba(139, 92, 246, 0.5);
+    font-size: 18px;
+    font-weight: 300;
+}
+
+.kill-chain-phase.detected .technique-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.6);
+    display: inline-block;
+    margin: 2px;
+}
+
+.timeline-tactic {
+    margin-bottom: 24px;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.timeline-tactic-header {
+    padding: 12px 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tactic-badge {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tactic-initial-access { background: #FEF3C7; color: #D97706; }
+.tactic-execution { background: #FEE2E2; color: #DC2626; }
+.tactic-persistence { background: #FEF9C3; color: #CA8A04; }
+.tactic-privilege-escalation { background: #FFF7ED; color: #EA580C; }
+.tactic-defense-evasion { background: #F3E8FF; color: #9333EA; }
+.tactic-credential-access { background: #FFE4E6; color: #E11D48; }
+.tactic-discovery { background: #E0F2FE; color: #0284C7; }
+.tactic-lateral-movement { background: #ECFDF5; color: #059669; }
+.tactic-collection { background: #F0FDF4; color: #16A34A; }
+.tactic-exfiltration { background: #FDF2F8; color: #DB2777; }
+.tactic-command-and-control { background: #FFFBEB; color: #B45309; }
+.tactic-impact { background: #FFF1F2; color: #BE123C; }
+
+.timeline-events {
+    padding: 16px 20px;
+    background: rgba(15, 10, 28, 0.4);
+}
+
+.timeline-event {
+    display: flex;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+.timeline-event:last-child {
+    border-bottom: none;
+}
+
+.event-marker {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 6px;
+}
+
+.event-content {
+    flex: 1;
+}
+
+.event-description {
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 6px;
+}
+
+.event-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.event-technique {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: monospace;
+    font-weight: 600;
+}
+
+.event-confidence {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.signal-high {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.signal-medium {
+    background: rgba(251, 146, 60, 0.15);
+    color: #fb923c;
+    border: 1px solid rgba(251, 146, 60, 0.3);
+}
+
+.signal-low {
+    background: rgba(250, 204, 21, 0.12);
+    color: #fbbf24;
+    border: 1px solid rgba(250, 204, 21, 0.3);
+}
+
+.analysis-warning-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    color: #fbbf24;
+    line-height: 1.6;
+}
+
+.analysis-warning-banner .warn-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.techniques-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.technique-card {
+    background: rgba(15, 10, 28, 0.6);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.2s;
+}
+
+.technique-card:hover {
+    border-color: rgba(139, 92, 246, 0.4);
+    transform: translateY(-2px);
+}
+
+.technique-id {
+    font-family: monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fc8181;
+    margin-bottom: 4px;
+}
+
+.technique-name {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.technique-tactic {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.technique-count {
+    font-size: 12px;
+    padding: 4px 12px;
+    background: rgba(139, 92, 246, 0.2);
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: rgba(15, 10, 28, 0.6);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #a78bfa;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.btn-export {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.incidents-list {
+    margin-top: 30px;
+}
+
+.incident-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: rgba(15, 10, 28, 0.6);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+}
+
+.incident-item:hover {
+    border-color: rgba(139, 92, 246, 0.4);
+}
+
+.incident-info h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.incident-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-analyzing { background: #FEF3C7; color: #D97706; }
+.status-completed { background: #F0FDF4; color: #16A34A; }
+.status-error { background: #FEE2E2; color: #DC2626; }
+
+.loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.loading-content {
+    text-align: center;
+    padding: 40px;
+}
+
+.spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(139, 92, 246, 0.2);
+    border-top-color: #8b5cf6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.tab-buttons {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+    padding-bottom: 0;
+}
+
+.tab-btn {
+    padding: 12px 24px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: -1px;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    color: #fc8181;
+    border-bottom-color: #e53e3e;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="log-analyzer-container">
+    <div class="log-analyzer-hero">
+        <h1>Log Analyzer</h1>
+        <p style="color: var(--text-secondary); font-size: 16px; max-width: 600px; margin: 0 auto;">
+            Upload security logs and automatically map events to MITRE ATT&CK techniques for incident analysis.
+        </p>
+    </div>
+
+    <!-- Tab Buttons -->
+    <div class="tab-buttons">
+        <button class="tab-btn active" data-tab="analyze">Analyze Logs</button>
+        <button class="tab-btn" data-tab="incidents">Past Incidents</button>
+    </div>
+
+    <!-- Analyze Tab -->
+    <div id="tab-analyze" class="tab-content active">
+        <!-- Upload Area -->
+        <div class="upload-area" id="upload-area">
+            <div class="upload-icon">📁</div>
+            <h3 style="margin-bottom: 12px;">Drop log file here</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                Supports CSV, JSON, TXT, and LOG files
+            </p>
+            <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+                Select File
+            </button>
+            <input type="file" id="file-input" class="file-input" accept=".csv,.json,.txt,.log">
+            <div id="selected-file" style="margin-top: 16px; color: #a78bfa; font-weight: 500; display: none;"></div>
+        </div>
+
+        <!-- How Log Analysis Works -->
+        <div class="card" style="margin-top: 30px;">
+            <h4 style="margin-bottom: 20px; color: #a78bfa; font-size: 16px;">🔍 How Log Analysis Works</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                <div style="background: rgba(139, 92, 246, 0.05); padding: 16px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.2);">
+                    <h5 style="margin-bottom: 12px; color: #e2e8f0; font-size: 14px;">1. Pattern Matching</h5>
+                    <p style="font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+                        Each log event is scanned against 200+ regex patterns covering all 14 MITRE ATT&CK tactics. Patterns cover endpoint activity (Windows, Linux), network events (firewall, proxy, DNS), web application logs (Apache, Nginx, IIS), Active Directory events, and cloud logs (AWS CloudTrail, Azure Activity). Keywords include "powershell", "mimikatz", "lsass", "registry run key", "lateral movement", "dns tunneling", "vssadmin", "wbadmin". A match does not confirm a compromise, it signals an area requiring manual investigation.
+                    </p>
+                </div>
+                
+                <div style="background: rgba(139, 92, 246, 0.05); padding: 16px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.2);">
+                    <h5 style="margin-bottom: 12px; color: #e2e8f0; font-size: 14px;">2. Field Extraction</h5>
+                    <p style="font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+                        The system attempts to extract the following fields from each log line:<br>
+                        &bull; <code>timestamp</code>: Parsed from the log line itself (ISO 8601, Syslog, Windows Event format). Falls back to upload time if no timestamp is found in the line.<br>
+                        &bull; <code>source</code>: Originating system or log type (firewall, sysmon, webserver, AD, cloud...)<br>
+                        &bull; <code>description</code>: The full raw log message used for pattern matching<br>
+                        &bull; <code>host</code>: Hostname or IP of the machine involved, when present
+                    </p>
+                </div>
+                
+                <div style="background: rgba(139, 92, 246, 0.05); padding: 16px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.2);">
+                    <h5 style="margin-bottom: 12px; color: #e2e8f0; font-size: 14px;">3. Signal Strength</h5>
+                    <p style="font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+                        Indicates how strongly a log event matches a known attack pattern:<br><br>
+                        &bull; <span style="color:#f87171; font-weight:600;">&#x1F534; High Priority</span> - &ge; 80%: strong multi-keyword match on a high-severity tactic<br>
+                        &bull; <span style="color:#fb923c; font-weight:600;">&#x1F7E0; Medium Priority</span> - 50-79%: partial match or lower-severity tactic<br>
+                        &bull; <span style="color:#fbbf24; font-weight:600;">&#x1F7E1; Low Priority</span> - &lt; 50%: weak signal, single keyword match<br><br>
+                        <em>Signal strength reflects pattern confidence only, not the actual severity of the incident.</em>
+                    </p>
+                </div>
+                
+                <div style="background: rgba(139, 92, 246, 0.05); padding: 16px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.2);">
+                    <h5 style="margin-bottom: 12px; color: #e2e8f0; font-size: 14px;">4. Timeline Building</h5>
+                    <p style="font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+                        Matched events are sorted chronologically using the timestamp extracted from each log line, then grouped by MITRE ATT&amp;CK tactic following the Cyber Kill Chain order: Initial Access, Execution, Persistence, Privilege Escalation, Defense Evasion, Credential Access, Discovery, Lateral Movement, Collection, Exfiltration, Command and Control, Impact. Tactics with no events detected are shown as Blind Zones, their absence does not confirm the attack skipped that phase.
+                    </p>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(139, 92, 246, 0.2);">
+                <h5 style="margin-bottom: 12px; color: #e2e8f0; font-size: 14px;">📋 Supported Formats</h5>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 13px; color: var(--text-secondary);">
+                    <div><strong>CSV</strong>: SIEM exports, Windows Event exports, spreadsheet logs with headers</div>
+                    <div><strong>JSON</strong>: AWS CloudTrail, Azure Activity Logs, API logs, structured SIEM events</div>
+                    <div><strong>TXT/LOG</strong>: Syslog (RFC 3164/5424), Windows application logs, Apache/Nginx/IIS access logs, firewall logs, plain text</div>
+                    <div><strong>XML</strong>: Windows Event Log exports (.xml), structured event formats</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(139, 92, 246, 0.2);">
+                <h5 style="margin-bottom: 12px; color: #e2e8f0; font-size: 14px;">📤 Output</h5>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 13px; color: var(--text-secondary);">
+                    <div>&bull; Attack timeline ordered by real log timestamps, grouped by MITRE tactic</div>
+                    <div>&bull; Technique detection cards with event counts and signal strength distribution</div>
+                    <div>&bull; Export to JSON or CSV</div>
+                    <div>&bull; Blind Zone indicators for undetected tactics, with contextual warning message</div>
+                    <div>&bull; Global disclaimer banner reminding that results require manual analyst review</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Container -->
+        <div class="results-container" id="results-container">
+            <!-- Automation Warning Banner -->
+            <div class="analysis-warning-banner">
+                <span class="warn-icon">⚠️</span>
+                <span><strong>Automatic analysis</strong> — Results are indicative only. Patterns are keyword-based; a non-detection does not imply the absence of a threat. Manual review is always required to confirm findings. Source analyzed: uploaded log file only.</span>
+            </div>
+            <!-- Stats -->
+            <div class="stats-row" id="stats-row">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-events">0</div>
+                    <div class="stat-label">Events</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-techniques">0</div>
+                    <div class="stat-label">Techniques</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-tactics">0</div>
+                    <div class="stat-label">Tactics</div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button class="btn btn-secondary" id="btn-export-json">
+                    Export JSON
+                </button>
+                <button class="btn btn-secondary" id="btn-export-csv">
+                    Export CSV
+                </button>
+                <button class="btn btn-primary" id="btn-new-analysis" style="margin-left: auto;">
+                    New Analysis
+                </button>
+            </div>
+
+            <!-- Visual Kill Chain -->
+            <div class="card">
+                <h3 style="margin-bottom: 20px;">Cyber Kill Chain Visualization</h3>
+                <div id="kill-chain-container" style="overflow-x: auto;">
+                    <div class="kill-chain" style="display: flex; align-items: center; gap: 8px; min-width: 900px; padding: 10px 0;">
+                        <!-- Kill chain phases will be rendered here -->
+                    </div>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; font-size: 12px; color: var(--text-secondary);">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <div style="width: 12px; height: 12px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 3px;"></div>
+                        <span>Detected with events</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <div style="width: 12px; height: 12px; background: rgba(100, 100, 100, 0.2); border: 1px solid rgba(100, 100, 100, 0.4); border-radius: 3px;"></div>
+                        <span>Blind Zone — no pattern detected (does not confirm absence of activity)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 14px;">→</span>
+                        <span>Attack progression flow</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Techniques Summary -->
+            <div class="card" style="margin-top: 24px;">
+                <h3 style="margin-bottom: 20px;">Detected Techniques</h3>
+                <div class="techniques-grid" id="techniques-grid"></div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="timeline-section card" style="margin-top: 24px;">
+                <h3 style="margin-bottom: 20px;">Attack Timeline</h3>
+                <div id="timeline-container"></div>
+            </div>
+
+            <!-- Events Table -->
+            <div class="card" style="margin-top: 24px;">
+                <h3 style="margin-bottom: 20px;">All Events</h3>
+                <div style="max-height: 500px; overflow-y: auto;">
+                    <table class="data-table" id="events-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Timestamp</th>
+                                <th>Source</th>
+                                <th>Description</th>
+                                <th>MITRE Technique</th>
+                                <th>Signal Strength</th>
+                            </tr>
+                        </thead>
+                        <tbody id="events-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Incidents Tab -->
+    <div id="tab-incidents" class="tab-content">
+        <div class="card">
+            <h3 style="margin-bottom: 20px;">Past Incidents</h3>
+            <div id="incidents-list" class="incidents-list">
+                <div class="empty-state">
+                    <div class="empty-icon">📋</div>
+                    <p>Loading incidents...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+    <div class="loading-content">
+        <div class="spinner"></div>
+        <h3>Analyzing Log File...</h3>
+        <p style="color: var(--text-secondary);">This may take a moment</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentIncidentId = null;
+let currentResults = null;
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        
+        // Update buttons
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Update content
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        
+        // Load incidents if switching to that tab
+        if (tab === 'incidents') {
+            loadIncidents();
+        }
+    });
+});
+
+// Upload area drag and drop
+const uploadArea = document.getElementById('upload-area');
+const fileInput = document.getElementById('file-input');
+
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        handleFile(files[0]);
+    }
+});
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handleFile(e.target.files[0]);
+    }
+});
+
+function handleFile(file) {
+    document.getElementById('selected-file').textContent = file.name;
+    document.getElementById('selected-file').style.display = 'block';
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    document.getElementById('loading-overlay').style.display = 'flex';
+    
+    fetch('/log-analyzer/api/analyze', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('loading-overlay').style.display = 'none';
+        
+        if (data.success) {
+            currentIncidentId = data.incident_id;
+            currentResults = data;
+            displayResults(data);
+        } else {
+            alert('Error: ' + (data.error || 'Analysis failed'));
+        }
+    })
+    .catch(e => {
+        document.getElementById('loading-overlay').style.display = 'none';
+        alert('Error: ' + e.message);
+    });
+}
+
+// Kill chain phases in order
+const KILL_CHAIN_PHASES = [
+    { name: 'Initial Access', short: 'IA' },
+    { name: 'Execution', short: 'EX' },
+    { name: 'Persistence', short: 'PS' },
+    { name: 'Privilege Escalation', short: 'PE' },
+    { name: 'Defense Evasion', short: 'DE' },
+    { name: 'Credential Access', short: 'CA' },
+    { name: 'Discovery', short: 'DS' },
+    { name: 'Lateral Movement', short: 'LM' },
+    { name: 'Collection', short: 'CO' },
+    { name: 'Exfiltration', short: 'EXF' },
+    { name: 'Command and Control', short: 'C2' },
+    { name: 'Impact', short: 'IM' }
+];
+
+function renderKillChain(timeline) {
+    const killChainContainer = document.querySelector('.kill-chain');
+    if (!killChainContainer) return;
+    
+    // Build map of detected tactics and their event counts
+    const detectedTactics = {};
+    timeline.forEach(phase => {
+        detectedTactics[phase.tactic] = phase.event_count;
+    });
+    
+    // Build kill chain HTML
+    let html = '';
+    KILL_CHAIN_PHASES.forEach((phase, index) => {
+        const eventCount = detectedTactics[phase.name] || 0;
+        const isDetected = eventCount > 0;
+        const phaseClass = isDetected ? 'detected' : 'not-detected';
+        const countBadge = isDetected ? `<span class="phase-count">${eventCount}</span>` : '';
+        
+        html += `
+            <div class="kill-chain-phase ${phaseClass}">
+                ${countBadge}
+                <div class="phase-number">${index + 1}</div>
+                <div class="phase-name">${phase.name}</div>
+            </div>
+        `;
+        
+        // Add arrow between phases (except after last)
+        if (index < KILL_CHAIN_PHASES.length - 1) {
+            html += `<span class="kill-chain-arrow">→</span>`;
+        }
+    });
+    
+    killChainContainer.innerHTML = html;
+}
+
+function displayResults(data) {
+    // Hide upload, show results
+    document.getElementById('upload-area').style.display = 'none';
+    document.getElementById('results-container').style.display = 'block';
+    
+    // Update stats
+    document.getElementById('stat-events').textContent = data.events_parsed;
+    document.getElementById('stat-techniques').textContent = data.techniques_detected;
+    document.getElementById('stat-tactics').textContent = data.timeline.length;
+    
+    // Render kill chain visualization
+    renderKillChain(data.timeline);
+    
+    // Display techniques
+    const techniquesGrid = document.getElementById('techniques-grid');
+    techniquesGrid.innerHTML = data.mitre_techniques.map(t => `
+        <div class="technique-card">
+            <div class="technique-id">${t.id}</div>
+            <div class="technique-name">${t.name}</div>
+            <div class="technique-tactic">${t.tactic}</div>
+            <span class="technique-count">${t.count} events</span>
+        </div>
+    `).join('');
+    
+    // Display timeline
+    const timelineContainer = document.getElementById('timeline-container');
+    timelineContainer.innerHTML = data.timeline.map(phase => {
+        const tacticClass = 'tactic-' + phase.tactic.toLowerCase().replace(/\s+/g, '-');
+        return `
+            <div class="timeline-tactic">
+                <div class="timeline-tactic-header ${tacticClass}">
+                    <span class="tactic-badge ${tacticClass}">${phase.tactic}</span>
+                    <span>${phase.event_count} events</span>
+                </div>
+                <div class="timeline-events">
+                    ${phase.events.slice(0, 5).map(e => `
+                        <div class="timeline-event">
+                            <div class="event-marker ${tacticClass}"></div>
+                            <div class="event-content">
+                                <div class="event-description">${escapeHtml(e.description.substring(0, 150))}${e.description.length > 150 ? '...' : ''}</div>
+                                <div class="event-meta">
+                                    ${e.mitre_technique_id ? `<span class="event-technique ${tacticClass}">${e.mitre_technique_id}</span>` : ''}
+                                    ${e.confidence > 0 ? `<span class="event-confidence ${e.confidence >= 80 ? 'signal-high' : e.confidence >= 50 ? 'signal-medium' : 'signal-low'}">${e.confidence >= 80 ? '🔴 High Priority' : e.confidence >= 50 ? '🟠 Medium Priority' : '🟡 Low Priority'} (${e.confidence}%)</span>` : ''}
+                                    <span>${e.source}</span>
+                                    <span>${new Date(e.timestamp).toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                    ${phase.events.length > 5 ? `<div style="text-align: center; padding: 12px; color: var(--text-secondary); font-size: 13px;">+${phase.events.length - 5} more events</div>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Display events table
+    const eventsTbody = document.getElementById('events-tbody');
+    eventsTbody.innerHTML = data.events.slice(0, 100).map(e => `
+        <tr>
+            <td>${e.index + 1}</td>
+            <td>${new Date(e.timestamp).toLocaleString()}</td>
+            <td>${escapeHtml(e.source)}</td>
+            <td>${escapeHtml(e.description.substring(0, 100))}${e.description.length > 100 ? '...' : ''}</td>
+            <td>${e.mitre_technique_id ? `<span style="font-family: monospace; color: #fc8181;">${e.mitre_technique_id}</span>` : '-'}</td>
+            <td>${e.confidence > 0 ? `<span class="event-confidence ${e.confidence >= 80 ? 'signal-high' : e.confidence >= 50 ? 'signal-medium' : 'signal-low'}">${e.confidence >= 80 ? '🔴 High' : e.confidence >= 50 ? '🟠 Medium' : '🟡 Low'}</span>` : '-'}</td>
+        </tr>
+    `).join('');
+}
+
+// Export buttons
+document.getElementById('btn-export-json').addEventListener('click', () => {
+    if (currentIncidentId) {
+        window.location.href = `/log-analyzer/api/export/${currentIncidentId}/json`;
+    }
+});
+
+document.getElementById('btn-export-csv').addEventListener('click', () => {
+    if (currentIncidentId) {
+        window.location.href = `/log-analyzer/api/export/${currentIncidentId}/csv`;
+    }
+});
+
+// New analysis button
+document.getElementById('btn-new-analysis').addEventListener('click', () => {
+    document.getElementById('upload-area').style.display = 'block';
+    document.getElementById('results-container').style.display = 'none';
+    document.getElementById('selected-file').style.display = 'none';
+    document.getElementById('file-input').value = '';
+    currentIncidentId = null;
+    currentResults = null;
+});
+
+// Load incidents list
+function loadIncidents() {
+    fetch('/log-analyzer/api/incidents')
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('incidents-list');
+            
+            if (!data.success || !data.incidents.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📋</div>
+                        <p>No incidents yet. Upload a log file to get started.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = data.incidents.map(inc => `
+                <div class="incident-item">
+                    <div class="incident-info">
+                        <h4>${escapeHtml(inc.name)}</h4>
+                        <div class="incident-meta">
+                            ${inc.filename ? `File: ${escapeHtml(inc.filename)} • ` : ''}
+                            ${new Date(inc.created_at).toLocaleString()} • 
+                            ${inc.event_count} events • ${inc.technique_count} techniques
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <span class="status-badge status-${inc.status}">${inc.status}</span>
+                        <button class="btn btn-sm btn-secondary" onclick="viewIncident('${inc.id}')">View</button>
+                        <button class="btn btn-sm" style="background: rgba(220, 38, 38, 0.1); color: #DC2626;" onclick="deleteIncident('${inc.id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        })
+        .catch(e => {
+            document.getElementById('incidents-list').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">⚠️</div>
+                    <p>Error loading incidents: ${e.message}</p>
+                </div>
+            `;
+        });
+}
+
+function viewIncident(id) {
+    fetch(`/log-analyzer/api/incident/${id}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                // Switch to analyze tab and display
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector('[data-tab="analyze"]').classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById('tab-analyze').classList.add('active');
+                
+                currentIncidentId = id;
+                
+                // Reconstruct results format
+                const results = {
+                    incident_id: id,
+                    events_parsed: data.events.length,
+                    techniques_detected: data.techniques.length,
+                    mitre_techniques: data.techniques,
+                    timeline: data.timeline,
+                    events: data.events
+                };
+                
+                displayResults(results);
+            }
+        });
+}
+
+function deleteIncident(id) {
+    if (!confirm('Delete this incident? This cannot be undone.')) return;
+    
+    fetch(`/log-analyzer/api/incident/${id}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                loadIncidents();
+            } else {
+                alert('Error: ' + (data.error || 'Delete failed'));
+            }
+        });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

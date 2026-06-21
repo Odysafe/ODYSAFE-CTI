@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}CTI Memory - CTI Platform{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/memory.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container mem-app">
+        <header class="mem-header">
+            <div>
+                <h1>CTI Memory</h1>
+                <p class="mem-subtitle">Local semantic memory and entity graph powered by ZettelForge (regex extraction, vector search, co-occurrence links). No LLM required.</p>
+            </div>
+            <div id="mem-status-badge" class="mem-status {% if memory_status.available %}mem-status--ok{% else %}mem-status--off{% endif %}">
+                {% if memory_status.available %}Active{% else %}Unavailable{% endif %}
+            </div>
+        </header>
+
+        {% if not memory_status.available %}
+        <div class="mem-alert">
+            <strong>CTI Memory is not available.</strong>
+            <p>Install the optional dependency: <code>pip install zettelforge</code> inside your virtual environment, then restart the platform.</p>
+            {% if memory_status.error %}<p class="mem-hint">{{ memory_status.error }}</p>{% endif %}
+            <p class="mem-hint">The embedding model is downloaded once on first use (~80 MB, fastembed ONNX). After that, operation is fully offline.</p>
+        </div>
+        {% endif %}
+
+        <nav class="mem-tabs" role="tablist">
+            <button type="button" class="mem-tab is-active" data-tab="search" role="tab">Search</button>
+            <button type="button" class="mem-tab" data-tab="stats" role="tab">Stats</button>
+            <button type="button" class="mem-tab" data-tab="entity" role="tab">Entity</button>
+            <button type="button" class="mem-tab" data-tab="graph" role="tab">Graph</button>
+            <button type="button" class="mem-tab" data-tab="rules" role="tab">Sigma / YARA</button>
+            <button type="button" class="mem-tab" data-tab="add" role="tab">Add note</button>
+        </nav>
+
+        <div id="tab-search" class="mem-panel is-active" role="tabpanel">
+            <div class="mem-card">
+                <h2 class="mem-card-title">Recall</h2>
+                <p class="mem-hint">Semantic and exact blended search over stored CTI notes (sources, IOC notes, investigations, log summaries, Flash Reports).</p>
+                <form id="mem-recall-form" class="mem-form-row">
+                    <input type="text" id="mem-recall-q" class="form-control" placeholder="Search memory (e.g. Fancy Bear, 1.2.3.4, ransomware hospital)" autocomplete="off">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </form>
+                <div id="mem-recall-results" class="mem-results"></div>
+            </div>
+        </div>
+
+        <div id="tab-stats" class="mem-panel" role="tabpanel" hidden>
+            <div class="mem-card">
+                <div class="mem-card-head">
+                    <h2 class="mem-card-title">Memory statistics</h2>
+                    <button type="button" id="mem-refresh-stats" class="btn btn-secondary btn-sm">Refresh</button>
+                </div>
+                <div id="mem-stats-content"><div class="mem-empty">Loading...</div></div>
+            </div>
+        </div>
+
+        <div id="tab-entity" class="mem-panel" role="tabpanel" hidden>
+            <div class="mem-card">
+                <h2 class="mem-card-title">Entity lookup</h2>
+                <p class="mem-hint">Find notes by exact entity (IP, domain, hash, CVE, technique ID, actor name).</p>
+                <form id="mem-entity-form" class="mem-form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="mem-entity-type">Entity type</label>
+                        <select id="mem-entity-type" class="form-control">
+                            <option value="ipv4">IPv4</option>
+                            <option value="domain">Domain</option>
+                            <option value="url">URL</option>
+                            <option value="md5">MD5</option>
+                            <option value="sha256">SHA256</option>
+                            <option value="email">Email</option>
+                            <option value="cve">CVE</option>
+                            <option value="attack_pattern">ATT&CK technique (Txxxx)</option>
+                            <option value="intrusion_set">Threat group / actor</option>
+                            <option value="tool">Tool</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="mem-entity-value">Value</label>
+                        <input type="text" id="mem-entity-value" class="form-control" placeholder="e.g. 1.2.3.4, CVE-2024-1234, APT28, T1059" required>
+                    </div>
+                    <div class="form-group mem-form-action">
+                        <button type="submit" class="btn btn-primary">Lookup</button>
+                    </div>
+                </form>
+                <div id="mem-entity-results" class="mem-results"></div>
+            </div>
+        </div>
+
+        <div id="tab-graph" class="mem-panel" role="tabpanel" hidden>
+            <div class="mem-card">
+                <h2 class="mem-card-title">Graph traversal (BFS)</h2>
+                <p class="mem-hint">Walk co-occurrence and mention links from a starting entity.</p>
+                <form id="mem-graph-form" class="mem-form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="mem-graph-type">Start type</label>
+                        <select id="mem-graph-type" class="form-control">
+                            <option value="ipv4">IPv4</option>
+                            <option value="domain">Domain</option>
+                            <option value="intrusion_set">Threat group</option>
+                            <option value="attack_pattern">Technique</option>
+                            <option value="cve">CVE</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="mem-graph-value">Start value</label>
+                        <input type="text" id="mem-graph-value" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="mem-graph-depth">Max depth</label>
+                        <select id="mem-graph-depth" class="form-control">
+                            <option value="1">1</option>
+                            <option value="2" selected>2</option>
+                            <option value="3">3</option>
+                        </select>
+                    </div>
+                    <div class="form-group mem-form-action">
+                        <button type="submit" class="btn btn-primary">Traverse</button>
+                    </div>
+                </form>
+                <div id="mem-graph-results" class="mem-results"></div>
+            </div>
+        </div>
+
+        <div id="tab-rules" class="mem-panel" role="tabpanel" hidden>
+            <div class="mem-grid">
+                <div class="mem-card">
+                    <h2 class="mem-card-title">Ingest Sigma rule</h2>
+                    <p class="mem-hint">Parse a Sigma YAML file and link ATT&CK tags into the memory graph.</p>
+                    <form id="mem-sigma-form" enctype="multipart/form-data">
+                        <input type="file" name="file" accept=".yml,.yaml" class="form-control" required>
+                        <button type="submit" class="btn btn-primary" style="margin-top:12px;">Ingest Sigma</button>
+                    </form>
+                    <div id="mem-sigma-feedback" class="mem-feedback"></div>
+                </div>
+                <div class="mem-card">
+                    <h2 class="mem-card-title">Ingest YARA rule</h2>
+                    <p class="mem-hint">Parse a YARA rule and link metadata into the memory graph.</p>
+                    <form id="mem-yara-form" enctype="multipart/form-data">
+                        <input type="file" name="file" accept=".yar,.yara" class="form-control" required>
+                        <select name="tier" class="form-control" style="margin-top:8px;">
+                            <option value="warn">Validation tier: warn</option>
+                            <option value="strict">strict</option>
+                            <option value="non_cccs">non_cccs</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary" style="margin-top:12px;">Ingest YARA</button>
+                    </form>
+                    <div id="mem-yara-feedback" class="mem-feedback"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-add" class="mem-panel" role="tabpanel" hidden>
+            <div class="mem-card">
+                <h2 class="mem-card-title">Add analyst note</h2>
+                <p class="mem-hint">Store free-form CTI text. IOCs, CVEs, and ATT&CK IDs are extracted automatically.</p>
+                <form id="mem-add-form">
+                    <textarea id="mem-add-content" class="form-control" rows="6" placeholder="Paste threat intel notes, report excerpts, or observations..." required></textarea>
+                    <button type="submit" class="btn btn-primary" style="margin-top:12px;">Remember</button>
+                </form>
+                <div id="mem-add-feedback" class="mem-feedback"></div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    window.MEMORY_BOOT = {{ memory_status | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/memory.js') }}"></script>
+{% endblock %}

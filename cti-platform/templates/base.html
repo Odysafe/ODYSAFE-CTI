@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Personal CTI workspace for cyber threat intelligence analysis">
+    <title>{% block title %}My CTI Workspace{% endblock %}</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo-mini.png') }}">
+    <!-- Preload critical resources -->
+    <link rel="preload" href="{{ url_for('static', filename='css/style.css') }}" as="style">
+    <link rel="preload" href="{{ url_for('static', filename='js/main.js') }}" as="script">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Static background -->
+    <div class="sphere-background">
+        <img src="{{ url_for('static', filename='images/sphere-background.jpg') }}" alt="Background Sphere" loading="eager" fetchpriority="high">
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="{{ url_for('dashboard') }}" class="nav-brand">
+                <img src="{{ url_for('static', filename='images/logo-c.png') }}" alt="My CTI">
+                <span class="logo-text">My CTI</span>
+            </a>
+
+            {% set data_active = request.path.startswith('/upload') or request.path.startswith('/iocs') or request.path.startswith('/ioc/') or request.path.startswith('/sources') or request.path.startswith('/export') %}
+            {% set analysis_active = request.path in ('/intelligence', '/cti-toolkit') or request.path.startswith('/stix-graph') or request.path.startswith('/cti-resources') or request.path.startswith('/log-analyzer') or request.path.startswith('/memory') or request.path.startswith('/ransomware-tools') %}
+            {% set reports_active = request.path.startswith('/flash-report') %}
+
+            <ul class="nav-menu">
+                <li>
+                    <a href="{{ url_for('dashboard') }}"
+                       class="nav-link{% if request.path == '/' %} nav-link--active{% endif %}">
+                        Home
+                    </a>
+                </li>
+
+                <li class="nav-dropdown{% if data_active %} nav-dropdown--active{% endif %}">
+                    <button type="button" class="nav-dropdown__toggle" onclick="toggleNavDropdown(this)" aria-expanded="false" aria-haspopup="true">
+                        Data
+                        <svg class="nav-dropdown__arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.5L6 8l3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <ul class="nav-dropdown__menu">
+                        <li><a href="{{ url_for('upload') }}" class="nav-dropdown__item{% if request.path.startswith('/upload') %} nav-dropdown__item--active{% endif %}">IOC Extraction</a></li>
+                        <li><a href="{{ url_for('iocs_list') }}" class="nav-dropdown__item{% if request.path.startswith('/iocs') or request.path.startswith('/ioc/') %} nav-dropdown__item--active{% endif %}">IOCs</a></li>
+                        <li><a href="{{ url_for('sources_list') }}" class="nav-dropdown__item{% if request.path.startswith('/sources') %} nav-dropdown__item--active{% endif %}">Sources</a></li>
+                        <li><a href="{{ url_for('export') }}" class="nav-dropdown__item{% if request.path.startswith('/export') %} nav-dropdown__item--active{% endif %}">Export</a></li>
+                    </ul>
+                </li>
+
+                <li>
+                    <a href="{{ url_for('investigation.investigation_home') }}"
+                       class="nav-link{% if request.path.startswith('/investigation') %} nav-link--active{% endif %}">
+                        Investigation
+                    </a>
+                </li>
+
+                <li class="nav-dropdown{% if analysis_active %} nav-dropdown--active{% endif %}">
+                    <button type="button" class="nav-dropdown__toggle" onclick="toggleNavDropdown(this)" aria-expanded="false" aria-haspopup="true">
+                        Analysis
+                        <svg class="nav-dropdown__arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.5L6 8l3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <ul class="nav-dropdown__menu">
+                        <li><a href="{{ url_for('cti_toolkit') }}" class="nav-dropdown__item{% if request.path in ('/intelligence', '/cti-toolkit') %} nav-dropdown__item--active{% endif %}">Analysis hub</a></li>
+                        <li><a href="{{ url_for('memory.memory_home') }}" class="nav-dropdown__item{% if request.path.startswith('/memory') %} nav-dropdown__item--active{% endif %}">CTI Memory</a></li>
+                        <li><a href="{{ url_for('log_analyzer.log_analyzer_home') }}" class="nav-dropdown__item{% if request.path.startswith('/log-analyzer') %} nav-dropdown__item--active{% endif %}">Log Analyzer</a></li>
+                        <li><a href="{{ url_for('stix_graph') }}" class="nav-dropdown__item{% if request.path.startswith('/stix-graph') %} nav-dropdown__item--active{% endif %}">STIX Graph</a></li>
+                        <li><a href="{{ url_for('cti_resources_mitre_attack') }}" class="nav-dropdown__item{% if request.path.startswith('/cti-resources/mitre-attack') %} nav-dropdown__item--active{% endif %}">MITRE ATT&amp;CK</a></li>
+                        <li><a href="{{ url_for('cti_resources') }}" class="nav-dropdown__item{% if request.path.startswith('/cti-resources') and not request.path.startswith('/cti-resources/mitre-attack') and not request.path.startswith('/cti-resources/ransomware-matrix') %} nav-dropdown__item--active{% endif %}">DeepDarkCTI</a></li>
+                        <li><a href="{{ url_for('cti_resources_ransomware_matrix') }}" class="nav-dropdown__item{% if request.path.startswith('/cti-resources/ransomware-matrix') or request.path.startswith('/ransomware-tools') %} nav-dropdown__item--active{% endif %}">Ransomware Tool Matrix</a></li>
+                    </ul>
+                </li>
+
+                <li>
+                    <a href="{{ url_for('flash_report.flash_report_home') }}"
+                       class="nav-link{% if reports_active %} nav-link--active{% endif %}">
+                        Reports
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{{ url_for('settings') }}"
+                       class="nav-link{% if request.path.startswith('/settings') %} nav-link--active{% endif %}">
+                        Settings
+                    </a>
+                </li>
+                <li id="auth-menu-item" style="display: none;">
+                    <form id="logout-form" method="POST" action="{{ url_for('logout') }}" style="display: inline;">
+                        <button type="submit" class="nav-link nav-link--logout">
+                            Log Out
+                        </button>
+                    </form>
+                </li>
+            </ul>
+
+            <button id="gs-trigger" onclick="document.getElementById('gs-overlay').style.display='flex';document.getElementById('gs-input').focus();" aria-label="Global search (Ctrl+K)" title="Search (Ctrl+K)" style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:8px;cursor:pointer;color:rgba(167,139,250,.7);font-size:12px;font-family:inherit;transition:all .15s;margin-right:8px;">
+                <svg width="13" height="13" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.9"/><path d="M13 13l3.5 3.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+                <span>Search</span>
+                <kbd style="font-size:10px;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.2);border-radius:4px;padding:1px 5px;font-family:inherit;color:rgba(167,139,250,.5);">Ctrl+K</kbd>
+            </button>
+            <button class="menu-toggle" aria-label="Toggle mobile menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block breadcrumb %}{% endblock %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- ══ GLOBAL SEARCH MODAL (Ctrl+K) ══ -->
+    <div id="gs-overlay" role="dialog" aria-modal="true" aria-label="Global search" style="display:none;">
+        <div id="gs-box">
+            <div id="gs-input-row">
+                <svg id="gs-icon" width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M13 13l3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+                <input id="gs-input" type="text" placeholder="Search IOCs, sources, MITRE, memory…" autocomplete="off" spellcheck="false">
+                <kbd id="gs-esc-hint">Esc</kbd>
+            </div>
+            <div id="gs-results" aria-live="polite"></div>
+            <div id="gs-footer">
+                <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+                <span><kbd>Enter</kbd> open</span>
+                <span><kbd>Esc</kbd> close</span>
+                <span style="margin-left:auto;opacity:.5;">Ctrl+K to reopen</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 Odysafe CTI Platform &mdash; On-premise IOC management platform.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        /* Auth status → show logout button */
+        (async function() {
+            try {
+                const r = await fetch('/api/auth/status');
+                const d = await r.json();
+                if (d.success && d.auth_enabled && d.is_logged_in) {
+                    const el = document.getElementById('auth-menu-item');
+                    if (el) el.style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Auth status check failed:', e);
+            }
+        })();
+
+        /* Navbar dropdown toggle */
+        function toggleNavDropdown(btn) {
+            const li = btn.closest('.nav-dropdown');
+            const isOpen = li.classList.toggle('open');
+            btn.setAttribute('aria-expanded', isOpen);
+            document.querySelectorAll('.nav-dropdown.open').forEach(function(el) {
+                if (el !== li) {
+                    el.classList.remove('open');
+                    const otherBtn = el.querySelector('.nav-dropdown__toggle');
+                    if (otherBtn) otherBtn.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+
+        /* Close dropdown when clicking outside */
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.nav-dropdown')) {
+                document.querySelectorAll('.nav-dropdown.open').forEach(function(el) {
+                    el.classList.remove('open');
+                    const btn = el.querySelector('.nav-dropdown__toggle');
+                    if (btn) btn.setAttribute('aria-expanded', 'false');
+                });
+            }
+        });
+    </script>
+    {% block extra_scripts %}{% endblock %}
+    <script src="{{ url_for('static', filename='js/global-search.js') }}"></script>
+</body>
+</html>

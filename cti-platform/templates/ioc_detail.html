@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}IOC Detail – {{ ioc.ioc_value }} - CTI Platform{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container" style="max-width:860px;">
+
+        <!-- Back -->
+        <a href="{{ url_for('iocs_list') }}" class="btn btn-secondary" style="margin-bottom:20px;display:inline-flex;align-items:center;gap:6px;">
+            ← Back to list
+        </a>
+
+        <!-- Main card -->
+        <div class="card" style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+                <h1 class="card-title" style="margin:0;">IOC Detail</h1>
+                <span class="badge" style="font-size:13px;padding:5px 14px;">{{ ioc.ioc_type }}</span>
+            </div>
+
+            <div style="display:grid;gap:18px;">
+                <!-- Value -->
+                <div>
+                    <div style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:6px;">Value</div>
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                        <code id="ioc-value-display" style="font-size:16px;font-family:monospace;word-break:break-all;color:var(--text-primary);background:rgba(139,92,246,.06);padding:5px 10px;border-radius:7px;border:1px solid rgba(139,92,246,.15);">{{ ioc.ioc_value }}</code>
+                        <button onclick="copyValue()" title="Copy" style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2);border-radius:6px;padding:4px 10px;color:var(--violet-light);font-size:12px;cursor:pointer;">Copy</button>
+                    </div>
+                </div>
+
+                {% if ioc.raw_value and ioc.raw_value != ioc.ioc_value %}
+                <div>
+                    <div style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:6px;">Original value</div>
+                    <code style="font-size:13px;font-family:monospace;color:var(--text-secondary);">{{ ioc.raw_value }}</code>
+                </div>
+                {% endif %}
+
+                <!-- Source -->
+                <div>
+                    <div style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:6px;">Source</div>
+                    <div><strong>{{ source.name }}</strong></div>
+                    <div style="font-size:13px;color:var(--text-secondary);margin-top:3px;">{{ source.context }}</div>
+                </div>
+
+                <!-- Dates -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div>
+                        <div style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:4px;">First seen</div>
+                        <div style="font-size:13px;color:var(--text-secondary);">{{ ioc.first_seen }}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:4px;">Last seen</div>
+                        <div style="font-size:13px;color:var(--text-secondary);">{{ ioc.last_seen }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if ioc.ioc_type == 'ttp' %}
+        <!-- MITRE ATT&CK cross-reference card (TTP IOCs only) -->
+        {% set ttp_id = ioc.ioc_value | upper %}
+        <div class="card" style="margin-bottom:20px;border-color:rgba(220,60,60,.25);background:rgba(220,60,60,.04);">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                <span style="font-size:18px;">🎯</span>
+                <h2 class="card-title" style="margin:0;">MITRE ATT&amp;CK Reference</h2>
+            </div>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">
+                This IOC is a MITRE ATT&amp;CK technique identifier. View its full technical details in CTI Resources.
+            </p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
+                <a href="/cti-resources/mitre-attack?technique={{ ttp_id }}"
+                   class="btn btn-primary" style="font-size:13px;padding:7px 16px;">
+                    🔍 View {{ ttp_id }} in CTI Resources
+                </a>
+                <a href="https://attack.mitre.org/techniques/{{ ttp_id.replace('.', '/') }}/"
+                   target="_blank" rel="noopener"
+                   class="btn btn-secondary" style="font-size:13px;padding:7px 16px;">
+                    ↗ attack.mitre.org
+                </a>
+            </div>
+            <!-- Threat groups that use this technique (loaded by JS) -->
+            <div id="ttp-groups-panel">
+                <div style="font-size:12px;color:var(--text-secondary);">Loading associated threat groups…</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Tags card -->
+        <div class="card" style="margin-bottom:20px;">
+            <h2 class="card-title" style="margin-bottom:16px;">Tags</h2>
+
+            <!-- Auto-tags: read-only system info, collapsed by default -->
+            {% if auto_tags %}
+            <div style="margin-bottom:14px;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(167,139,250,.5);margin-bottom:8px;">System tags <span style="font-weight:400;opacity:.6;">(auto-generated - not editable)</span></div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                    {% for tag in auto_tags %}
+                    <span style="font-size:11px;padding:2px 9px;border-radius:20px;background:rgba(139,92,246,.06);border:1px dashed rgba(139,92,246,.2);color:rgba(167,139,250,.6);cursor:default;" title="{{ tag.category }}">{{ tag.name }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Manual tags: editable chips -->
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(167,139,250,.5);margin-bottom:8px;">Custom tags</div>
+            <div id="manual-tags-container" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;min-height:28px;">
+                {% for tag in manual_applied %}
+                <span class="tag" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name }}">
+                    {{ tag.name }}
+                    <span class="tag-remove" onclick="removeTag({{ ioc.id }}, {{ tag.id }}, '{{ tag.name | e }}')">×</span>
+                </span>
+                {% else %}
+                <span id="no-tags-hint" style="font-size:12px;color:rgba(148,144,176,.5);padding:4px 0;">No custom tags yet</span>
+                {% endfor %}
+            </div>
+
+            <!-- Combo input: free-text + datalist suggestions -->
+            <div style="display:flex;gap:8px;align-items:center;">
+                <div style="position:relative;flex:1;">
+                    <input id="tag-input" type="text" list="tag-suggestions"
+                           class="form-control"
+                           placeholder="Type a tag name or pick from list…"
+                           autocomplete="off"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();addTag({{ ioc.id }});}">
+                    <datalist id="tag-suggestions">
+                        {% for tag in manual_tags %}
+                        <option value="{{ tag.name }}">{{ tag.name }}</option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <button onclick="addTag({{ ioc.id }})" class="btn btn-primary" style="flex-shrink:0;">Add</button>
+            </div>
+        </div>
+
+        <!-- Notes card -->
+        <div class="card" style="margin-bottom:20px;">
+            <h2 class="card-title" style="margin-bottom:14px;">Notes</h2>
+            <textarea id="notes-textarea" class="form-control" rows="4" placeholder="Add notes about this IOC...">{{ ioc.notes or '' }}</textarea>
+            <button onclick="saveNotes({{ ioc.id }})" class="btn btn-primary" style="margin-top:12px;">Save</button>
+            <span id="notes-feedback" style="font-size:12px;margin-left:10px;color:var(--violet-light);display:none;">Saved ✓</span>
+        </div>
+
+        <!-- History card -->
+        {% if tag_history %}
+        <div class="card">
+            <h2 class="card-title" style="margin-bottom:14px;">Modification history</h2>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                {% for entry in tag_history %}
+                <div style="padding:10px 12px;background:rgba(139,92,246,.04);border:1px solid rgba(139,92,246,.1);border-radius:8px;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <span class="tag" style="background:{{ entry.tag_color or 'rgba(139,92,246,.1)' }};margin:0;">{{ entry.tag_name }}</span>
+                    <span style="color:var(--text-muted);font-size:12px;">{% if entry.action == 'added' %}Added{% else %}Removed{% endif %} · {{ entry.created_at }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const IOC_ID = {{ ioc.id }};
+
+function copyValue() {
+    const val = document.getElementById('ioc-value-display').textContent.trim();
+    navigator.clipboard.writeText(val).then(function() {
+        const btn = event.target;
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+    });
+}
+
+function addTag(iocId) {
+    const input = document.getElementById('tag-input');
+    const tagName = input.value.trim();
+    if (!tagName) return;
+
+    fetch('/api/ioc/' + iocId + '/tag', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tag_name: tagName})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.success) return;
+        const hint = document.getElementById('no-tags-hint');
+        if (hint) hint.remove();
+        const tagId = data.tag ? data.tag.id : Date.now();
+        const container = document.getElementById('manual-tags-container');
+        const el = document.createElement('span');
+        el.className = 'tag';
+        el.dataset.tagId = tagId;
+        el.dataset.tagName = tagName;
+        el.innerHTML = tagName + ' <span class="tag-remove" onclick="removeTag(' + iocId + ',' + tagId + ',\'' + tagName.replace(/'/g,"\\'") + '\')">&times;</span>';
+        container.appendChild(el);
+        input.value = '';
+    });
+}
+
+function removeTag(iocId, tagId, tagName) {
+    fetch('/api/ioc/' + iocId + '/tag', {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tag_name: tagName})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.success) return;
+        const el = document.querySelector('[data-tag-id="' + tagId + '"]');
+        if (el) el.remove();
+        const container = document.getElementById('manual-tags-container');
+        if (!container.querySelector('.tag')) {
+            const hint = document.createElement('span');
+            hint.id = 'no-tags-hint';
+            hint.style.cssText = 'font-size:12px;color:rgba(148,144,176,.5);padding:4px 0;';
+            hint.textContent = 'No custom tags yet';
+            container.appendChild(hint);
+        }
+    });
+}
+
+function saveNotes(iocId) {
+    const notes = document.getElementById('notes-textarea').value;
+    fetch('/api/ioc/' + iocId + '/notes', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({notes: notes})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.success) return;
+        const fb = document.getElementById('notes-feedback');
+        fb.style.display = 'inline';
+        setTimeout(function() { fb.style.display = 'none'; }, 2000);
+    });
+}
+
+/* ── TTP IOC: load associated threat groups from MITRE ── */
+(function() {
+    const panel = document.getElementById('ttp-groups-panel');
+    if (!panel) return;
+    const ttpId = '{{ ioc.ioc_value | upper }}';
+
+    fetch('/api/mitre-attack/techniques/' + encodeURIComponent(ttpId))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.success || !data.technique) {
+                panel.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);">Technique not found in local MITRE data.</div>';
+                return;
+            }
+            const groups = data.technique.groups || [];
+            if (!groups.length) {
+                panel.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);">No known threat groups associated with this technique in local MITRE data.</div>';
+                return;
+            }
+            const label = '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(220,60,60,.7);margin-bottom:8px;">Threat Groups using this technique (' + groups.length + ')</div>';
+            const chips = groups.map(function(g) {
+                return '<a href="/cti-resources/mitre-attack?group=' + encodeURIComponent(g.id) + '" '
+                    + 'style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;'
+                    + 'background:rgba(220,60,60,.08);border:1px solid rgba(220,60,60,.25);'
+                    + 'color:#fca5a5;font-size:12px;text-decoration:none;transition:background .15s;" '
+                    + 'title="' + g.name.replace(/"/g,'&quot;') + '">'
+                    + '<strong>' + g.id + '</strong>&nbsp;' + g.name
+                    + '</a>';
+            }).join('');
+            panel.innerHTML = label + '<div style="display:flex;flex-wrap:wrap;gap:6px;">' + chips + '</div>';
+        })
+        .catch(function() {
+            panel.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);">Could not load threat group data.</div>';
+        });
+}());
+</script>
+{% endblock %}
+

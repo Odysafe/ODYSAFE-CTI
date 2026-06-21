@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Investigation - CTI Platform{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/investigation.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container inv-app">
+        <header class="inv-header">
+            <div>
+                <h1>Investigation</h1>
+                <p class="inv-subtitle">Workspace for your current analysis session: scope, deliverables, and TTP coverage.</p>
+            </div>
+        </header>
+
+        <nav class="inv-tabs" role="tablist">
+            <button type="button" class="inv-tab is-active" data-tab="session" role="tab">Session</button>
+            <button type="button" class="inv-tab" data-tab="deliverables" role="tab">Deliverables</button>
+            <button type="button" class="inv-tab" data-tab="ttp" role="tab">TTP Coverage</button>
+        </nav>
+
+        <!-- Session -->
+        <div id="tab-session" class="inv-panel is-active" role="tabpanel">
+            <div class="inv-grid">
+                <div class="inv-card">
+                    <h2 class="inv-card-title">Active Session</h2>
+                    <form id="session-form" class="inv-form">
+                        <input type="hidden" id="session-id" value="{{ active_session.id if active_session else '' }}">
+                        <div class="form-group">
+                            <label class="form-label" for="session-name">Session name</label>
+                            <input type="text" id="session-name" class="form-control" required
+                                   placeholder="e.g. Ransomware triage - Client X"
+                                   value="{{ active_session.name if active_session else '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="session-group">IOC scope (group)</label>
+                            <select id="session-group" class="form-control">
+                                <option value="">All IOCs in workspace</option>
+                                {% for group in groups %}
+                                <option value="{{ group.id }}"
+                                    {% if active_session and active_session.group_id == group.id %}selected{% endif %}>
+                                    {{ group.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <p class="inv-hint">Link a group to focus stats, TTP coverage, and IOC shortcuts on this session.</p>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="session-notes">Notes</label>
+                            <textarea id="session-notes" class="form-control" rows="4"
+                                      placeholder="Objectives, hypotheses, open questions...">{{ active_session.notes if active_session else '' }}</textarea>
+                        </div>
+                        <div class="inv-form-actions">
+                            <button type="submit" class="btn btn-primary">Save session</button>
+                            {% if active_session %}
+                            <button type="button" id="btn-close-session" class="btn btn-secondary">Close session</button>
+                            {% endif %}
+                        </div>
+                    </form>
+                    <div id="session-feedback" class="inv-feedback" aria-live="polite"></div>
+                </div>
+
+                <div class="inv-card">
+                    <h2 class="inv-card-title">Session Snapshot</h2>
+                    <div class="inv-stats" id="session-stats">
+                        <div class="inv-stat">
+                            <span class="inv-stat-value">{{ stats.ioc_count or 0 }}</span>
+                            <span class="inv-stat-label">IOCs in scope</span>
+                        </div>
+                        <div class="inv-stat">
+                            <span class="inv-stat-value">{{ stats.true_positive_count or 0 }}</span>
+                            <span class="inv-stat-label">True positives</span>
+                        </div>
+                        <div class="inv-stat">
+                            <span class="inv-stat-value">{{ stats.ttp_link_count or 0 }}</span>
+                            <span class="inv-stat-label">Linked TTPs</span>
+                        </div>
+                        <div class="inv-stat">
+                            <span class="inv-stat-value">{{ stats.log_incident_count or 0 }}</span>
+                            <span class="inv-stat-label">Log analyses</span>
+                        </div>
+                    </div>
+
+                    <h3 class="inv-section-label">Quick links</h3>
+                    <div class="inv-links">
+                        <a href="{{ url_for('upload') }}" class="inv-link-card">IOC Extraction</a>
+                        <a href="{{ url_for('iocs_list') }}" id="link-iocs-scoped" class="inv-link-card">IOCs</a>
+                        <a href="{{ url_for('export') }}" class="inv-link-card">Export</a>
+                        <a href="{{ url_for('flash_report.flash_report_home') }}" class="inv-link-card">Flash Report</a>
+                        <a href="{{ url_for('log_analyzer.log_analyzer_home') }}" class="inv-link-card">Log Analyzer</a>
+                        <a href="{{ url_for('memory.memory_home') }}" class="inv-link-card">CTI Memory</a>
+                        <a href="{{ url_for('cti_resources_mitre_attack') }}" class="inv-link-card">MITRE ATT&CK</a>
+                    </div>
+                    <p class="inv-hint" id="flash-draft-hint"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deliverables -->
+        <div id="tab-deliverables" class="inv-panel" role="tabpanel" hidden>
+            <div class="inv-card">
+                <div class="inv-card-head">
+                    <h2 class="inv-card-title">Deliverables</h2>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-deliverables">Refresh</button>
+                </div>
+                <p class="inv-hint">Files saved under <code>outputs/</code> (IOC exports, reports). Flash Report Excel files are downloaded from the browser and are not listed here unless saved manually.</p>
+                <div id="deliverables-content">
+                    <div class="inv-empty">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TTP Coverage -->
+        <div id="tab-ttp" class="inv-panel" role="tabpanel" hidden>
+            <div class="inv-card">
+                <div class="inv-card-head">
+                    <h2 class="inv-card-title">TTP Coverage</h2>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-ttp">Refresh</button>
+                </div>
+                <p class="inv-hint">Techniques linked to IOCs in scope and techniques matched in Log Analyzer events.</p>
+                <div class="inv-ttp-grid">
+                    <div>
+                        <h3 class="inv-section-label">From linked IOCs</h3>
+                        <div id="ttp-iocs-content"><div class="inv-empty">Loading...</div></div>
+                    </div>
+                    <div>
+                        <h3 class="inv-section-label">From log analysis</h3>
+                        <div id="ttp-logs-content"><div class="inv-empty">Loading...</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    window.INVESTIGATION_BOOT = {
+        groupId: {{ active_session.group_id|tojson if active_session and active_session.group_id else 'null' }}
+    };
+</script>
+<script src="{{ url_for('static', filename='js/investigation.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,225 @@
+/* Shared layout for CTI resource pages (Ransomware Matrix, Threat Intel Reports, etc.) */
+
+.cti-page-wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+}
+
+.cti-page-head {
+    margin-bottom: 24px;
+}
+
+.cti-page-head h1 {
+    font-size: clamp(26px, 4vw, 36px);
+    font-weight: 700;
+    margin: 0 0 10px;
+    background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.cti-page-head p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    max-width: 640px;
+}
+
+.cti-page-head--center {
+    text-align: center;
+}
+
+.cti-page-head--center p {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.cti-attribution {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.cti-attribution a {
+    color: var(--violet-light);
+    text-decoration: none;
+}
+
+.cti-attribution a:hover {
+    text-decoration: underline;
+}
+
+.cti-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 16px 18px;
+    background: rgba(139, 92, 246, 0.05);
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 14px;
+}
+
+.cti-stat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.cti-stat-pill {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.cti-stat-pill strong {
+    color: var(--violet-light);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.cti-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.cti-btn {
+    padding: 9px 16px;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.cti-btn--primary {
+    background: linear-gradient(135deg, var(--violet-medium), var(--violet-light));
+    color: white;
+}
+
+.cti-btn--ghost {
+    background: rgba(139, 92, 246, 0.12);
+    color: var(--violet-light);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.cti-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.cti-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.cti-search {
+    width: 100%;
+    max-width: 360px;
+    padding: 10px 14px;
+    background: rgba(10, 10, 20, 0.55);
+    border: 1px solid rgba(139, 92, 246, 0.22);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.cti-search:focus {
+    outline: none;
+    border-color: var(--violet-light);
+}
+
+.cti-search-wrap {
+    flex: 1;
+    min-width: 200px;
+    max-width: 420px;
+}
+
+.cti-section-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 22px;
+    padding: 5px;
+    background: rgba(139, 92, 246, 0.05);
+    border: 1px solid rgba(167, 139, 250, 0.1);
+    border-radius: 12px;
+}
+
+.cti-section-nav button {
+    flex: 1;
+    min-width: 120px;
+    padding: 10px 14px;
+    background: transparent;
+    border: none;
+    border-radius: 9px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.cti-section-nav button:hover {
+    color: var(--violet-light);
+}
+
+.cti-section-nav button.active {
+    background: rgba(60, 60, 80, 0.85);
+    color: white;
+    font-weight: 600;
+}
+
+.cti-progress.progress-container {
+    display: none;
+}
+
+.cti-progress.progress-container.active {
+    display: block;
+}
+
+.cti-progress-track {
+    height: 6px;
+    background: rgba(139, 92, 246, 0.15);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.cti-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #7c3aed, #a78bfa);
+    transition: width 0.3s ease;
+}
+
+.cti-progress-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.cti-progress-meta span:last-child {
+    color: var(--violet-light);
+    font-weight: 600;
+}
+
+.cti-empty {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}

@@ -1,0 +1,253 @@
+/* CTI Memory (ZettelForge integration) */
+
+.mem-app {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+}
+
+.mem-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.mem-header h1 {
+    font-size: clamp(28px, 4vw, 38px);
+    font-weight: 700;
+    margin: 0 0 8px;
+    background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.mem-subtitle {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: 680px;
+}
+
+.mem-status {
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.mem-status--ok {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.mem-status--off {
+    background: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.mem-alert {
+    padding: 16px 18px;
+    border-radius: 12px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.mem-alert strong { color: #fca5a5; }
+
+.mem-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.15);
+}
+
+.mem-tab {
+    padding: 8px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.mem-tab.is-active {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(167, 139, 250, 0.45);
+    color: var(--violet-light);
+}
+
+.mem-panel { display: none; }
+.mem-panel.is-active { display: block; }
+
+.mem-card {
+    background: rgba(139, 92, 246, 0.06);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 16px;
+    padding: 22px;
+}
+
+.mem-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .mem-grid { grid-template-columns: 1fr; }
+}
+
+.mem-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.mem-card-title {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 10px;
+    color: var(--text-primary);
+}
+
+.mem-card-head .mem-card-title { margin-bottom: 0; }
+
+.mem-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: 0 0 14px;
+}
+
+.mem-form-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.mem-form-row .form-control { flex: 1; min-width: 200px; }
+
+.mem-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 16px;
+}
+
+.mem-form-action { display: flex; align-items: flex-end; }
+
+.mem-results { margin-top: 16px; }
+
+.mem-note {
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    margin-bottom: 10px;
+}
+
+.mem-note-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.mem-note-body {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.mem-empty {
+    text-align: center;
+    padding: 28px 16px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.mem-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.mem-stat {
+    padding: 14px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    text-align: center;
+}
+
+.mem-stat-value {
+    display: block;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--violet-light);
+}
+
+.mem-stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.mem-table-wrap { overflow-x: auto; }
+
+.mem-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.mem-table th,
+.mem-table td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+}
+
+.mem-table th {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.mem-edge {
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(139, 92, 246, 0.08);
+    margin-bottom: 6px;
+}
+
+.mem-feedback {
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+.mem-feedback.success { color: #34d399; }
+.mem-feedback.error { color: #f87171; }
+
+.btn-sm { padding: 6px 12px; font-size: 12px; }

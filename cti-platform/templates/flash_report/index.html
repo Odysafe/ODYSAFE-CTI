@@ -1,0 +1,706 @@
+{% extends "base.html" %}
+
+{% block title %}Flash Report (FLINT) - CTI Platform{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flash_report.css') }}?v=20260620">
+{% endblock %}
+
+{% block content %}
+<div class="fr-app">
+    <header class="fr-toolbar">
+        <div class="fr-toolbar-title">
+            <h1>Flash Report</h1>
+            <div class="fr-toolbar-meta" id="fr-toolbar-meta">New report</div>
+        </div>
+        <div class="fr-toolbar-actions">
+            <button type="button" class="fr-btn fr-btn-ghost" onclick="openHistoryDrawer()">History</button>
+            <button type="button" class="fr-btn fr-btn-secondary" onclick="createNewReport()">New</button>
+            <button type="button" class="fr-btn fr-btn-secondary" onclick="saveReport()">Save</button>
+            <button type="button" class="fr-btn fr-btn-primary" onclick="exportExcel()">Export Excel</button>
+        </div>
+    </header>
+
+    <div class="fr-draft-banner" id="fr-draft-banner">
+        <span>A local draft was found from a previous session.</span>
+        <div class="fr-draft-banner-actions">
+            <button type="button" class="fr-btn fr-btn-secondary" onclick="loadDraft()">Restore</button>
+            <button type="button" class="fr-btn fr-btn-ghost" onclick="dismissDraft()">Dismiss</button>
+        </div>
+    </div>
+
+    <div class="fr-layout">
+        <aside class="fr-sidebar">
+            <div class="fr-progress-wrap">
+                <div class="fr-progress-label">
+                    <span>Progress</span>
+                    <span id="fr-progress-percent">0%</span>
+                </div>
+                <div class="fr-progress-bar">
+                    <div class="fr-progress-fill" id="fr-progress-fill"></div>
+                </div>
+            </div>
+            <nav class="wizard-nav">
+                <div class="wizard-step active" data-step="1"><span class="wizard-step-num">1</span><span class="wizard-step-label">Header</span></div>
+                <div class="wizard-step" data-step="2"><span class="wizard-step-num">2</span><span class="wizard-step-label">Subject</span></div>
+                <div class="wizard-step" data-step="3"><span class="wizard-step-num">3</span><span class="wizard-step-label">Summary</span></div>
+                <div class="wizard-step" data-step="4"><span class="wizard-step-num">4</span><span class="wizard-step-label">Takeaways</span></div>
+                <div class="wizard-step" data-step="5"><span class="wizard-step-num">5</span><span class="wizard-step-label">Timeline</span></div>
+                <div class="wizard-step" data-step="6"><span class="wizard-step-num">6</span><span class="wizard-step-label">Analysis</span></div>
+                <div class="wizard-step" data-step="7"><span class="wizard-step-num">7</span><span class="wizard-step-label">IOCs</span></div>
+                <div class="wizard-step" data-step="8"><span class="wizard-step-num">8</span><span class="wizard-step-label">Detection</span></div>
+                <div class="wizard-step" data-step="9"><span class="wizard-step-num">9</span><span class="wizard-step-label">Actions</span></div>
+                <div class="wizard-step" data-step="10"><span class="wizard-step-num">10</span><span class="wizard-step-label">Gaps</span></div>
+                <div class="wizard-step" data-step="11"><span class="wizard-step-num">11</span><span class="wizard-step-label">Assessment</span></div>
+                <div class="wizard-step" data-step="12"><span class="wizard-step-num">12</span><span class="wizard-step-label">Sources</span></div>
+                <div class="wizard-step" data-step="13"><span class="wizard-step-num">13</span><span class="wizard-step-label">Distribution</span></div>
+            </nav>
+        </aside>
+
+        <div class="fr-main">
+    <form id="flashReportForm">
+        <div class="fr-sections-stack" id="fr-sections-stack">
+        <!-- BLOCK 1 -->
+        <section class="flash-section active" id="block-1">
+            <h2>1. Header & Metadata <span class="section-status status-empty">Incomplete</span></h2>
+            <div class="form-grid-3">
+                <div class="form-group">
+                    <label>Reference</label>
+                    <input type="text" id="reference" name="reference" readonly placeholder="Auto-generated">
+                </div>
+                <div class="form-group">
+                    <label>Created (UTC)</label>
+                    <input type="datetime-local" id="created_at" name="created_at" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Updated</label>
+                    <input type="datetime-local" id="updated_at" name="updated_at" readonly>
+                </div>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Author <span class="required">*</span></label>
+                    <input type="text" id="author" name="author" required>
+                </div>
+                <div class="form-group">
+                    <label>TLP <span class="required">*</span></label>
+                    <div class="badge-selector" id="tlp-selector">
+                        <div class="badge-option tlp-red selected" data-value="RED">RED</div>
+                        <div class="badge-option tlp-amber" data-value="AMBER">AMBER</div>
+                        <div class="badge-option tlp-green" data-value="GREEN">GREEN</div>
+                        <div class="badge-option tlp-clear" data-value="CLEAR">CLEAR</div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>PAP <span class="required">*</span></label>
+                <div class="badge-selector" id="pap-selector">
+                    <div class="badge-option pap-red selected" data-value="RED">RED - Passive only</div>
+                    <div class="badge-option pap-amber" data-value="AMBER">AMBER - Scan OK</div>
+                    <div class="badge-option pap-green" data-value="GREEN">GREEN - Active allowed</div>
+                    <div class="badge-option pap-white" data-value="WHITE">WHITE - Any action</div>
+                </div>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Priority</label>
+                    <div class="badge-selector" id="priority-selector">
+                        <div class="badge-option priority-critical" data-value="Critical">Critical</div>
+                        <div class="badge-option priority-high selected" data-value="High">High</div>
+                        <div class="badge-option priority-medium" data-value="Medium">Medium</div>
+                        <div class="badge-option priority-low" data-value="Low">Low</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <div class="badge-selector" id="status-selector">
+                        <div class="badge-option status-draft selected" data-value="Draft">Draft</div>
+                        <div class="badge-option status-review" data-value="Review">Review</div>
+                        <div class="badge-option status-final" data-value="Final">Final</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- BLOCK 2 -->
+        <section class="flash-section" id="block-2">
+            <h2>2. Subject & Classification <span class="section-status status-empty">Incomplete</span></h2>
+            <div class="form-group">
+                <label>Subject <span class="required">*</span></label>
+                <input type="text" id="subject" name="subject" required placeholder="[TYPE] - [PRODUCT] - [STATUS]">
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Incident Type <span class="required">*</span></label>
+                    <select id="incident_type" name="incident_type" required>
+                        <option value="">Select...</option>
+                        <option value="CVE Exploitation">CVE Exploitation</option>
+                        <option value="Ransomware">Ransomware</option>
+                        <option value="APT">APT</option>
+                        <option value="Phishing">Phishing</option>
+                        <option value="Supply Chain">Supply Chain</option>
+                        <option value="Insider Threat">Insider Threat</option>
+                        <option value="DDoS">DDoS</option>
+                        <option value="Data Breach">Data Breach</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Confidence <span class="required">*</span></label>
+                    <div class="badge-selector" id="incident-confidence-selector">
+                        <div class="badge-option confirmed" data-value="Confirmed">Confirmed</div>
+                        <div class="badge-option highly-likely" data-value="Highly Likely">Highly Likely</div>
+                        <div class="badge-option likely selected" data-value="Likely">Likely</div>
+                        <div class="badge-option possible" data-value="Possible">Possible</div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Primary CVEs</label>
+                <input type="text" id="cves" name="cves" placeholder="CVE-2024-XXXX, CVE-2024-YYYY">
+            </div>
+            <div class="form-group">
+                <label>Threat Actor / Campaign</label>
+                <input type="text" id="threat_actor" name="threat_actor" list="mitre_groups_list" placeholder="APT29, FIN7, Lazarus Group..." autocomplete="off">
+                <p id="threat-actor-hint" class="fr-field-hint" hidden></p>
+            </div>
+        </section>
+
+        <!-- BLOCK 3 -->
+        <section class="flash-section" id="block-3">
+            <h2>3. Executive Summary <span class="section-status status-empty">Incomplete</span></h2>
+            <div class="form-group">
+                <label>Who is Affected?</label>
+                <textarea id="affected_entities" name="affected_entities" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>What is the Threat?</label>
+                <textarea id="threat_nature" name="threat_nature" rows="2"></textarea>
+            </div>
+            <div class="form-grid-3">
+                <div class="form-group">
+                    <label>Confidentiality Impact</label>
+                    <select id="impact_confidentiality" name="impact_confidentiality">
+                        <option value="None">None</option>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Integrity Impact</label>
+                    <select id="impact_integrity" name="impact_integrity">
+                        <option value="None">None</option>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Availability Impact</label>
+                    <select id="impact_availability" name="impact_availability">
+                        <option value="None">None</option>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Urgency & Action Timeframe</label>
+                <textarea id="urgency_action" name="urgency_action" rows="2"></textarea>
+            </div>
+        </section>
+
+        <!-- BLOCK 4 -->
+        <section class="flash-section" id="block-4">
+            <h2>4. Key Takeaways <span class="section-status status-empty">Incomplete</span></h2>
+            <div class="form-group">
+                <label>Decision Points (3-5 bullet points) <span class="required">*</span></label>
+                <div id="takeaways-container">
+                    <div class="takeaway-row">
+                        <input type="text" class="takeaway-input" placeholder="Key point for decision makers">
+                        <button type="button" class="btn-remove" onclick="this.parentElement.remove(); updateFieldStatus();" aria-label="Remove takeaway">×</button>
+                    </div>
+                    <div class="takeaway-row">
+                        <input type="text" class="takeaway-input" placeholder="Key point for decision makers">
+                        <button type="button" class="btn-remove" onclick="this.parentElement.remove(); updateFieldStatus();" aria-label="Remove takeaway">×</button>
+                    </div>
+                    <div class="takeaway-row">
+                        <input type="text" class="takeaway-input" placeholder="Key point for decision makers">
+                        <button type="button" class="btn-remove" onclick="this.parentElement.remove(); updateFieldStatus();" aria-label="Remove takeaway">×</button>
+                    </div>
+                </div>
+                <button type="button" class="btn-add" onclick="addTakeaway()">+ Add Takeaway</button>
+            </div>
+        </section>
+
+        <!-- BLOCK 5 -->
+        <section class="flash-section" id="block-5">
+            <h2>5. Context & Timeline <span class="section-status status-empty">Incomplete</span></h2>
+            <div class="form-group">
+                <label>Threat History</label>
+                <textarea id="threat_history" name="threat_history" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Affected Scope</label>
+                <textarea id="affected_scope" name="affected_scope" rows="2"></textarea>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>First Observed ITW</label>
+                    <input type="datetime-local" id="first_observed" name="first_observed">
+                </div>
+                <div class="form-group">
+                    <label>Patch Available Date</label>
+                    <input type="datetime-local" id="patch_date" name="patch_date">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Timeline Events</label>
+                <div class="fr-table-scroll">
+                <table class="data-table" id="timeline-table">
+                    <thead>
+                        <tr><th>Date/Time UTC</th><th>Event</th><th>Impact</th><th>Source</th><th class="fr-table-actions" aria-label="Actions"></th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="datetime-local"></td>
+                            <td><input type="text" placeholder="Event description"></td>
+                            <td>
+                                <select>
+                                    <option>Critical</option>
+                                    <option>High</option>
+                                    <option>Medium</option>
+                                    <option>Low</option>
+                                </select>
+                            </td>
+                            <td><input type="text" placeholder="Source"></td>
+                            <td class="fr-table-actions"><button type="button" class="btn-remove" onclick="this.closest('tr').remove(); updateFieldStatus();" aria-label="Remove row">×</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+                <button type="button" class="btn-add" onclick="addTimelineRow()">+ Add Event</button>
+            </div>
+        </section>
+
+        <!-- BLOCK 6 -->
+        <section class="flash-section" id="block-6">
+            <h2>6. Technical Analysis <span class="section-status status-empty">Incomplete</span></h2>
+            
+            <h3 class="fr-subheading">MITRE ATT&CK TTPs</h3>
+            <div class="form-group">
+                <input type="text" id="mitre-search" placeholder="Search MITRE techniques (T1059, PowerShell...)" autocomplete="off">
+                <div id="mitre-search-results" style="display: none;"></div>
+                <div id="ttps-container"></div>
+            </div>
+
+            <h3 class="fr-subheading">Diamond Model</h3>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Adversary</label>
+                    <textarea id="diamond_adversary" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Infrastructure</label>
+                    <textarea id="diamond_infrastructure" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Capability</label>
+                    <textarea id="diamond_capability" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Victim</label>
+                    <textarea id="diamond_victim" rows="2"></textarea>
+                </div>
+            </div>
+
+            <h3 class="fr-subheading">Technical Details</h3>
+            <div class="form-group">
+                <label>Attack Vector</label>
+                <textarea id="attack_vector" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Malware/Family</label>
+                <input type="text" id="malware_family" placeholder="e.g., Cobalt Strike, LockBit, etc.">
+            </div>
+            <div class="form-group">
+                <label>Persistence Mechanisms</label>
+                <textarea id="persistence" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>C2 Infrastructure</label>
+                <textarea id="c2_infrastructure" rows="3" placeholder="IPs, domains, protocols, certificates..."></textarea>
+            </div>
+        </section>
+
+        <!-- BLOCK 7 -->
+        <section class="flash-section" id="block-7">
+            <h2>7. IOCs <span class="section-status status-empty">Incomplete</span></h2>
+            <div class="fr-table-scroll">
+                <table class="data-table" id="iocs-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Value</th>
+                            <th>TLP</th>
+                            <th>Confidence</th>
+                            <th>First Seen</th>
+                            <th>Last Seen</th>
+                            <th>Expiration</th>
+                            <th>Active</th>
+                            <th class="fr-table-actions" aria-label="Actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <select>
+                                    <option>IP</option>
+                                    <option>Domain</option>
+                                    <option>URL</option>
+                                    <option>Hash_MD5</option>
+                                    <option>Hash_SHA1</option>
+                                    <option>Hash_SHA256</option>
+                                    <option>Email</option>
+                                    <option>CIDR</option>
+                                </select>
+                            </td>
+                            <td><input type="text" class="fr-cell-mono" placeholder="Value"></td>
+                            <td>
+                                <select>
+                                    <option>RED</option>
+                                    <option>AMBER</option>
+                                    <option>GREEN</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select>
+                                    <option>High</option>
+                                    <option>Medium</option>
+                                    <option>Low</option>
+                                </select>
+                            </td>
+                            <td><input type="date"></td>
+                            <td><input type="date"></td>
+                            <td><input type="date"></td>
+                            <td><input type="checkbox" checked></td>
+                            <td class="fr-table-actions"><button type="button" class="btn-remove" onclick="this.closest('tr').remove(); updateFieldStatus();" aria-label="Remove row">×</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="fr-inline-actions">
+                <button type="button" class="btn-add" onclick="addIocRow()">+ Add IOC</button>
+                <button type="button" class="btn-add" onclick="openImportIocsModal()">Import from database</button>
+            </div>
+            <div class="form-group fr-checkbox-row">
+                <input type="checkbox" id="defang_export" name="defang_export" checked>
+                <label for="defang_export" style="margin:0;text-transform:none;font-size:14px;">Defang IOCs on export (hxxp, [.], etc.)</label>
+            </div>
+        </section>
+
+        <!-- BLOCK 8 -->
+        <section class="flash-section" id="block-8">
+            <h2>8. Detection Rules <span class="section-status status-empty">Optional</span></h2>
+            <div class="form-group">
+                <div class="rule-container">
+                    <div class="rule-container-header">
+                        <span class="rule-type-badge rule-sigma">SIGMA</span>
+                        <button type="button" class="btn-remove" aria-label="Remove rule">×</button>
+                    </div>
+                    <textarea placeholder="title: Suspicious PowerShell Download&#10;logsource:&#10;  product: windows&#10;  service: powershell&#10;detection:&#10;  selection:&#10;    EventID: 4104&#10;    ScriptBlockText|contains:&#10;      - 'Invoke-Expression'&#10;  condition: selection"></textarea>
+                </div>
+                <div class="rule-container">
+                    <div class="rule-container-header">
+                        <span class="rule-type-badge rule-yara">YARA</span>
+                        <button type="button" class="btn-remove" aria-label="Remove rule">×</button>
+                    </div>
+                    <textarea placeholder="rule Malware_Detection {&#10;    strings:&#10;        $a = \"malicious_string\"&#10;    condition:&#10;        $a&#10;}"></textarea>
+                </div>
+                <div class="rule-container">
+                    <div class="rule-container-header">
+                        <span class="rule-type-badge rule-kql">KQL (Sentinel)</span>
+                        <button type="button" class="btn-remove" aria-label="Remove rule">×</button>
+                    </div>
+                    <textarea placeholder="DeviceProcessEvents&#10;| where ProcessCommandLine contains \"suspicious_command\"&#10;| project Timestamp, DeviceName, ProcessCommandLine"></textarea>
+                </div>
+                <button type="button" class="btn-add" onclick="addDetectionRule()">+ Add Detection Rule</button>
+            </div>
+        </section>
+
+        <!-- BLOCK 9 -->
+        <section class="flash-section" id="block-9">
+            <h2>9. Recommendations <span class="section-status status-empty">Incomplete</span></h2>
+            <div class="form-group">
+                <div class="fr-table-scroll">
+                <table class="data-table" id="recommendations-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;">Priority</th>
+                            <th>Action</th>
+                            <th style="width: 120px;">Type</th>
+                            <th style="width: 120px;">Owner</th>
+                            <th style="width: 100px;">Due Date</th>
+                            <th style="width: 100px;">Status</th>
+                            <th class="fr-table-actions" aria-label="Actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <select>
+                                    <option value="Immediate">Immediate</option>
+                                    <option value="Short">Short term</option>
+                                    <option value="Medium">Medium term</option>
+                                </select>
+                            </td>
+                            <td><input type="text" placeholder="Action description"></td>
+                            <td>
+                                <select>
+                                    <option>Patch</option>
+                                    <option>Block</option>
+                                    <option>Monitor</option>
+                                    <option>Isolate</option>
+                                    <option>Hunt</option>
+                                    <option>Notify</option>
+                                    <option>Escalate</option>
+                                </select>
+                            </td>
+                            <td><input type="text" placeholder="Team/Person"></td>
+                            <td><input type="date"></td>
+                            <td>
+                                <select>
+                                    <option>Todo</option>
+                                    <option>In Progress</option>
+                                    <option>Done</option>
+                                </select>
+                            </td>
+                            <td class="fr-table-actions"><button type="button" class="btn-remove" onclick="this.closest('tr').remove(); updateFieldStatus();" aria-label="Remove row">×</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+                <button type="button" class="btn-add" onclick="addRecommendationRow()">+ Add Recommendation</button>
+            </div>
+        </section>
+
+        <!-- BLOCK 10 -->
+        <section class="flash-section" id="block-10">
+            <h2>10. Intelligence Gaps <span class="section-status status-empty">Optional</span></h2>
+            <div class="form-group">
+                <label>Known Unknowns</label>
+                <textarea id="known_unknowns" rows="3" placeholder="What we don't know yet (e.g., 'Attribution not confirmed', 'C2 infrastructure partially identified')..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Open Questions for Hunt Teams</label>
+                <textarea id="hunt_questions" rows="3" placeholder="Questions for threat hunting teams to investigate..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>RFIs Generated</label>
+                <textarea id="rfis" rows="2" placeholder="Requests for Information sent to partners, CERTs, etc."></textarea>
+            </div>
+        </section>
+
+        <!-- BLOCK 11 -->
+        <section class="flash-section" id="block-11">
+            <h2>11. Assessment & Confidence <span class="section-status status-empty">Optional</span></h2>
+            <div class="form-group">
+                <label>Overall Probability Assessment</label>
+                <div class="badge-selector" id="confidence-selector">
+                    <div class="badge-option confirmed" data-value="Confirmed">Confirmed (>95%)</div>
+                    <div class="badge-option highly-likely" data-value="Highly Likely">Highly Likely (75-95%)</div>
+                    <div class="badge-option likely" data-value="Likely">Likely (50-75%)</div>
+                    <div class="badge-option possible" data-value="Possible">Possible (25-50%)</div>
+                    <div class="badge-option unlikely" data-value="Unlikely">Unlikely (<25%)</div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Source Reliability (Admiralty Scale)</label>
+                <div class="fr-scale-grid">
+                    <div class="fr-scale-cell">A</div>
+                    <div class="fr-scale-cell">B</div>
+                    <div class="fr-scale-cell">C</div>
+                    <div class="fr-scale-cell">D</div>
+                    <div class="fr-scale-cell">E</div>
+                </div>
+                <select id="source_reliability" style="margin-top: 10px;">
+                    <option value="">Select reliability...</option>
+                    <option value="A">A - Always Reliable</option>
+                    <option value="B">B - Usually Reliable</option>
+                    <option value="C">C - Fairly Reliable</option>
+                    <option value="D">D - Not Usually Reliable</option>
+                    <option value="E">E - Unreliable</option>
+                    <option value="F">F - Cannot be Judged</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Analysis Biases Identified</label>
+                <textarea id="biases" rows="2" placeholder="Any biases that may affect this assessment..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Confidence by Section</label>
+                <textarea id="section_confidence" rows="2" placeholder="E.g., Attribution: Low, Technical Analysis: High, Impact Assessment: Medium..."></textarea>
+            </div>
+        </section>
+
+        <!-- BLOCK 12 -->
+        <section class="flash-section" id="block-12">
+            <h2>12. Sources <span class="section-status status-empty">Incomplete</span></h2>
+            <div class="form-group">
+                <div class="fr-table-scroll">
+                <table class="data-table" id="sources-table">
+                    <thead>
+                        <tr>
+                            <th>Source Name</th>
+                            <th style="width: 80px;">TLP</th>
+                            <th style="width: 100px;">Reliability</th>
+                            <th style="width: 130px;">Date</th>
+                            <th>URL/Reference</th>
+                            <th style="width: 120px;">Type</th>
+                            <th class="fr-table-actions" aria-label="Actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="text" placeholder="Source name"></td>
+                            <td>
+                                <select>
+                                    <option>RED</option>
+                                    <option>AMBER</option>
+                                    <option>GREEN</option>
+                                    <option>CLEAR</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select>
+                                    <option>A</option>
+                                    <option>B</option>
+                                    <option>C</option>
+                                    <option>D</option>
+                                    <option>E</option>
+                                </select>
+                            </td>
+                            <td><input type="date"></td>
+                            <td><input type="text" list="cti_urls_list" placeholder="https://..."></td>
+                            <td>
+                                <select>
+                                    <option>Advisory</option>
+                                    <option>Blog</option>
+                                    <option>CERT</option>
+                                    <option>Vendor</option>
+                                    <option>OSINT</option>
+                                    <option>Private</option>
+                                </select>
+                            </td>
+                            <td class="fr-table-actions"><button type="button" class="btn-remove" onclick="this.closest('tr').remove(); updateFieldStatus();" aria-label="Remove row">×</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+                <button type="button" class="btn-add" onclick="addSourceRow()">+ Add Source</button>
+            </div>
+        </section>
+
+        <!-- BLOCK 13 -->
+        <section class="flash-section" id="block-13">
+            <h2>13. Distribution <span class="section-status status-empty">Incomplete</span></h2>
+            <div class="form-group">
+                <label>Named Recipients (required for TLP:RED)</label>
+                <div class="fr-table-scroll">
+                <table class="data-table" id="recipients-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role/Function</th>
+                            <th>Organization</th>
+                            <th>Email</th>
+                            <th class="fr-table-actions" aria-label="Actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="text" placeholder="Full name"></td>
+                            <td><input type="text" placeholder="CISO, SOC Lead..."></td>
+                            <td><input type="text" placeholder="Organization"></td>
+                            <td><input type="email" placeholder="email@org.com"></td>
+                            <td class="fr-table-actions"><button type="button" class="btn-remove" onclick="this.closest('tr').remove(); updateFieldStatus();" aria-label="Remove row">×</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+                <button type="button" class="btn-add" onclick="addRecipientRow()">+ Add Recipient</button>
+            </div>
+            <div class="form-group">
+                <label>Feedback Contact</label>
+                <input type="email" id="feedback_contact" placeholder="cti-team@organization.com">
+            </div>
+            <div class="form-group">
+                <label>Handling Instructions</label>
+                <textarea id="distribution_handling" rows="2" placeholder="Do not forward, Do not print, Named recipients only..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Disclaimer</label>
+                <textarea id="disclaimer" rows="2" placeholder="Legal/operational disclaimer for external distribution..."></textarea>
+            </div>
+        </section>
+        </div>
+    </form>
+
+    <div class="fr-section-nav">
+        <button type="button" class="fr-btn fr-btn-ghost" id="fr-prev-section" onclick="navigateSection(-1)" disabled>Previous</button>
+        <button type="button" class="fr-btn fr-btn-secondary" id="fr-next-section" onclick="navigateSection(1)">Next</button>
+    </div>
+        </div>
+    </div>
+
+    <datalist id="mitre_groups_list"></datalist>
+    <datalist id="cti_urls_list"></datalist>
+
+    <div class="fr-modal-overlay" id="import-iocs-modal" onclick="if(event.target===this)closeImportIocsModal()">
+        <div class="fr-modal">
+            <h3>Import IOCs</h3>
+            <div class="form-group">
+                <label>Source</label>
+                <select id="import-source-select">
+                    <option value="">Choose a source</option>
+                </select>
+                <button type="button" class="fr-btn fr-btn-primary" style="width:100%;margin-top:10px;" onclick="importIocsFromSelectedSource()">Import all from source</button>
+            </div>
+            <div class="fr-modal-divider">or</div>
+            <div class="form-group">
+                <label>Search individual IOCs</label>
+                <div class="fr-search-row">
+                    <input type="text" id="import-ioc-search-input" placeholder="Search by value or type">
+                    <button type="button" class="fr-btn fr-btn-secondary" onclick="searchIndividualIocs()">Search</button>
+                </div>
+                <div id="import-ioc-search-results" class="fr-search-results">
+                    <div class="fr-search-results-empty">Search to find IOCs</div>
+                </div>
+            </div>
+            <div class="fr-modal-footer">
+                <button type="button" class="fr-btn fr-btn-ghost" onclick="closeImportIocsModal()">Close</button>
+                <button type="button" class="fr-btn fr-btn-primary" id="btn-import-checked-iocs" style="display:none;" onclick="importCheckedIocs()">Import selected (<span id="checked-iocs-count">0</span>)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="fr-drawer-overlay" id="fr-drawer-overlay" onclick="closeHistoryDrawer()"></div>
+    <aside class="fr-drawer" id="fr-history-drawer">
+        <div class="fr-drawer-header">
+            <h3>Saved reports</h3>
+            <button type="button" class="btn-remove" onclick="closeHistoryDrawer()" aria-label="Close">×</button>
+        </div>
+        <div class="fr-drawer-body">
+            <div class="reports-list" id="reports-list"></div>
+        </div>
+    </aside>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/flash_report.js') }}"></script>
+{% endblock %}
