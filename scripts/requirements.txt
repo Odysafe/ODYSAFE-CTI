@@ -20,7 +20,7 @@ stix2-patterns==2.1.2
 antlr4-python3-runtime==4.13.2
 
 # IOC extraction
-iocsearcher==2.8.2
+iocsearcher==2.8.3
 
 # Document parsing
 beautifulsoup4==4.14.3
