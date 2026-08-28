@@ -1,0 +1,822 @@
+{% extends "base.html" %}
+
+{% block title %}Export - CTI Platform{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Export section buttons - Two distinct buttons */
+    .export-section-btn {
+        position: relative;
+    }
+    
+    .export-section-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), transparent);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        border-radius: 16px;
+        pointer-events: none;
+    }
+    
+    .export-section-btn:hover::before {
+        opacity: 1;
+    }
+    
+    .export-section-btn:hover {
+        transform: translateY(-4px) !important;
+        box-shadow: 0 8px 24px rgba(139, 92, 246, 0.25) !important;
+    }
+    
+    .export-section-btn.active {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(139, 92, 246, 0.15)) !important;
+        border-color: rgba(167, 139, 250, 0.6) !important;
+    }
+    
+    /* Export section animations */
+    .export-section {
+        animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Badge styles */
+    #export-ready-badge {
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Table row hover effect */
+    .table tbody tr:hover {
+        background: rgba(139, 92, 246, 0.05) !important;
+        transition: background 0.2s ease;
+    }
+    
+    /* Progress modals */
+    .progress-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .progress-modal-content {
+        max-width: 500px;
+        width: 90%;
+        padding: 32px;
+    }
+    
+    /* Responsive Design */
+    
+    /* Extra Small Devices (phones, 480px and down) */
+    @media (max-width: 480px) {
+        .export-section-btn {
+            min-width: 100% !important;
+            max-width: 100% !important;
+            padding: 16px 24px !important;
+            font-size: 16px !important;
+        }
+        
+        .export-section-btn > div:first-child {
+            font-size: 28px !important;
+        }
+        
+        .progress-modal-content {
+            width: 95%;
+            padding: 20px;
+            max-width: none;
+        }
+        
+        h1 {
+            font-size: 24px !important;
+        }
+        
+        .card {
+            padding: 16px !important;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 10px 16px;
+            font-size: 14px;
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .table {
+            min-width: 600px;
+            font-size: 12px;
+        }
+    }
+    
+    /* Small Devices (phones, 768px and down) */
+    @media (min-width: 481px) and (max-width: 768px) {
+        .export-tabs-nav {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .export-tabs-nav .export-tab-btn {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        
+        .progress-modal-content {
+            width: 90%;
+            padding: 24px;
+        }
+        
+        h1 {
+            font-size: 28px !important;
+        }
+    }
+    
+    /* Medium Devices (tablets, 769px to 1024px) */
+    @media (min-width: 769px) and (max-width: 1024px) {
+        .progress-modal-content {
+            max-width: 450px;
+        }
+    }
+    
+    /* Large Devices (desktops, 1025px to 1440px) */
+    @media (min-width: 1025px) and (max-width: 1440px) {
+        .progress-modal-content {
+            max-width: 500px;
+        }
+    }
+    
+    /* Extra Large Devices (large desktops, 1441px to 1920px) */
+    @media (min-width: 1441px) and (max-width: 1920px) {
+        .progress-modal-content {
+            max-width: 550px;
+        }
+    }
+    
+    /* Ultra Wide / TV Screens (1921px and up) */
+    @media (min-width: 1921px) {
+        .progress-modal-content {
+            max-width: 600px;
+            padding: 40px;
+        }
+    }
+    
+    /* Landscape orientation for mobile devices */
+    @media (max-width: 768px) and (orientation: landscape) {
+        .progress-modal-content {
+            max-width: 90%;
+        }
+    }
+    
+    /* Touch-friendly improvements for mobile */
+    @media (max-width: 768px) {
+        .btn,
+        .export-section-btn {
+            min-height: 44px;
+            min-width: 44px;
+        }
+        
+        input[type="checkbox"] {
+            width: 20px !important;
+            height: 20px !important;
+        }
+        
+        input[type="file"] {
+            font-size: 14px;
+        }
+        
+        textarea {
+            font-size: 14px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <!-- Hero Section -->
+        <div style="text-align: center; margin-bottom: 60px;">
+            <h1 style="font-size: clamp(32px, 5vw, 48px); font-weight: 700; margin-bottom: 24px; background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                Export
+            </h1>
+            <p style="font-size: 18px; color: var(--text-secondary); max-width: 800px; margin: 0 auto 32px; line-height: 1.6;">
+                Export filtered IOCs from your workspace in standard formats for analysis, sharing, and downstream tools.
+            </p>
+            
+            <!-- Available Export Formats -->
+            <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 16px; padding: 32px; margin-top: 40px; text-align: left;">
+                <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 20px; color: var(--text-primary); text-align: center;">
+                    Available Export Formats
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; font-size: 14px;">
+                    <div><strong>TXT:</strong> Plain text with IOC type labels, or values only for blocklists</div>
+                    <div><strong>CSV:</strong> Tabular export with metadata, or simplified for firewall/EDR import</div>
+                    <div><strong>JSON:</strong> Structured format for scripts and automation</div>
+                    <div><strong>XLSX:</strong> Formatted Excel report</div>
+                    <div><strong>Filtering:</strong> Export by type, source, tag, group, or date range</div>
+                    <div><strong>Scope:</strong> All IOCs, selected sources, tags, or groups</div>
+                </div>
+                <p style="text-align: center; margin-top: 20px; color: var(--text-secondary); font-size: 13px;">
+                    To visualize STIX bundles, use the STIX Graph module under Analysis.
+                </p>
+            </div>
+        </div>
+
+        <!-- Navigation buttons - Two distinct buttons -->
+        <div style="display: flex; gap: 24px; justify-content: center; margin-bottom: 40px; flex-wrap: wrap;">
+            <button id="btn-export-data" class="export-section-btn active" data-tab="export-data" onclick="switchExportTab('export-data')" style="flex: 1; min-width: 280px; max-width: 400px; padding: 20px 32px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05)); border: 2px solid rgba(167, 139, 250, 0.4); border-radius: 16px; color: var(--text-primary); font-size: 18px; font-weight: 600; ody: pointer; transition: all 0.3s ease; text-align: center; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2); position: relative; overflow: hidden;">
+                <div style="font-size: 32px; margin-bottom: 12px;">📤</div>
+                <div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Export Data</div>
+                <div style="font-size: 14px; color: var(--text-secondary); font-weight: 400;">Export your IOCs, sources, and groups in multiple formats</div>
+            </button>
+        </div>
+
+        <!-- Part 1: Export Data -->
+        <div id="export-data-section" class="export-section">
+
+            <div class="card" style="margin-bottom: 32px;">
+                <h2 class="card-title" style="margin-bottom: 24px;">Export Options</h2>
+                
+                <form id="export-form">
+
+                    <!-- Format -->
+                    <div class="form-group">
+                        <label class="form-label">Export Format</label>
+                        <select name="format" id="export-format" class="form-control" required>
+                            <option value="txt">TXT (with types)</option>
+                            <option value="txt-simple">TXT (values only · Firewall/EDR)</option>
+                            <option value="csv">CSV (detailed with metadata)</option>
+                            <option value="csv-firewall">CSV simplified · Firewall/EDR)</option>
+                            <option value="json">JSON (complete)</option>
+                            <option value="json-simple">JSON (simplified, grouped by type)</option>
+                            <option value="xlsx">XLSX (Excel report)</option>
+                        </select>
+                    </div>
+
+                    <!-- Scope selector -->
+                    <div class="form-group">
+                        <label class="form-label">Scope</label>
+                        <input type="hidden" name="selection" id="export-selection" value="all">
+                        <div id="scope-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                            <button type="button" data-scope="all"     style="padding:7px 16px;border-radius:8px;border:1px solid rgba(139,92,246,.4);background:rgba(139,92,246,.18);color:var(--violet-light);font-size:13px;font-weight:600;cursor:pointer;">All IOCs</button>
+                            <button type="button" data-scope="sources" style="padding:7px 16px;border-radius:8px;border:1px solid rgba(139,92,246,.2);background:transparent;color:var(--text-secondary);font-size:13px;font-weight:500;cursor:pointer;">By Sources</button>
+                            <button type="button" data-scope="tags"    style="padding:7px 16px;border-radius:8px;border:1px solid rgba(139,92,246,.2);background:transparent;color:var(--text-secondary);font-size:13px;font-weight:500;cursor:pointer;">By Tags</button>
+                            <button type="button" data-scope="groups"  style="padding:7px 16px;border-radius:8px;border:1px solid rgba(139,92,246,.2);background:transparent;color:var(--text-secondary);font-size:13px;font-weight:500;cursor:pointer;">By Groups</button>
+                        </div>
+                    </div>
+
+                    <!-- Sources panel -->
+                    <div id="sources-selection" style="display:none;">
+                        <div class="form-group">
+                            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                                <label class="form-label" style="margin:0;">Sources <span id="src-selected-count" style="font-size:11px;color:var(--violet-light);"></span></label>
+                                <div style="display:flex;gap:6px;align-items:center;">
+                                    <input id="src-search" type="text" placeholder="Filter…" autocomplete="off"
+                                           oninput="filterSources(this.value)"
+                                           style="padding:4px 10px;font-size:12px;background:rgba(139,92,246,.07);border:1px solid rgba(139,92,246,.2);border-radius:7px;color:var(--text-primary);width:140px;outline:none;">
+                                    <button type="button" onclick="selectAllSources(true)"  class="btn btn-secondary" style="padding:3px 10px;font-size:11px;">All</button>
+                                    <button type="button" onclick="selectAllSources(false)" class="btn btn-secondary" style="padding:3px 10px;font-size:11px;">None</button>
+                                </div>
+                            </div>
+                            <div id="sources-list-container" style="max-height:300px;overflow-y:auto;border:1px solid rgba(167,139,250,.12);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:4px;scrollbar-width:thin;scrollbar-color:rgba(139,92,246,.2) transparent;">
+                                {% for source in sources %}
+                                {% set total_iocs = source.ioc_type_counts | sum(attribute='count') %}
+                                <label class="src-card" data-name="{{ source.name | lower }}"
+                                       style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;border:1px solid transparent;transition:background .12s,border-color .12s;">
+                                    <input type="checkbox" name="source_ids" value="{{ source.id }}"
+                                           class="src-checkbox" onchange="updateSrcCount()"
+                                           style="margin-top:3px;flex-shrink:0;width:15px;height:15px;cursor:pointer;accent-color:#8B5CF6;">
+                                    <div style="flex:1;min-width:0;">
+                                        <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+                                            <span style="font-weight:600;font-size:13px;color:var(--text-primary);">{{ source.name }}</span>
+                                            <span style="font-size:11px;color:var(--text-muted);">{{ source.source_type }}</span>
+                                            <span style="font-size:11px;font-weight:700;color:var(--violet-light);margin-left:auto;">{{ total_iocs }} IOCs</span>
+                                        </div>
+                                        {% if source.context %}
+                                        <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ source.context }}</div>
+                                        {% endif %}
+                                        {% if source.ioc_type_counts %}
+                                        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;">
+                                            {% for tc in source.ioc_type_counts %}
+                                            <span style="font-size:10px;padding:1px 7px;border-radius:10px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.18);color:var(--violet-light);white-space:nowrap;">{{ tc.ioc_type }} <strong>{{ tc.count }}</strong></span>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </label>
+                                {% endfor %}
+                                {% if not sources %}
+                                <div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;">No sources available.</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tags panel -->
+                    <div id="tags-selection" style="display:none;">
+                        <div class="form-group">
+                            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                                <label class="form-label" style="margin:0;">Tags <span id="tag-selected-count" style="font-size:11px;color:var(--violet-light);"></span></label>
+                                <div style="display:flex;gap:6px;">
+                                    <button type="button" onclick="selectAllTags(true)"  class="btn btn-secondary" style="padding:3px 10px;font-size:11px;">All</button>
+                                    <button type="button" onclick="selectAllTags(false)" class="btn btn-secondary" style="padding:3px 10px;font-size:11px;">None</button>
+                                </div>
+                            </div>
+                            <div style="max-height:240px;overflow-y:auto;border:1px solid rgba(167,139,250,.12);border-radius:10px;padding:8px;display:flex;flex-wrap:wrap;gap:6px;scrollbar-width:thin;scrollbar-color:rgba(139,92,246,.2) transparent;">
+                                {% for tag in manual_tags %}
+                                <label style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:20px;border:1px solid rgba(139,92,246,.25);background:rgba(139,92,246,.06);cursor:pointer;font-size:12px;transition:background .12s;">
+                                    <input type="checkbox" name="tag_ids" value="{{ tag.id }}" class="tag-checkbox" onchange="updateTagCount()" style="accent-color:#8B5CF6;">
+                                    <span style="color:var(--text-primary);">{{ tag.name }}</span>
+                                </label>
+                                {% endfor %}
+                                {% if not manual_tags %}
+                                <div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;width:100%;">No custom tags available. Add tags to IOCs first.</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Groups panel -->
+                    <div id="groups-selection" style="display:none;">
+                        <div class="form-group">
+                            <label class="form-label">Groups</label>
+                            <div style="max-height:200px;overflow-y:auto;border:1px solid rgba(167,139,250,.1);border-radius:8px;padding:12px;">
+                                {% for group in all_groups %}
+                                <label style="display:flex;align-items:center;gap:8px;padding:8px;cursor:pointer;">
+                                    <input type="checkbox" name="group_ids" value="{{ group.id }}" style="accent-color:#8B5CF6;">
+                                    <span style="width:10px;height:10px;border-radius:50%;background:{{ group.color or '#8B5CF6' }};display:inline-block;flex-shrink:0;"></span>
+                                    <span style="color:var(--text-primary);font-weight:500;">{{ group.name }}</span>
+                                </label>
+                                {% endfor %}
+                                {% if not all_groups %}
+                                <div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:13px;">No groups available.</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- IOC type filter -->
+                    <div class="form-group">
+                        <label class="form-label">Filter by IOC Type <span style="font-size:11px;color:var(--text-muted);font-weight:400;">(optional · leave empty for all)</span></label>
+                        <div style="border:1px solid rgba(167,139,250,.1);border-radius:8px;padding:10px;background:rgba(139,92,246,.02);">
+                            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                                {% for ioc_type in unique_types %}
+                                <label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:16px;border:1px solid rgba(139,92,246,.2);background:rgba(139,92,246,.04);cursor:pointer;font-size:12px;">
+                                    <input type="checkbox" name="ioc_types" value="{{ ioc_type }}" class="ioc-type-checkbox" style="accent-color:#8B5CF6;">
+                                    <span>{{ ioc_type }}</span>
+                                </label>
+                                {% endfor %}
+                                {% if not unique_types %}
+                                <span style="color:var(--text-secondary);font-size:13px;">No types yet.</span>
+                                {% endif %}
+                            </div>
+                            <div style="margin-top:8px;display:flex;gap:6px;">
+                                <button type="button" class="btn btn-secondary" style="padding:3px 10px;font-size:11px;" onclick="selectAllIocTypes()">All</button>
+                                <button type="button" class="btn btn-secondary" style="padding:3px 10px;font-size:11px;" onclick="deselectAllIocTypes()">None</button>
+                                <button type="button" class="btn btn-secondary" style="padding:3px 10px;font-size:11px;" onclick="selectCommonIocTypes()">IP / Domain / Hash</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width:100%;padding:12px;font-size:15px;">
+                        ⬇ Export
+                    </button>
+                </form>
+            </div>
+
+            <div id="export-feedback"></div>
+            
+            <!-- Last 5 exports -->
+            <div class="card" style="margin-top: 32px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <h2 style="font-size: 24px; font-weight: 600;">Last 5 exports</h2>
+                    <button type="button" class="btn btn-secondary" onclick="loadRecentOutputs()" id="refresh-outputs-btn">
+                        🔄 Refresh
+                    </button>
+                </div>
+                
+                <div id="recent-outputs-content">
+                    <div style="text-align: center; padding: 32px; color: var(--text-secondary); font-size: 14px;">
+                        Loading recent exports...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Progress modal for exports -->
+        <div id="export-progress-modal" class="progress-modal">
+            <div class="card progress-modal-content">
+                <h2 style="margin-bottom: 24px; font-size: 24px;">Generating report...</h2>
+                <div id="export-progress-container">
+                    <div class="progress-bar-wrapper" style="background: rgba(139, 92, 246, 0.1); border-radius: 12px; height: 32px; position: relative; overflow: hidden; margin-bottom: 16px;">
+                        <div id="export-progress-bar" style="background: linear-gradient(90deg, #8B5CF6 0%, #7C3AED 100%); height: 100%; width: 0%; transition: width 0.3s ease; border-radius: 12px;"></div>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; font-weight: 600; color: #8B5CF6; z-index: 1;">
+                            <span id="export-progress-percentage">0%</span>
+                        </div>
+                    </div>
+                    <div id="export-progress-message" style="text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">
+                        Preparing...
+                    </div>
+                    <div style="text-align: center;">
+                        <button type="button" id="export-stop-btn" class="btn btn-secondary" style="background: rgba(220, 38, 38, 0.1); color: #DC2626; border-color: #DC2626; display: none;" onclick="stopExportTask()">
+                            ⏹️ Stop
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- External Tool Information -->
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+'use strict';
+
+// ── Scope tab switching ──
+function activateScope(tab) {
+    var hidden = document.getElementById('export-selection');
+    if (hidden) hidden.value = tab;
+
+    var panels = {
+        sources: document.getElementById('sources-selection'),
+        tags:    document.getElementById('tags-selection'),
+        groups:  document.getElementById('groups-selection')
+    };
+    Object.keys(panels).forEach(function(k) {
+        if (panels[k]) panels[k].style.display = (k === tab) ? 'block' : 'none';
+    });
+
+    document.querySelectorAll('#scope-tabs button').forEach(function(btn) {
+        var isActive = btn.getAttribute('data-scope') === tab;
+        btn.style.background    = isActive ? 'rgba(139,92,246,.18)' : 'transparent';
+        btn.style.borderColor   = isActive ? 'rgba(139,92,246,.4)'  : 'rgba(139,92,246,.2)';
+        btn.style.color         = isActive ? 'var(--violet-light)'  : 'var(--text-secondary)';
+        btn.style.fontWeight    = isActive ? '600' : '500';
+    });
+}
+
+// Wire up scope tab buttons via event delegation
+var scopeTabs = document.getElementById('scope-tabs');
+if (scopeTabs) {
+    scopeTabs.addEventListener('click', function(e) {
+        var btn = e.target.closest('button[data-scope]');
+        if (btn) activateScope(btn.getAttribute('data-scope'));
+    });
+}
+
+// ── Source helpers ──
+function updateSrcCount() {
+    var n = document.querySelectorAll('.src-checkbox:checked').length;
+    var el = document.getElementById('src-selected-count');
+    if (el) el.textContent = n ? '(' + n + ' selected)' : '';
+    document.querySelectorAll('.src-card').forEach(function(card) {
+        var cb = card.querySelector('.src-checkbox');
+        card.style.background   = (cb && cb.checked) ? 'rgba(139,92,246,.1)' : '';
+        card.style.borderColor  = (cb && cb.checked) ? 'rgba(139,92,246,.35)' : 'transparent';
+    });
+}
+function selectAllSources(select) {
+    document.querySelectorAll('.src-card').forEach(function(card) {
+        if (card.style.display === 'none') return;
+        var cb = card.querySelector('.src-checkbox');
+        if (cb) cb.checked = select;
+    });
+    updateSrcCount();
+}
+function filterSources(q) {
+    q = (q || '').toLowerCase().trim();
+    document.querySelectorAll('.src-card').forEach(function(card) {
+        card.style.display = (!q || (card.getAttribute('data-name') || '').indexOf(q) !== -1) ? '' : 'none';
+    });
+}
+
+// ── Tag helpers ──
+function updateTagCount() {
+    var n = document.querySelectorAll('.tag-checkbox:checked').length;
+    var el = document.getElementById('tag-selected-count');
+    if (el) el.textContent = n ? '(' + n + ' selected)' : '';
+}
+function selectAllTags(select) {
+    document.querySelectorAll('.tag-checkbox').forEach(function(cb) { cb.checked = select; });
+    updateTagCount();
+}
+
+// ── IOC type helpers ──
+function selectAllIocTypes()    { document.querySelectorAll('.ioc-type-checkbox').forEach(function(cb) { cb.checked = true;  }); }
+function deselectAllIocTypes()  { document.querySelectorAll('.ioc-type-checkbox').forEach(function(cb) { cb.checked = false; }); }
+function selectCommonIocTypes() {
+    deselectAllIocTypes();
+    var common = ['ipv4','ipv6','domain','url','md5','sha1','sha256'];
+    document.querySelectorAll('.ioc-type-checkbox').forEach(function(cb) {
+        if (common.indexOf(cb.value) !== -1) cb.checked = true;
+    });
+}
+
+// ── URL preset (?source=X&format=Y) ──
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    var preSource = params.get('source');
+    var preFormat = params.get('format');
+    if (!preSource && !preFormat) return;
+    if (preFormat) {
+        var fmt = document.getElementById('export-format');
+        if (fmt) { for (var i = 0; i < fmt.options.length; i++) { if (fmt.options[i].value === preFormat) { fmt.selectedIndex = i; break; } } }
+    }
+    if (preSource) {
+        activateScope('sources');
+        document.querySelectorAll('.src-card').forEach(function(card) {
+            if ((card.getAttribute('data-name') || '') === preSource.toLowerCase()) {
+                var cb = card.querySelector('.src-checkbox');
+                if (cb) cb.checked = true;
+            }
+        });
+        updateSrcCount();
+    }
+    var form = document.getElementById('export-form');
+    if (form) {
+        var banner = document.createElement('div');
+        banner.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:rgba(29,158,117,.1);border:1px solid rgba(29,158,117,.3);border-radius:10px;font-size:13px;color:#34d399;margin-bottom:16px;';
+        var msg = '\u{1F6E1} Pre-selected';
+        if (preSource) msg += ' source: <strong>' + preSource + '</strong>';
+        if (preFormat) msg += ' &mdash; format: <strong>' + preFormat + '</strong>';
+        banner.innerHTML = '<span>' + msg + '. Adjust if needed.</span><button type="button" onclick="this.parentNode.remove()" style="background:none;border:none;color:#34d399;cursor:pointer;font-size:18px;line-height:1;">&times;</button>';
+        form.insertBefore(banner, form.firstChild);
+        setTimeout(function() { form.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 120);
+    }
+})();
+
+// ── Export form submit ──
+var exportForm = document.getElementById('export-form');
+if (exportForm) exportForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var formData = new FormData(e.target);
+    var format    = formData.get('format');
+    var selection = formData.get('selection');
+    var payload = {};
+
+    if (selection === 'sources') {
+        var sids = Array.from(formData.getAll('source_ids')).map(Number);
+        if (!sids.length) { alert('Please select at least one source.'); return; }
+        payload.source_ids = sids;
+    } else if (selection === 'tags') {
+        var tids = Array.from(formData.getAll('tag_ids')).map(Number);
+        if (!tids.length) { alert('Please select at least one tag.'); return; }
+        payload.tag_ids = tids;
+    } else if (selection === 'groups') {
+        var gids = Array.from(formData.getAll('group_ids')).map(Number);
+        if (!gids.length) { alert('Please select at least one group.'); return; }
+        payload.group_ids = gids;
+    }
+
+    var iocTypes = Array.from(formData.getAll('ioc_types'));
+    if (iocTypes.length) payload.ioc_types = iocTypes;
+
+    var endpointMap = {
+        'txt': '/api/export/txt', 'txt-simple': '/api/export/txt-simple',
+        'csv': '/api/export/csv', 'csv-firewall': '/api/export/csv-firewall',
+        'json': '/api/export/json', 'json-simple': '/api/export/json-simple',
+        'xlsx': '/api/export/xlsx'
+    };
+    var endpoint = endpointMap[format];
+    if (!endpoint) { alert('Unknown format: ' + format); return; }
+
+    var feedback = document.getElementById('export-feedback');
+    feedback.innerHTML = '';
+    var modal = document.getElementById('export-progress-modal');
+    if (modal) modal.style.display = 'flex';
+    var pbar = document.getElementById('export-progress-bar');
+    var ppct = document.getElementById('export-progress-percentage');
+    var pmsg = document.getElementById('export-progress-message');
+    var pstp = document.getElementById('export-stop-btn');
+    if (pbar) pbar.style.width = '20%';
+    if (ppct) ppct.textContent = '20%';
+    if (pmsg) pmsg.textContent = 'Generating...';
+    if (pstp) pstp.style.display = 'none';
+
+    try {
+        var response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        if (pbar) pbar.style.width = '100%';
+        if (ppct) ppct.textContent = '100%';
+        if (pmsg) pmsg.textContent = 'Done.';
+        if (modal) setTimeout(function() { modal.style.display = 'none'; }, 600);
+
+        if (response.ok) {
+            var blob = await response.blob();
+            var dlUrl = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = dlUrl;
+            var cd = response.headers.get('content-disposition') || '';
+            var m = cd.match(/filename[^;=\n]*=(['"]?)([^'"\n;]+)\1/);
+            a.download = m ? m[2] : ('export_' + format + '_' + new Date().toISOString().slice(0,10) + '.' + format);
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(dlUrl);
+            feedback.innerHTML = '<div class="alert alert-success">Export generated successfully!</div>';
+            if (typeof loadRecentOutputs === 'function') loadRecentOutputs();
+        } else {
+            var err = await response.json().catch(function() { return {}; });
+            feedback.innerHTML = '<div class="alert alert-error">' + (err.error || 'Export failed') + '</div>';
+        }
+    } catch(err) {
+        if (modal) modal.style.display = 'none';
+        feedback.innerHTML = '<div class="alert alert-error">Error: ' + err.message + '</div>';
+    }
+});
+
+// expose helpers to inline onclick attributes
+window.activateScope       = activateScope;
+window.updateSrcCount      = updateSrcCount;
+window.selectAllSources    = selectAllSources;
+window.filterSources       = filterSources;
+window.updateTagCount      = updateTagCount;
+window.selectAllTags       = selectAllTags;
+window.selectAllIocTypes   = selectAllIocTypes;
+window.deselectAllIocTypes = deselectAllIocTypes;
+window.selectCommonIocTypes= selectCommonIocTypes;
+
+})(); // end IIFE
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadRecentOutputs();
+});
+
+async function loadRecentOutputs() {
+    const container = document.getElementById('recent-outputs-content');
+    if (!container) return;
+    
+    try {
+        const response = await fetch('/api/settings/outputs/recent');
+        const data = await response.json();
+        
+        if (response.ok) {
+            renderRecentOutputs(data.outputs || []);
+        } else {
+            container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No recent export</div>';
+        }
+    } catch (error) {
+        console.error('Error loading recent outputs:', error);
+        container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No recent export</div>';
+    }
+}
+
+function renderRecentOutputs(outputs) {
+    const container = document.getElementById('recent-outputs-content');
+    
+    if (!outputs || outputs.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">No recent export</div>';
+        return;
+    }
+    
+    let html = '<div class="table-responsive" style="overflow-x: auto;"><table class="table"><thead><tr><th>Name</th><th>Format</th><th>Size</th><th>Modified</th><th>Actions</th></tr></thead><tbody>';
+    
+    outputs.forEach(output => {
+        const modifiedDate = new Date(output.modified).toLocaleString('en-US');
+        const folderLabels = {
+            'iocs': 'IOCs',
+            'stix': 'STIX',
+            'reports': 'Reports'
+        };
+        
+        html += `
+            <tr>
+                <td style="font-weight: 500;">${escapeHtml(output.name)}</td>
+                <td><span class="badge">${folderLabels[output.folder] || output.folder}</span></td>
+                <td style="color: var(--text-secondary);">${output.size_formatted || '-'}</td>
+                <td style="color: var(--text-secondary);">${modifiedDate}</td>
+                <td>
+                    <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="downloadRecentOutput('${escapeHtml(output.path.replace(/'/g, "\\'"))}')">
+                        📥 Download
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+async function downloadRecentOutput(filePath) {
+    try {
+        const relativePath = filePath.replace(/^.*outputs[\/\\]/, '');
+        const url = `/api/settings/outputs/${relativePath}/download`;
+        
+        const response = await fetch(url);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = filePath.split(/[\/\\]/).pop();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        } else {
+            const error = await response.json();
+            alert('Error: ' + (error.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+
+// IOC Type selection helpers
+function selectAllIocTypes() {
+    document.querySelectorAll('.ioc-type-checkbox').forEach(cb => cb.checked = true);
+}
+
+function deselectAllIocTypes() {
+    document.querySelectorAll('.ioc-type-checkbox').forEach(cb => cb.checked = false);
+}
+
+function selectCommonIocTypes() {
+    deselectAllIocTypes();
+    const commonTypes = ['ipv4', 'ipv6', 'domain', 'url', 'md5', 'sha1', 'sha256'];
+    document.querySelectorAll('.ioc-type-checkbox').forEach(cb => {
+        if (commonTypes.includes(cb.value)) {
+            cb.checked = true;
+        }
+    });
+}
+
+// Function to stop an export
+async function stopExportTask() {
+    const btn = document.getElementById('export-stop-btn');
+    const taskId = btn ? btn.getAttribute('data-task-id') : null;
+
+    if (!taskId) {
+        return;
+    }
+
+    if (!confirm('Do you really want to stop this export?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/progress/${taskId}/stop`, {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            btn.style.display = 'none';
+            document.getElementById('export-progress-message').textContent = 'Stopping...';
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+</script>
+{% endblock %}

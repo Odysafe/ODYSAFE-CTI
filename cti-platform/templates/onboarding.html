@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+
+{% block title %}Guide - CTI Platform{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container ob-page">
+
+        <header class="ob-hero ob-reveal">
+            <p class="ob-hero-eyebrow">Product guide</p>
+            <h1>Everything in your workspace.<br>One place. Fully private.</h1>
+            <p class="ob-hero-lead">
+                Odysafe CTI brings extraction, analysis, reporting, and export together on your machine. No cloud, no telemetry.
+            </p>
+            <p class="ob-hero-meta">Scroll to explore each module and how they connect.</p>
+        </header>
+
+        <div class="ob-journey ob-reveal" aria-label="Typical workflow">
+            <div class="ob-journey-step"><span class="ob-journey-num">1</span> Collect</div>
+            <div class="ob-journey-step"><span class="ob-journey-num">2</span> Validate</div>
+            <div class="ob-journey-step"><span class="ob-journey-num">3</span> Analyze</div>
+            <div class="ob-journey-step"><span class="ob-journey-num">4</span> Report &amp; deliver</div>
+        </div>
+
+        <!-- Cross-cutting -->
+        <section class="ob-section ob-reveal" id="search">
+            <div class="ob-section-head">
+                <p class="ob-section-label">Everywhere</p>
+                <h2>Global Search &amp; Memory</h2>
+                <p class="ob-section-desc">Search your full workspace from Ctrl+K or from the Memory page. Same backend, same scope: IOCs, sources, MITRE, and notes.</p>
+            </div>
+            <div class="ob-tools">
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">⌘</div>
+                    <div class="ob-tool-body">
+                        <h3>Global Search (Ctrl+K)</h3>
+                        <p class="ob-tool-route">Nav bar · any screen</p>
+                        <p class="ob-tool-desc">Keyboard-first overlay. Jump to IOC detail, Sources, a MITRE technique or group, or a Memory note deep link.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> you need the fastest path while staying on your current page.</p>
+                        <p class="ob-tool-links">Opens → /ioc/&lt;id&gt; · /sources · MITRE modal · /memory?q=…&amp;note=…</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <button type="button" class="ob-open-btn" onclick="document.getElementById('gs-overlay').style.display='flex';document.getElementById('gs-input').focus();">Try Search</button>
+                    </div>
+                </article>
+
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">🧠</div>
+                    <div class="ob-tool-body">
+                        <h3>Memory workspace search</h3>
+                        <p class="ob-tool-route">/memory</p>
+                        <p class="ob-tool-desc">Search IOCs, MITRE data, sources, and notes in one place. Use <strong>Add note</strong> to link a note to a result.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> researching a case, capturing analyst notes, or linking context to a specific IOC or TTP.</p>
+                        <p class="ob-tool-links">Titles · expand/collapse long notes · edit/delete · entity chips · attach from IOC list or MITRE</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('memory.memory_home') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- Cross-linking -->
+        <section class="ob-section ob-reveal" id="crosslink">
+            <div class="ob-section-head">
+                <p class="ob-section-label">Cross-linking</p>
+                <h2>How data connects</h2>
+                <p class="ob-section-desc">IOCs live in SQLite. CTI Memory holds searchable context. Modules share stable keys so you can reuse values without retyping.</p>
+            </div>
+            <div class="ob-scenarios" style="margin-bottom: 0;">
+                <div class="ob-scenario">
+                    <h4>Authoritative IOC store</h4>
+                    <ol>
+                        <li>SQLite: IOCs, sources, tags, MITRE links (<code>ioc_ttp_links</code>)</li>
+                        <li>CTI Memory: indexed text with keys like <code>odysafe:ioc:{id}</code></li>
+                        <li>Flash Report draft: browser only until Excel export</li>
+                    </ol>
+                </div>
+                <div class="ob-scenario">
+                    <h4>Reuse in reports</h4>
+                    <ol>
+                        <li>IOC detail → <strong>Use in Flash Report</strong></li>
+                        <li>IOC list / MITRE → <strong>Add Memory note</strong> (attach context)</li>
+                        <li>Flash Report → import IOCs (TLP, notes, MITRE techniques)</li>
+                        <li>Excel export → summary indexed in CTI Memory</li>
+                    </ol>
+                </div>
+                <div class="ob-scenario">
+                    <h4>Not automatic</h4>
+                    <ol>
+                        <li>Quick Export → no database, no Memory</li>
+                        <li>STIX Graph → separate from IOC database</li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <!-- Workspace -->
+        <section class="ob-section ob-reveal" id="workspace">
+            <div class="ob-section-head">
+                <p class="ob-section-label">Workspace</p>
+                <h2>Extract &amp; remember</h2>
+                <p class="ob-section-desc">Top-level nav entries for daily intake and analyst notes.</p>
+            </div>
+            <div class="ob-tools">
+
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">📁</div>
+                    <div class="ob-tool-body">
+                        <h3>Extraction</h3>
+                        <p class="ob-tool-route">/upload</p>
+                        <p class="ob-tool-desc">Extract 50+ IOC types from files, pasted text, URLs, or manual entry. Quick Export without saving is also available.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> you receive a report, email, or paste and need indicators in seconds.</p>
+                        <p class="ob-tool-links">Creates → Sources &amp; IOCs · Memory ref <code>odysafe:source:{id}</code> · Quick Export → neither</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('upload') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">🧠</div>
+                    <div class="ob-tool-body">
+                        <h3>Memory</h3>
+                        <p class="ob-tool-route">/memory</p>
+                        <p class="ob-tool-desc">Search IOCs, TTPs, sources, and past notes in one place. Add titled notes linked to any value.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> investigating, documenting hypotheses, or reusing context from past cases.</p>
+                        <p class="ob-tool-links">From IOC value/Note · MITRE technique ID · search <strong>Add note</strong> · titles · show more/less · edit/delete</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('memory.memory_home') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+
+            </div>
+        </section>
+
+        <!-- Home -->
+        <section class="ob-section ob-reveal" id="home">
+            <div class="ob-section-head">
+                <p class="ob-section-label">Home</p>
+                <h2>Dashboard</h2>
+                <p class="ob-section-desc">Your command center: live stats, trends, alerts, and shortcuts to every module.</p>
+            </div>
+            <div class="ob-tools">
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">🏠</div>
+                    <div class="ob-tool-body">
+                        <h3>Dashboard</h3>
+                        <p class="ob-tool-route">/</p>
+                        <p class="ob-tool-desc">Overview of sources, IOC counts, validation ratios, TLP breakdown, recent activity, and CTI resource status.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> starting your day or checking workspace health at a glance.</p>
+                        <p class="ob-tool-links">Links to → all modules via quick actions</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('dashboard') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- Data -->
+        <section class="ob-section ob-reveal" id="data">
+            <div class="ob-section-head">
+                <p class="ob-section-label">Data</p>
+                <h2>Collect &amp; organize</h2>
+                <p class="ob-section-desc">Import indicators, manage sources, validate lifecycle fields, and export deliverables.</p>
+            </div>
+            <div class="ob-tools">
+
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">🔍</div>
+                    <div class="ob-tool-body">
+                        <h3>IOCs</h3>
+                        <p class="ob-tool-route">/iocs · /ioc/&lt;id&gt;</p>
+                        <p class="ob-tool-desc">Browse, filter, tag, and manage indicators. Set TLP, validation (TP/FP), confidence, notes, groups, and MITRE technique links.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> triaging, deduplicating, or enriching indicators before export or reporting.</p>
+                        <p class="ob-tool-links">Click value or <strong>Note</strong> → Memory attach · Detail → MITRE · Cross-links · Use in Flash Report</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('iocs_list') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">📚</div>
+                    <div class="ob-tool-body">
+                        <h3>Sources</h3>
+                        <p class="ob-tool-route">/sources</p>
+                        <p class="ob-tool-desc">Manage import batches, groups, extraction stats. Refresh the Data-Shield IPv4 blocklist and export firewall rules.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> organizing provenance, rotating old imports, or working with blocklists.</p>
+                        <p class="ob-tool-links">Linked to → Groups · IOC Extraction · Export filters</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('sources_list') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">📤</div>
+                    <div class="ob-tool-body">
+                        <h3>Export</h3>
+                        <p class="ob-tool-route">/export</p>
+                        <p class="ob-tool-desc">Export filtered IOCs to TXT, CSV, JSON, or XLSX, including firewall-ready value lists. Scope by type, source, tag, or group.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> delivering blocklists to a client, SIEM, firewall, or EDR.</p>
+                        <p class="ob-tool-links">From → IOCs (filtered) · After → Flash Report for client packages</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('export') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+
+            </div>
+        </section>
+
+        <!-- Analysis -->
+        <section class="ob-section ob-reveal" id="analysis">
+            <div class="ob-section-head">
+                <p class="ob-section-label">Analysis</p>
+                <h2>Understand &amp; enrich</h2>
+                <p class="ob-section-desc">Use STIX, MITRE, Memory, and CTI catalogs to research threats.</p>
+            </div>
+            <div class="ob-tools">
+
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">🧪</div>
+                    <div class="ob-tool-body">
+                        <h3>Analysis hub</h3>
+                        <p class="ob-tool-route">/cti-toolkit</p>
+                        <p class="ob-tool-desc">Central entry point to all analysis modules. Pick the right tool for your current question.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> you are not sure which analysis module to open first.</p>
+                        <p class="ob-tool-links">Gateway to → STIX · MITRE · DeepDarkCTI · Ransomware Matrix · (Memory is top-level nav)</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('cti_toolkit') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">🕸️</div>
+                    <div class="ob-tool-body">
+                        <h3>STIX Graph</h3>
+                        <p class="ob-tool-route">/stix-graph</p>
+                        <p class="ob-tool-desc">Visualize STIX 2.0 and STIX 2.1 bundles in one graph. Explore objects and their relationships.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> you have a STIX bundle and need to understand object relationships.</p>
+                        <p class="ob-tool-links">Select IOCs and use Add to STIX · Add context objects · Connect two selected nodes · Saved models stay in backups</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('stix_graph') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">🎯</div>
+                    <div class="ob-tool-body">
+                        <h3>MITRE ATT&amp;CK</h3>
+                        <p class="ob-tool-route">/cti-resources/mitre-attack</p>
+                        <p class="ob-tool-desc">Browse the Enterprise ATT&amp;CK matrix, threat groups, techniques, and link TTPs to your IOCs. Click a technique ID or <strong>Add Memory note</strong> in modals to capture analysis.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> mapping adversary behavior or documenting technique coverage.</p>
+                        <p class="ob-tool-links">Linked IOCs via <code>ioc_ttp_links</code> · Memory attach on TTP/group · TTP-type IOCs mirrored · Flash overlap hint</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('cti_resources_mitre_attack') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">🌐</div>
+                    <div class="ob-tool-body">
+                        <h3>DeepDarkCTI</h3>
+                        <p class="ob-tool-route">/cti-resources/deepdarkcti</p>
+                        <p class="ob-tool-desc">Browse Deep and Dark Web CTI source catalogs from the deepdarkCTI community repository.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> researching OSINT sources, forums, or underground market references.</p>
+                        <p class="ob-tool-links">Reference layer → informs analyst notes and source tracking</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('cti_resources') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">🔒</div>
+                    <div class="ob-tool-body">
+                        <h3>Ransomware Tool Matrix</h3>
+                        <p class="ob-tool-route">/cti-resources/ransomware-matrix</p>
+                        <p class="ob-tool-desc">Review ransomware gang tools, group profiles, and community reports for detection and blocking.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> investigating ransomware incidents or building detection content.</p>
+                        <p class="ob-tool-links">Complements → IOCs · Flash Report · MITRE</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('cti_resources_ransomware_matrix') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+
+            </div>
+        </section>
+
+        <!-- Reports -->
+        <section class="ob-section ob-reveal" id="reports">
+            <div class="ob-section-head">
+                <p class="ob-section-label">Reports</p>
+                <h2>Deliver narrative</h2>
+                <p class="ob-section-desc">Turn your findings into a structured, client-ready deliverable.</p>
+            </div>
+            <div class="ob-tools">
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">📊</div>
+                    <div class="ob-tool-body">
+                        <h3>Flash Report</h3>
+                        <p class="ob-tool-route">/flash-report</p>
+                        <p class="ob-tool-desc">Build structured CTI reports (FLINT) with Excel export, charts, and Diamond Model diagram.</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> producing a formal report for stakeholders or clients after analysis.</p>
+                        <p class="ob-tool-links">Import → DB IOCs (TLP, notes, MITRE) · From IOC detail · Memory on Excel export · Draft in localStorage</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('flash_report.flash_report_home') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- Admin -->
+        <section class="ob-section ob-reveal" id="admin">
+            <div class="ob-section-head">
+                <p class="ob-section-label">Admin</p>
+                <h2>Platform settings</h2>
+                <p class="ob-section-desc">Secure, maintain, and back up your entire workspace.</p>
+            </div>
+            <div class="ob-tools">
+                <article class="ob-tool">
+                    <div class="ob-tool-icon" aria-hidden="true">⚙️</div>
+                    <div class="ob-tool-body">
+                        <h3>Settings</h3>
+                        <p class="ob-tool-route">/settings</p>
+                        <p class="ob-tool-desc">Authentication, storage monitoring, cleanup, source rotation, and full backup/restore (ZIP v2.1).</p>
+                        <p class="ob-tool-when"><strong>Use when</strong> enabling login before production, freeing disk space, or migrating data between installs.</p>
+                        <p class="ob-tool-links">Backup v2.1 → IOCs, tags, MITRE links, cross_refs, templates, STIX models, Memory, favorites</p>
+                    </div>
+                    <div class="ob-tool-action">
+                        <a href="{{ url_for('settings') }}" class="ob-open-btn">Open →</a>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- How it connects -->
+        <section class="ob-section ob-reveal" id="flow">
+            <div class="ob-section-head">
+                <p class="ob-section-label">Connections</p>
+                <h2>How it fits together</h2>
+                <p class="ob-section-desc">Most cases follow a simple path. Pick the scenario that matches yours.</p>
+            </div>
+
+            <div class="ob-flow">
+                <p class="ob-flow-title">Default workflow</p>
+                <div class="ob-flow-row">
+                    <span class="ob-flow-chip">Extraction</span>
+                    <span class="ob-flow-arrow" aria-hidden="true">→</span>
+                    <span class="ob-flow-chip">IOCs</span>
+                    <span class="ob-flow-arrow" aria-hidden="true">→</span>
+                    <span class="ob-flow-chip">Memory</span>
+                    <span class="ob-flow-arrow" aria-hidden="true">→</span>
+                    <span class="ob-flow-chip">Analysis</span>
+                    <span class="ob-flow-arrow" aria-hidden="true">→</span>
+                    <span class="ob-flow-chip">Flash Report</span>
+                    <span class="ob-flow-arrow" aria-hidden="true">→</span>
+                    <span class="ob-flow-chip">Export</span>
+                </div>
+            </div>
+
+            <div class="ob-scenarios">
+                <div class="ob-scenario">
+                    <h4>IOC triage only</h4>
+                    <ol>
+                        <li>Extraction → import sources</li>
+                        <li>IOCs → filter, tag, validate</li>
+                        <li>Export → download blocklists</li>
+                    </ol>
+                </div>
+                <div class="ob-scenario">
+                    <h4>Full CTI case</h4>
+                    <ol>
+                        <li>Extraction → import reports (Memory: source ref)</li>
+                        <li>IOCs → TP/FP, TLP, notes, MITRE links; click value for Memory note</li>
+                        <li>Memory → workspace search, titled notes on IOCs/TTPs</li>
+                        <li>Analysis → use MITRE as needed</li>
+                        <li>Flash Report → import IOCs or Use in Flash Report</li>
+                        <li>Export → scoped IOC lists</li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <footer class="ob-cta ob-reveal">
+            <h2>Ready to start?</h2>
+            <p>Everything stays on your machine. No cloud. No telemetry.</p>
+            <div class="ob-cta-actions">
+                <a href="{{ url_for('dashboard') }}" class="ob-btn-primary">Open Dashboard</a>
+                <a href="{{ url_for('upload') }}" class="ob-btn-secondary">Extract IOCs</a>
+                <a href="{{ url_for('memory.memory_home') }}" class="ob-btn-secondary">Open Memory</a>
+            </div>
+        </footer>
+
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/onboarding.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,1888 @@
+{% extends "base.html" %}
+
+{% block title %}MITRE ATT&CK - CTI Platform{% endblock %}
+
+{% block extra_head %}
+<style>
+/* ── MITRE Page Layout ── */
+.mitre-container {
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 0 20px 60px;
+}
+
+.mitre-hero {
+    text-align: center;
+    padding: 36px 0 28px;
+    margin-bottom: 8px;
+}
+.mitre-hero h1 {
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 700;
+    background: linear-gradient(135deg, #e53e3e, #dd6b20);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+}
+.mitre-hero p {
+    font-size: 15px;
+    color: var(--text-secondary);
+}
+
+/* ── Stats ── */
+.stats-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+.stat-pill {
+    background: rgba(10, 10, 18, 0.85);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 10px;
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 110px;
+}
+.stat-pill .sv {
+    font-size: 22px;
+    font-weight: 700;
+    color: #a78bfa;
+    line-height: 1;
+}
+.stat-pill .sl {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+/* ── Tabs ── */
+.mitre-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+    padding-bottom: 0;
+}
+.tab-btn {
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    margin-bottom: -1px;
+}
+.tab-btn:hover { color: var(--text-primary); }
+.tab-btn.active {
+    color: #fc8181;
+    border-bottom-color: #e53e3e;
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ── Matrix ── */
+.matrix-scroll-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    opacity: .7;
+}
+.matrix-scroll-wrap {
+    overflow-x: auto;
+    padding-bottom: 12px;
+}
+.matrix-scroll-wrap::-webkit-scrollbar { height: 6px; }
+.matrix-scroll-wrap::-webkit-scrollbar-track { background: rgba(255,255,255,.04); border-radius: 3px; }
+.matrix-scroll-wrap::-webkit-scrollbar-thumb { background: rgba(139,92,246,.4); border-radius: 3px; }
+
+.matrix-grid {
+    display: flex;
+    gap: 8px;
+    min-width: max-content;
+    align-items: flex-start;
+}
+.matrix-col {
+    width: 190px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+/* Tactic header - darker solid */
+.matrix-tactic-hdr {
+    background: rgba(30, 15, 50, 0.95);
+    border: 1px solid rgba(139, 92, 246, 0.4);
+    border-radius: 8px;
+    padding: 10px 10px 8px;
+    text-align: center;
+    margin-bottom: 2px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+.matrix-tactic-hdr .tac-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #e9d5ff;
+    line-height: 1.3;
+}
+.matrix-tactic-hdr .tac-id {
+    font-size: 10px;
+    color: #a78bfa;
+    font-family: monospace;
+    margin-top: 3px;
+}
+
+/* Technique cell - darker */
+.matrix-tech {
+    background: rgba(15, 10, 28, 0.88);
+    border: 1px solid rgba(109, 40, 217, 0.28);
+    border-radius: 6px;
+    padding: 7px 8px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+    user-select: none;
+}
+.matrix-tech:hover {
+    background: rgba(229, 62, 62, 0.18);
+    border-color: rgba(229, 62, 62, 0.45);
+}
+.matrix-tech.expanded {
+    background: rgba(229, 62, 62, 0.12);
+    border-color: rgba(229, 62, 62, 0.5);
+}
+.tech-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.tech-tid {
+    font-size: 10px;
+    font-weight: 700;
+    color: #fc8181;
+    font-family: monospace;
+    flex-shrink: 0;
+}
+.tech-sub-badge {
+    font-size: 9px;
+    background: rgba(229, 62, 62, 0.25);
+    color: #fc8181;
+    border-radius: 3px;
+    padding: 1px 4px;
+    flex-shrink: 0;
+    font-weight: 600;
+}
+.tech-expand-icon {
+    margin-left: auto;
+    font-size: 10px;
+    color: #a78bfa;
+    flex-shrink: 0;
+    transition: transform .2s;
+}
+.matrix-tech.expanded .tech-expand-icon { transform: rotate(90deg); }
+.tech-tname {
+    font-size: 11px;
+    color: #c4b5fd;
+    line-height: 1.3;
+    margin-top: 3px;
+}
+.tech-detail-btn {
+    font-size: 10px;
+    color: #a78bfa;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 4px;
+    display: inline-block;
+    text-decoration: underline;
+    opacity: 0.8;
+}
+.tech-detail-btn:hover { opacity: 1; color: #fc8181; }
+
+/* Sub-technique cells */
+.subtechs-list {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid rgba(139, 92, 246, 0.2);
+}
+.subtechs-list.open { display: flex; }
+.subtech-cell {
+    background: rgba(8, 5, 20, 0.9);
+    border: 1px solid rgba(109, 40, 217, 0.2);
+    border-left: 2px solid rgba(229, 62, 62, 0.4);
+    border-radius: 4px;
+    padding: 5px 7px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+}
+.subtech-cell:hover {
+    background: rgba(229, 62, 62, 0.14);
+    border-color: rgba(229, 62, 62, 0.4);
+}
+.sub-tid {
+    font-size: 9px;
+    font-weight: 700;
+    color: #fca5a5;
+    font-family: monospace;
+}
+.sub-tname {
+    font-size: 10px;
+    color: #d8b4fe;
+    line-height: 1.3;
+    margin-top: 2px;
+}
+
+/* ── Groups Tab ── */
+.groups-search-wrap {
+    margin-bottom: 18px;
+}
+.groups-search-wrap input {
+    width: 100%;
+    max-width: 480px;
+    padding: 10px 14px;
+    background: rgba(10, 10, 18, 0.85);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+    transition: border-color .2s;
+}
+.groups-search-wrap input:focus { border-color: #8b5cf6; }
+
+.groups-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+}
+.group-card {
+    background: rgba(10, 10, 20, 0.88);
+    border: 1px solid rgba(109, 40, 217, 0.28);
+    border-radius: 12px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color .2s;
+}
+.group-card:hover { border-color: rgba(139, 92, 246, 0.5); }
+.group-card-hdr {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.group-gid {
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    color: #e9d5ff;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: monospace;
+    padding: 3px 8px;
+    border-radius: 5px;
+    flex-shrink: 0;
+}
+.group-gname {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.group-aliases {
+    font-size: 11px;
+    color: #a78bfa;
+    line-height: 1.4;
+}
+.group-aliases span { font-weight: 600; color: var(--text-secondary); }
+.group-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.view-tech-btn {
+    margin-top: auto;
+    padding: 7px 14px;
+    background: linear-gradient(135deg, rgba(229,62,62,.2), rgba(221,107,32,.2));
+    border: 1px solid rgba(229, 62, 62, 0.35);
+    border-radius: 7px;
+    color: #fc8181;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    align-self: flex-start;
+    transition: all .2s;
+}
+.view-tech-btn:hover {
+    background: linear-gradient(135deg, rgba(229,62,62,.35), rgba(221,107,32,.35));
+    border-color: rgba(229,62,62,.6);
+}
+
+/* ── Search Tab ── */
+.id-search-wrap {
+    max-width: 560px;
+}
+.id-search-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.id-search-row input {
+    flex: 1;
+    padding: 11px 14px;
+    background: rgba(10, 10, 18, 0.85);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+}
+.id-search-row input:focus { border-color: #8b5cf6; }
+.id-search-row button {
+    padding: 11px 22px;
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s;
+}
+.id-search-row button:hover { opacity: .85; }
+.search-examples {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 18px;
+}
+.example-chip {
+    display: inline-block;
+    background: rgba(139, 92, 246, 0.12);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 5px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-family: monospace;
+    font-size: 11px;
+    color: #a78bfa;
+    margin: 0 3px;
+    transition: background .15s;
+}
+.example-chip:hover { background: rgba(139, 92, 246, 0.25); }
+#search-results { margin-top: 16px; }
+
+/* ── Modals ── */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.82);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(2px);
+}
+.modal-overlay.active { display: flex; }
+
+.modal-box {
+    background: rgba(12, 8, 22, 0.98);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    border-radius: 16px;
+    max-width: 740px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 28px 32px;
+    position: relative;
+}
+.modal-box::-webkit-scrollbar { width: 5px; }
+.modal-box::-webkit-scrollbar-thumb { background: rgba(139,92,246,.35); border-radius: 3px; }
+
+.modal-hdr {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 18px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(139,92,246,.2);
+}
+.modal-tid {
+    background: linear-gradient(135deg, #e53e3e, #dd6b20);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: monospace;
+    flex-shrink: 0;
+    align-self: center;
+}
+.modal-tname {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+    flex: 1;
+}
+.modal-close-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transition: color .2s;
+}
+.modal-close-btn:hover { color: #fc8181; }
+
+.modal-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin-bottom: 22px;
+    white-space: pre-line;
+}
+.modal-section {
+    margin-bottom: 20px;
+}
+.modal-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #a78bfa;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    margin-bottom: 10px;
+}
+.tactic-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+.tactic-chip {
+    background: rgba(109, 40, 217, 0.18);
+    border: 1px solid rgba(109, 40, 217, 0.35);
+    color: #c4b5fd;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+.modal-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.modal-list-item {
+    background: rgba(15, 10, 30, 0.8);
+    border: 1px solid rgba(109, 40, 217, 0.2);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+.modal-list-item strong { color: #e9d5ff; font-family: monospace; font-size: 12px; }
+.modal-list-item p { margin-top: 4px; font-size: 12px; }
+.modal-link {
+    font-size: 12px;
+    color: #a78bfa;
+    text-decoration: none;
+    display: inline-block;
+    margin-top: 14px;
+    transition: color .2s;
+}
+.modal-link:hover { color: #fc8181; text-decoration: underline; }
+.modal-memory-link {
+    font-size: 12px;
+    color: #c4b5fd;
+    text-decoration: none;
+    display: inline-block;
+    margin-top: 14px;
+    margin-right: 16px;
+    padding: 6px 12px;
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    border-radius: 6px;
+    background: rgba(139, 92, 246, 0.1);
+    transition: color .2s, border-color .2s;
+}
+.modal-memory-link:hover { color: #fff; border-color: rgba(167, 139, 250, 0.6); text-decoration: none; }
+.modal-footer-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.tech-tid-link {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+.tech-tid-link:hover { color: #c4b5fd; text-decoration: underline; }
+.sub-tid-link { color: #a78bfa; text-decoration: none; font-family: monospace; font-size: 11px; }
+.sub-tid-link:hover { text-decoration: underline; }
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    color: var(--text-secondary);
+    gap: 10px;
+    font-size: 14px;
+}
+.spinner-ring {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(139,92,246,.3);
+    border-top-color: #8b5cf6;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── File Missing / Empty ── */
+.file-missing {
+    background: rgba(229, 62, 62, 0.08);
+    border: 1px solid rgba(229, 62, 62, 0.3);
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+    color: #fc8181;
+}
+.import-section {
+    background: rgba(10, 10, 20, 0.85);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+.import-btn {
+    padding: 12px 28px;
+    background: linear-gradient(135deg, #e53e3e, #dd6b20);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s, transform .2s;
+    margin-top: 14px;
+}
+.import-btn:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+.import-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* hide card when filtered */
+.group-card.hidden { display: none; }
+
+/* Nation filter chips */
+.nation-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+.nation-chip {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    color: var(--text-secondary);
+    background: rgba(139, 92, 246, 0.06);
+    cursor: pointer;
+    transition: all .15s;
+    user-select: none;
+}
+.nation-chip:hover {
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--text-primary);
+}
+.nation-chip--active {
+    background: rgba(139, 92, 246, 0.22);
+    border-color: rgba(139, 92, 246, 0.55);
+    color: var(--violet-light);
+}
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+    <div class="container">
+        <ol class="breadcrumb__list">
+            <li class="breadcrumb__item"><a href="{{ url_for('dashboard') }}" class="breadcrumb__link">Home</a></li>
+            <li class="breadcrumb__item"><a href="{{ url_for('cti_toolkit') }}" class="breadcrumb__link">Analysis</a></li>
+            <li class="breadcrumb__item breadcrumb__item--current" aria-current="page">MITRE ATT&amp;CK</li>
+        </ol>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        {% set active_tab = 'mitre-attack' %}
+        {% include 'partials/cti_resource_tabs.html' %}
+
+        <div class="mitre-hero">
+            <h1>MITRE ATT&CK</h1>
+            <p>Browse and search the MITRE ATT&CK Enterprise framework for threat intelligence analysis</p>
+        </div>
+
+        <div class="thank-you-message" style="background: rgba(139, 92, 246, 0.1); border-left: 4px solid var(--violet-light); padding: 20px 24px; border-radius: 12px; margin-bottom: 40px; font-size: 15px; line-height: 1.6;">
+            <strong>External Resource</strong><br>
+            This section uses the official <a href="https://github.com/mitre-attack/attack-stix-data" target="_blank" rel="noopener" style="color: var(--violet-light);">MITRE ATT&CK STIX data</a> (Enterprise matrix).<br><br>
+            <strong>Odysafe CTI Platform thanks MITRE</strong> for maintaining the ATT&CK framework.
+        </div>
+
+    {% if not file_exists %}
+        {% set resource_title = 'MITRE ATT&CK' %}
+        {% set resource_description = 'The Enterprise ATT&CK STIX bundle is required to use this module.' %}
+        {% set expected_path = 'ODYSAFE-CTI/docs/enterprise-attack.json' %}
+        {% set download_api = '/api/mitre-attack/download' %}
+        {% set github_url = 'https://github.com/mitre-attack/attack-stix-data' %}
+        {% set size_warning = 'The STIX bundle is large (~50 MB). Download may take several minutes depending on your connection.' %}
+        {% set mitre_download_link = '<a href="' ~ mitre_pinned_url ~ '" target="_blank" rel="noopener" style="color:#a78bfa;">enterprise-attack.json</a> (pinned snapshot)' %}
+        {% set manual_instructions = [
+            'Download: ' ~ mitre_download_link,
+            'Place it at <code style="background:rgba(139,92,246,.12);color:#c4b5fd;padding:1px 6px;border-radius:4px;">ODYSAFE-CTI/docs/enterprise-attack.json</code>',
+            'Reload this page'
+        ] %}
+        {% include 'partials/cti_resource_unavailable.html' %}
+
+    {% elif not matrix_view %}
+    <div class="import-section">
+        <h3 style="color: var(--text-primary); margin-bottom: 8px;">Load MITRE ATT&CK Data</h3>
+        <p style="color: var(--text-secondary); font-size: 13px;">Click below to parse the MITRE ATT&CK JSON bundle.</p>
+        <button class="import-btn" id="import-btn" onclick="importMitreData()">Load MITRE ATT&CK Data</button>
+    </div>
+
+    {% else %}
+    <div class="mitre-container" style="max-width: 1500px; margin: 0 auto; padding: 0;">
+    <div class="stats-row">
+        <div class="stat-pill"><div class="sv">{{ stats.tactics }}</div><div class="sl">Tactics</div></div>
+        <div class="stat-pill"><div class="sv">{{ stats.techniques }}</div><div class="sl">Techniques</div></div>
+        <div class="stat-pill"><div class="sv">{{ stats.subtechniques }}</div><div class="sl">Sub-tech</div></div>
+        <div class="stat-pill"><div class="sv">{{ stats.groups }}</div><div class="sl">Groups</div></div>
+        <div class="stat-pill"><div class="sv">{{ stats.software }}</div><div class="sl">Software</div></div>
+        <div class="stat-pill"><div class="sv">{{ stats.mitigations }}</div><div class="sl">Mitigations</div></div>
+        <div class="stat-pill" style="min-width:160px;"><div class="sv" style="font-size:13px;">{{ stats.version }}</div><div class="sl">Version</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="mitre-tabs">
+        <button class="tab-btn active" onclick="switchTab('matrix')" id="tab-matrix">
+            ATT&CK Matrix
+        </button>
+        <button class="tab-btn" onclick="switchTab('groups')" id="tab-groups">
+            Threat Groups <span style="opacity:.6;">({{ groups|length }})</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('search')" id="tab-search">
+            Search by ID
+        </button>
+        <button class="tab-btn" onclick="switchTab('linked-iocs')" id="tab-linked-iocs">
+            Linked IOCs
+        </button>
+        <button class="tab-btn" onclick="switchTab('apt-research')" id="tab-apt-research">
+            APT Research
+        </button>
+        <button class="tab-btn" onclick="switchTab('update')" id="tab-update">
+            Update Data
+        </button>
+    </div>
+
+    <!-- ── MATRIX TAB ── -->
+    <div id="tab-content-matrix" class="tab-content active">
+        <!-- Group Filter -->
+        <div class="matrix-filters" style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center;">
+            <div class="filter-group">
+                <label style="font-size: 0.85rem; color: var(--text-secondary); margin-right: 0.5rem;">Filter by Group:</label>
+                <select id="group-filter" onchange="filterMatrixByGroup(this.value)" style="padding: 0.5rem 1rem; background: rgba(30,20,50,0.8); border: 1px solid rgba(109,40,217,0.3); border-radius: 6px; color: #e9d5ff; font-size: 0.9rem;">
+                    <option value="">All Groups</option>
+                    {% for group in groups|sort(attribute='name') %}
+                    <option value="{{ group.id }}">{{ group.name }} ({{ group.id }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label style="font-size: 0.85rem; color: var(--text-secondary); margin-right: 0.5rem;">Platform:</label>
+                <select id="platform-filter" onchange="filterMatrixByPlatform(this.value)" style="padding: 0.5rem 1rem; background: rgba(30,20,50,0.8); border: 1px solid rgba(109,40,217,0.3); border-radius: 6px; color: #e9d5ff; font-size: 0.9rem;">
+                    <option value="">All Platforms</option>
+                    <option value="Windows">Windows</option>
+                    <option value="Linux">Linux</option>
+                    <option value="macOS">macOS</option>
+                    <option value="Android">Android</option>
+                    <option value="iOS">iOS</option>
+                    <option value="Network">Network</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label style="font-size: 0.85rem; color: var(--text-secondary); margin-right: 0.5rem;">Search:</label>
+                <input type="text" id="matrix-search" placeholder="Search techniques (e.g., PowerShell, T1059)..." oninput="searchMatrixTechniques(this.value)" style="padding: 0.5rem 1rem; background: rgba(30,20,50,0.8); border: 1px solid rgba(109,40,217,0.3); border-radius: 6px; color: #e9d5ff; font-size: 0.9rem; width: 300px;">
+            </div>
+            <div class="filter-group">
+                <button onclick="resetMatrixFilters()" style="padding: 0.5rem 1rem; background: rgba(109,40,217,0.3); border: 1px solid rgba(109,40,217,0.5); border-radius: 6px; color: #e9d5ff; cursor: pointer;">Reset Filters</button>
+            </div>
+            <div id="filter-results" style="font-size: 0.85rem; color: #86efac; margin-left: auto;"></div>
+        </div>
+        
+        <p class="matrix-scroll-hint">Click a technique to expand sub-techniques &nbsp;·&nbsp; Click the technique name to view details &nbsp;·&nbsp; Scroll horizontally to see all tactics</p>
+        <div class="matrix-scroll-wrap">
+            <div class="matrix-grid">
+                {% for tactic_data in matrix_view.tactics %}
+                <div class="matrix-col">
+                    <div class="matrix-tactic-hdr" title="{{ tactic_data.tactic.description }}">
+                        <div class="tac-name">{{ tactic_data.tactic.name }}</div>
+                        <div class="tac-id">{{ tactic_data.tactic.id }}</div>
+                    </div>
+
+                    {% for technique in tactic_data.techniques %}
+                    {% set has_subs = technique.subtechniques|length > 0 %}
+                    <div class="matrix-tech{% if has_subs %} has-subs{% endif %}"
+                         data-tid="{{ technique.id }}"
+                         data-platforms="{{ technique.platforms|join(',') if technique.platforms else 'Windows,Linux,macOS' }}"
+                         onclick="handleTechClick(event, '{{ technique.id }}', {{ 'true' if has_subs else 'false' }})">
+                        <div class="tech-row">
+                            <a href="/memory?attach=ttp&amp;id={{ technique.id | urlencode }}&amp;name={{ technique.name | urlencode }}"
+                               class="tech-tid tech-tid-link" onclick="event.stopPropagation()" title="Add Memory note">{{ technique.id }}</a>
+                            {% if has_subs %}
+                            <span class="tech-sub-badge">+{{ technique.subtechniques|length }}</span>
+                            <span class="tech-expand-icon">▶</span>
+                            {% endif %}
+                        </div>
+                        <div class="tech-tname">{{ technique.name }}</div>
+                        <button class="tech-detail-btn" onclick="event.stopPropagation(); openTechModal('{{ technique.id }}')">View details</button>
+
+                        {% if has_subs %}
+                        <div class="subtechs-list" id="subs-{{ technique.id }}">
+                            {% for sub in technique.subtechniques %}
+                            <div class="subtech-cell" onclick="event.stopPropagation(); openTechModal('{{ sub.id }}')">
+                                <a href="/memory?attach=ttp&amp;id={{ sub.id | urlencode }}&amp;name={{ sub.name | urlencode }}"
+                                   class="sub-tid sub-tid-link" onclick="event.stopPropagation()" title="Add Memory note">{{ sub.id }}</a>
+                                <div class="sub-tname">{{ sub.name }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ── GROUPS TAB ── -->
+    <div id="tab-content-groups" class="tab-content">
+        <div class="groups-search-wrap">
+            <input type="text" id="group-search" placeholder="Search groups by name or alias (e.g., APT29, Lazarus)..." oninput="filterGroups(this.value)">
+        </div>
+        <!-- Nation filter chips -->
+        <div class="nation-filter" id="nation-filter">
+            <span class="nation-chip nation-chip--active" data-nation="" onclick="setNation(this)">All</span>
+            <span class="nation-chip" data-nation="russia" onclick="setNation(this)">Russia</span>
+            <span class="nation-chip" data-nation="china" onclick="setNation(this)">China</span>
+            <span class="nation-chip" data-nation="iran" onclick="setNation(this)">Iran</span>
+            <span class="nation-chip" data-nation="northkorea" onclick="setNation(this)">North Korea</span>
+            <span class="nation-chip" data-nation="vietnam" onclick="setNation(this)">Vietnam</span>
+            <span class="nation-chip" data-nation="india" onclick="setNation(this)">India</span>
+            <span class="nation-chip" data-nation="pakistan" onclick="setNation(this)">Pakistan</span>
+            <span class="nation-chip" data-nation="turkey" onclick="setNation(this)">Turkey</span>
+        </div>
+        <div class="groups-grid" id="groups-grid">
+            {% for group in groups %}
+            <div class="group-card"
+                 data-search="{{ (group.name + ' ' + group.id + ' ' + (group.aliases|join(' ')) + ' ' + (group.description or ''))|lower }}"
+                 data-gid="{{ group.id }}"
+                 data-gname="{{ group.name|e }}">
+                <div class="group-card-hdr">
+                    <span class="group-gid">{{ group.id }}</span>
+                    <span class="group-gname">{{ group.name }}</span>
+                </div>
+                {% if group.aliases %}
+                <div class="group-aliases">
+                    <span>Also known as:</span> {{ group.aliases|join(', ') }}
+                </div>
+                {% endif %}
+                <div class="group-desc">{{ group.description }}</div>
+                <button class="view-tech-btn" onclick="openGroupModal('{{ group.id }}', '{{ group.name|e }}')">
+                    View Techniques
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- ── SEARCH TAB ── -->
+    <div id="tab-content-search" class="tab-content">
+        <div class="id-search-wrap">
+            <div class="id-search-row">
+                <input type="text" id="id-search-input" placeholder="Enter ATT&CK ID (T1078, T1059.001, G0016, M1040)..." onkeypress="if(event.key==='Enter')doIdSearch()">
+                <button onclick="doIdSearch()">Search</button>
+            </div>
+            <div class="search-examples">
+                Try:
+                <span class="example-chip" onclick="prefillSearch('T1078')">T1078</span>
+                <span class="example-chip" onclick="prefillSearch('T1059.001')">T1059.001</span>
+                <span class="example-chip" onclick="prefillSearch('G0016')">G0016</span>
+                <span class="example-chip" onclick="prefillSearch('M1040')">M1040</span>
+                <span class="example-chip" onclick="prefillSearch('phishing')">phishing</span>
+            </div>
+            <div id="search-results"></div>
+        </div>
+    </div>
+
+    <!-- ── LINKED IOCS TAB ── -->
+    <div id="tab-content-linked-iocs" class="tab-content">
+        <div class="linked-iocs-wrap">
+            <div class="linked-iocs-header" style="margin-bottom: 1.5rem;">
+                <h2 style="margin: 0 0 0.5rem 0; color: var(--violet-light);">IOC-MITRE Connections</h2>
+                <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
+                    View IOCs extracted from your system that are linked to MITRE ATT&CK techniques.
+                </p>
+            </div>
+            <div id="linked-iocs-loading" style="text-align: center; padding: 2rem;">
+                <div class="spinner-ring"></div>
+                <p style="color: var(--text-secondary); margin-top: 1rem;">Loading linked IOCs...</p>
+            </div>
+            <div id="linked-iocs-content" style="display: none;">
+                <div id="linked-iocs-stats" style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;"></div>
+                <div id="linked-iocs-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── APT RESEARCH TAB ── -->
+    <div id="tab-content-apt-research" class="tab-content">
+        <div style="max-width: 1100px; margin: 0 auto;">
+            <div style="margin-bottom: 1.5rem;">
+                <h2 style="margin: 0 0 0.5rem 0; color: var(--violet-light);">APT Research Base</h2>
+                <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
+                    Trusted CTI reference sources (Neo23x0 / Google CSE annotations). Search reports by threat actor across {{ stats.groups }}+ reference blogs, vendors, and CERT sources.
+                </p>
+            </div>
+
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+                <div class="stat-pill" style="min-width: 140px;">
+                    <div class="sv" id="apt-source-count">-</div>
+                    <div class="sl">Sources</div>
+                </div>
+                <div class="stat-pill" style="min-width: 180px;">
+                    <div class="sv" id="apt-last-update" style="font-size: 13px;">-</div>
+                    <div class="sl">Last Update</div>
+                </div>
+                <div class="stat-pill" style="min-width: 120px;">
+                    <div class="sv" id="apt-favorites-count">-</div>
+                    <div class="sl">Favorites</div>
+                </div>
+                <button type="button" onclick="refreshAptAnnotations(this)" style="margin-left: auto; padding: 0.6rem 1.2rem; background: rgba(16,185,129,0.2); color: #10B981; border: 2px solid #10B981; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                    Refresh Sources
+                </button>
+            </div>
+
+            <div style="background: rgba(10,10,20,0.6); border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;">
+                <h3 style="color: var(--violet-light); margin: 0 0 1rem; font-size: 15px;">Search by Threat Actor</h3>
+                <div class="id-search-row" style="display: flex; gap: 0.75rem; margin-bottom: 0.75rem;">
+                    <input type="text" id="apt-actor-search" placeholder="APT28, Lazarus, FIN7..." style="flex: 1; padding: 0.6rem 1rem; background: rgba(30,20,50,0.8); border: 1px solid rgba(109,40,217,0.3); border-radius: 6px; color: #e9d5ff;" onkeypress="if(event.key==='Enter')searchAptActor()">
+                    <button onclick="searchAptActor()" style="padding: 0.6rem 1.2rem; background: #7c3aed; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Search</button>
+                </div>
+                <p style="margin: 0 0 0.75rem; font-size: 12px; color: var(--text-secondary);">
+                    Opens site-restricted Google searches across all reference sources.
+                    <a id="aptnotes-link" href="https://github.com/aptnotes/data" target="_blank" rel="noopener" style="color: var(--violet-light);">APTnotes on GitHub</a>
+                </p>
+                <div id="apt-actor-results" style="max-height: 320px; overflow-y: auto;"></div>
+            </div>
+
+            <div style="background: rgba(10,10,20,0.6); border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;">
+                <h3 style="color: var(--violet-light); margin: 0 0 1rem; font-size: 15px;">Add Manual Source</h3>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    <input type="text" id="apt-manual-url" placeholder="https://example.com/blog/" style="flex: 2; min-width: 220px; padding: 0.6rem 1rem; background: rgba(30,20,50,0.8); border: 1px solid rgba(109,40,217,0.3); border-radius: 6px; color: #e9d5ff;">
+                    <input type="text" id="apt-manual-name" placeholder="Display name (optional)" style="flex: 1; min-width: 160px; padding: 0.6rem 1rem; background: rgba(30,20,50,0.8); border: 1px solid rgba(109,40,217,0.3); border-radius: 6px; color: #e9d5ff;">
+                    <button onclick="addAptManualSource()" style="padding: 0.6rem 1.2rem; background: rgba(124,58,237,0.3); color: #e9d5ff; border: 1px solid rgba(124,58,237,0.5); border-radius: 6px; cursor: pointer;">Add</button>
+                </div>
+            </div>
+
+            <div style="background: rgba(10,10,20,0.6); border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; padding: 1.25rem;">
+                <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap;">
+                    <h3 style="color: var(--violet-light); margin: 0; font-size: 15px;">Reference Sources</h3>
+                    <input type="text" id="apt-source-filter" placeholder="Filter sources..." oninput="filterAptSources(this.value)" style="margin-left: auto; padding: 0.5rem 0.75rem; background: rgba(30,20,50,0.8); border: 1px solid rgba(109,40,217,0.3); border-radius: 6px; color: #e9d5ff; min-width: 200px;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); cursor: pointer;">
+                        <input type="checkbox" id="apt-favorites-only" onchange="filterAptSources(document.getElementById('apt-source-filter').value)">
+                        Favorites only
+                    </label>
+                </div>
+                <div id="apt-sources-list" style="max-height: 400px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── UPDATE DATA TAB ── -->
+    <div id="tab-content-update" class="tab-content">
+        <div class="update-section" style="max-width: 700px; margin: 0 auto; padding: 2rem;">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <div style="font-size: 48px; margin-bottom: 1rem;">📦</div>
+                <h2 style="color: var(--text-primary); margin-bottom: 0.5rem;">Update MITRE ATT&CK Data</h2>
+                <p style="color: var(--text-secondary);">Keep your threat intelligence up to date with the latest ATT&amp;CK framework</p>
+            </div>
+            
+            <div style="background: rgba(10,10,20,0.6); border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <h3 style="color: var(--violet-light); margin-bottom: 1rem; font-size: 16px;">Current Version Information</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 14px;">
+                    <div>
+                        <span style="color: var(--text-secondary); display: block; margin-bottom: 4px;">Version</span>
+                        <strong style="color: var(--text-primary);">{{ stats.version or 'Unknown' }}</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-secondary); display: block; margin-bottom: 4px;">File Location</span>
+                        <code style="background: rgba(139,92,246,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px;">docs/enterprise-attack.json</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auto-update option -->
+            <div style="background: rgba(16, 185, 129, 0.1); border: 2px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <h3 style="color: #10B981; margin-bottom: 1rem; font-size: 16px;">🚀 Auto-Update</h3>
+                <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">
+                    Automatically download the latest ATT&amp;CK version from GitHub. The existing file will be backed up before replacement (~50 MB).
+                </p>
+                <button type="button" onclick="mitreDoDownload(this)" style="width:100%;padding:12px;background:rgba(16,185,129,0.2);color:#10B981;border:2px solid #10B981;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
+                    📥 Download &amp; Update to Latest Version
+                </button>
+            </div>
+
+            <div style="background: rgba(10,10,20,0.6); border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; padding: 1.5rem;">
+                <h3 style="color: var(--violet-light); margin-bottom: 1rem; font-size: 16px;">Manual Update</h3>
+                <ol style="color: var(--text-secondary); line-height: 2; padding-left: 1.5rem; margin-bottom: 1.5rem; font-size: 14px;">
+                    <li>Download the pinned Enterprise ATT&amp;CK STIX bundle:<br>
+                        <a href="{{ mitre_pinned_url|default('https://raw.githubusercontent.com/mitre-attack/attack-stix-data/refs/heads/master/enterprise-attack/enterprise-attack.json') }}"
+                           target="_blank" rel="noopener"
+                           style="color: var(--violet-light); word-break: break-all; font-size: 13px; display: inline-block; margin-top: 8px;">
+                           📥 Download enterprise-attack.json (pinned)
+                        </a>
+                    </li>
+                    <li>Replace the existing file at:<br>
+                        <code style="background: rgba(139,92,246,0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; display: inline-block; margin-top: 4px;">ODYSAFE-CTI/docs/enterprise-attack.json</code>
+                    </li>
+                    <li>Reload this page - the platform will detect the new version automatically</li>
+                </ol>
+                <div style="background: rgba(139,92,246,0.05); border-left: 3px solid var(--violet-light); padding: 1rem; border-radius: 0 8px 8px 0;">
+                    <p style="color: var(--text-secondary); font-size: 13px; margin: 0;">
+                        <strong style="color: var(--text-primary);">💡 Tip:</strong> No restart required. Simply replace the file and refresh the page to load the updated ATT&CK data.
+                    </p>
+                </div>
+            </div>
+            
+            <div style="margin-top: 1.5rem; text-align: center;">
+                <p style="color: var(--text-secondary); font-size: 12px;">
+                    Official source: <a href="https://github.com/mitre-attack/attack-stix-data" target="_blank" rel="noopener" style="color: var(--violet-light);">mitre-attack/attack-stix-data</a> on GitHub
+                </p>
+            </div>
+        </div>
+    </div>
+    </div><!-- mitre-container -->
+    {% endif %}
+    </div><!-- container -->
+</section>
+
+<!-- ── TECHNIQUE DETAIL MODAL ── -->
+<div class="modal-overlay" id="tech-modal" onclick="if(event.target===this)closeTechModal()">
+    <div class="modal-box" id="tech-modal-box">
+        <div id="tech-modal-body">
+            <div class="modal-spinner"><div class="spinner-ring"></div> Loading...</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── GROUP TECHNIQUES MODAL ── -->
+<div class="modal-overlay" id="group-modal" onclick="if(event.target===this)closeGroupModal()">
+    <div class="modal-box" id="group-modal-box">
+        <div id="group-modal-body">
+            <div class="modal-spinner"><div class="spinner-ring"></div> Loading...</div>
+        </div>
+    </div>
+</div>
+
+
+<script src="{{ url_for('static', filename='js/cti_resources_common.js') }}"></script>
+<script>
+/* ── Utility ── */
+function esc(t) {
+    if (!t) return '';
+    const d = document.createElement('div');
+    d.textContent = t;
+    return d.innerHTML;
+}
+function truncate(str, n) {
+    if (!str) return '';
+    return str.length <= n ? str : str.slice(0, n).trimEnd() + '…';
+}
+function memoryTtpUrl(id, name) {
+    const p = new URLSearchParams({ attach: 'ttp', id: id || '', name: name || '' });
+    return '/memory?' + p.toString();
+}
+function memoryGroupUrl(id, name) {
+    const p = new URLSearchParams({
+        attach: 'entity',
+        entity_type: 'intrusion_set',
+        value: id || '',
+        name: name || '',
+    });
+    return '/memory?' + p.toString();
+}
+
+/* ── Tab switching ── */
+function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    document.getElementById('tab-content-' + name).classList.add('active');
+    
+    // Load linked IOCs if switching to that tab
+    if (name === 'linked-iocs') {
+        loadLinkedIocs();
+    }
+    if (name === 'apt-research') {
+        loadAptResearchTab();
+    }
+    
+    // Hide modals when switching tabs
+    closeTechModal();
+    closeGroupModal();
+}
+
+/* ── Matrix: expand/collapse sub-techniques ── */
+function handleTechClick(e, tid, hasSubs) {
+    if (!hasSubs) return;
+    const cell = e.currentTarget;
+    const list = document.getElementById('subs-' + tid);
+    if (!list) return;
+    const isOpen = list.classList.toggle('open');
+    cell.classList.toggle('expanded', isOpen);
+}
+
+/* ── Technique detail modal ── */
+function openTechModal(tid) {
+    document.getElementById('tech-modal-body').innerHTML =
+        '<div class="modal-spinner"><div class="spinner-ring"></div> Loading ' + esc(tid) + '...</div>';
+    document.getElementById('tech-modal').classList.add('active');
+
+    fetch('/api/mitre-attack/techniques/' + encodeURIComponent(tid))
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                document.getElementById('tech-modal-body').innerHTML =
+                    '<p style="color:#fc8181;padding:20px;">Error: ' + esc(data.error || 'Unknown error') + '</p>';
+                return;
+            }
+            const t = data.technique;
+            const tacticChips = (t.tactics || []).map(tac =>
+                `<span class="tactic-chip">${esc(tac)}</span>`
+            ).join('');
+            const mitigationsHtml = (t.mitigations && t.mitigations.length)
+                ? `<div class="modal-section">
+                    <div class="modal-section-title">Mitigations (${t.mitigations.length})</div>
+                    <ul class="modal-list">${t.mitigations.map(m =>
+                        `<li class="modal-list-item">
+                            <strong>${esc(m.id)}</strong> - ${esc(m.name)}
+                            ${m.description ? `<p>${esc(truncate(m.description, 200))}</p>` : ''}
+                        </li>`
+                    ).join('')}</ul>
+                   </div>`
+                : '';
+            const groupsHtml = (t.groups && t.groups.length)
+                ? `<div class="modal-section">
+                    <div class="modal-section-title">Groups Using This Technique (${t.groups.length})</div>
+                    <ul class="modal-list">${t.groups.map(g =>
+                        `<li class="modal-list-item"><strong>${esc(g.id)}</strong> - ${esc(g.name)}</li>`
+                    ).join('')}</ul>
+                   </div>`
+                : '';
+            const platformsHtml = (t.platforms && t.platforms.length)
+                ? `<div class="modal-section">
+                    <div class="modal-section-title">Platforms</div>
+                    <div class="tactic-chips">${t.platforms.map(p =>
+                        `<span class="tactic-chip" style="background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.25);color:#86efac;">${esc(p)}</span>`
+                    ).join('')}</div>
+                   </div>`
+                : '';
+
+            // Fetch IOC count for this technique
+            fetch('/api/ioc/count-by-ttp?technique_id=' + encodeURIComponent(t.id))
+                .then(r => r.json())
+                .then(iocData => {
+                    const count = (iocData.success && iocData.data) ? iocData.data.count : 0;
+                    const iocBannerHtml = count > 0
+                        ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:8px;margin-bottom:14px;">
+                            <span style="font-size:16px;">🔗</span>
+                            <span style="font-size:13px;color:#86efac;font-weight:600;">${count} observation${count > 1 ? 's' : ''} of this TTP in your database</span>
+                            <a href="/iocs?type=ttp&value=${encodeURIComponent(t.id)}" style="margin-left:auto;font-size:12px;color:#86efac;text-decoration:underline;white-space:nowrap;">View observations →</a>
+                           </div>`
+                        : `<div style="padding:8px 14px;background:rgba(100,100,120,.07);border-radius:8px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);">No observations of this TTP in your database</div>`;
+                    document.getElementById('tech-modal-body').innerHTML = `
+                        <div class="modal-hdr">
+                            <span class="modal-tid">${esc(t.id)}</span>
+                            <h2 class="modal-tname">${esc(t.name)}</h2>
+                            <button class="modal-close-btn" onclick="closeTechModal()">✕</button>
+                        </div>
+                        ${iocBannerHtml}
+                        <p class="modal-desc">${esc(t.description || 'No description available.')}</p>
+                        ${tacticChips ? `<div class="modal-section"><div class="modal-section-title">Tactics</div><div class="tactic-chips">${tacticChips}</div></div>` : ''}
+                        ${platformsHtml}
+                        ${mitigationsHtml}
+                        ${groupsHtml}
+                        <div class="modal-footer-links">
+                            <a href="${memoryTtpUrl(t.id, t.name)}" class="modal-memory-link">Add Memory note</a>
+                            ${t.url ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="modal-link">View on MITRE ATT&CK →</a>` : ''}
+                        </div>
+                    `;
+                })
+                .catch(() => {
+                    document.getElementById('tech-modal-body').innerHTML = `
+                        <div class="modal-hdr">
+                            <span class="modal-tid">${esc(t.id)}</span>
+                            <h2 class="modal-tname">${esc(t.name)}</h2>
+                            <button class="modal-close-btn" onclick="closeTechModal()">✕</button>
+                        </div>
+                        <p class="modal-desc">${esc(t.description || 'No description available.')}</p>
+                        ${tacticChips ? `<div class="modal-section"><div class="modal-section-title">Tactics</div><div class="tactic-chips">${tacticChips}</div></div>` : ''}
+                        ${platformsHtml}${mitigationsHtml}${groupsHtml}
+                        <div class="modal-footer-links">
+                            <a href="${memoryTtpUrl(t.id, t.name)}" class="modal-memory-link">Add Memory note</a>
+                            ${t.url ? `<a href="${esc(t.url)}" target="_blank" rel="noopener" class="modal-link">View on MITRE ATT&CK →</a>` : ''}
+                        </div>
+                    `;
+                });
+        })
+        .catch(() => {
+            document.getElementById('tech-modal-body').innerHTML =
+                '<p style="color:#fc8181;padding:20px;">Network error. Please try again.</p>';
+        });
+}
+function closeTechModal() {
+    document.getElementById('tech-modal').classList.remove('active');
+}
+
+/* ── Group techniques modal ── */
+function openGroupModal(gid, gname) {
+    document.getElementById('group-modal-body').innerHTML =
+        '<div class="modal-spinner"><div class="spinner-ring"></div> Loading techniques for ' + esc(gname) + '...</div>';
+    document.getElementById('group-modal').classList.add('active');
+
+    fetch('/api/mitre-attack/groups/' + encodeURIComponent(gid) + '/techniques')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                document.getElementById('group-modal-body').innerHTML =
+                    '<p style="color:#fc8181;padding:20px;">Error: ' + esc(data.error || 'Unknown error') + '</p>';
+                return;
+            }
+            const g = data.group;
+            const techs = data.techniques || [];
+            const aliasesHtml = (g.aliases && g.aliases.length)
+                ? `<div class="group-aliases" style="margin-bottom:12px;"><span>Also known as:</span> ${esc(g.aliases.join(', '))}</div>` : '';
+            const descHtml = g.description
+                ? `<p class="modal-desc" style="margin-bottom:18px;">${esc(truncate(g.description, 400))}</p>` : '';
+            const techsHtml = techs.length
+                ? `<div class="modal-section">
+                    <div class="modal-section-title">Techniques Used (${techs.length})</div>
+                    <ul class="modal-list">${techs.map(t =>
+                        `<li class="modal-list-item">
+                            <strong>${esc(t.id)}</strong> - ${esc(t.name)}
+                            ${(t.tactics && t.tactics.length) ? `<div class="tactic-chips" style="margin-top:5px;">${t.tactics.map(tac => `<span class="tactic-chip">${esc(tac)}</span>`).join('')}</div>` : ''}
+                        </li>`
+                    ).join('')}</ul>
+                   </div>`
+                : '<p style="color:var(--text-secondary);font-size:13px;">No techniques found for this group.</p>';
+
+            // Fetch IOC overlap for this group
+            fetch('/api/mitre-attack/groups/' + encodeURIComponent(gid) + '/ioc-overlap')
+                .then(r => r.json())
+                .then(overlapData => {
+                    let overlapHtml = '';
+                    if (overlapData.success && overlapData.data) {
+                        const od = overlapData.data;
+                        if (od.matched_count > 0) {
+                            const matchedList = od.matched_techniques.map(t =>
+                                `<li class="modal-list-item" style="display:flex;align-items:center;gap:8px;">
+                                    <strong>${esc(t.id)}</strong> - ${esc(t.name)}
+                                    <a href="/iocs?type=ttp&value=${encodeURIComponent(t.id)}" style="margin-left:auto;font-size:11px;color:#86efac;text-decoration:underline;white-space:nowrap;">View IOCs -></a>
+                                </li>`
+                            ).join('');
+                            overlapHtml = `<div class="modal-section" style="border:1px solid rgba(34,197,94,.25);border-radius:8px;padding:12px;background:rgba(34,197,94,.06);">
+                                <div class="modal-section-title" style="color:#86efac;">🔗 ${od.matched_count} of ${od.total_techniques} techniques found in your IOC database</div>
+                                <ul class="modal-list">${matchedList}</ul>
+                                <a href="/iocs?type=ttp" style="font-size:12px;color:#86efac;text-decoration:underline;">View all TTP IOCs -></a>
+                            </div>`;
+                        } else {
+                            overlapHtml = `<div style="padding:8px 14px;background:rgba(100,100,120,.07);border-radius:8px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);">None of this group's techniques are present in your IOC database.</div>`;
+                        }
+                    }
+                    document.getElementById('group-modal-body').innerHTML = `
+                        <div class="modal-hdr">
+                            <span class="modal-tid" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);">${esc(g.id)}</span>
+                            <h2 class="modal-tname">${esc(g.name)}</h2>
+                            <button class="modal-close-btn" onclick="closeGroupModal()">✕</button>
+                        </div>
+                        ${aliasesHtml}
+                        ${descHtml}
+                        ${overlapHtml}
+                        ${techsHtml}
+                        <div class="modal-footer-links">
+                            <a href="${memoryGroupUrl(g.id, g.name)}" class="modal-memory-link">Add Memory note</a>
+                            ${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener" class="modal-link">View on MITRE ATT&CK →</a>` : ''}
+                        </div>
+                    `;
+                })
+                .catch(() => {
+                    document.getElementById('group-modal-body').innerHTML = `
+                        <div class="modal-hdr">
+                            <span class="modal-tid" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);">${esc(g.id)}</span>
+                            <h2 class="modal-tname">${esc(g.name)}</h2>
+                            <button class="modal-close-btn" onclick="closeGroupModal()">✕</button>
+                        </div>
+                        ${aliasesHtml}${descHtml}${techsHtml}
+                        <div class="modal-footer-links">
+                            <a href="${memoryGroupUrl(g.id, g.name)}" class="modal-memory-link">Add Memory note</a>
+                            ${g.url ? `<a href="${esc(g.url)}" target="_blank" rel="noopener" class="modal-link">View on MITRE ATT&CK →</a>` : ''}
+                        </div>
+                    `;
+                });
+        })
+        .catch(() => {
+            document.getElementById('group-modal-body').innerHTML =
+                '<p style="color:#fc8181;padding:20px;">Network error. Please try again.</p>';
+        });
+}
+function closeGroupModal() {
+    document.getElementById('group-modal').classList.remove('active');
+}
+
+/* Nation keyword map (group name/alias/description keywords → nation key) */
+const NATION_KEYWORDS = {
+    russia:      ['russia','russian','apt28','apt29','cozy bear','fancy bear','sandworm','turla','gamaredon','nobelium','uke','federal security service','gru','fsb','svr','sofacy','energetic bear','carbon spider','berserk bear','primitive bear'],
+    china:       ['china','chinese','apt1','apt10','apt17','apt19','apt22','apt26','apt27','apt30','apt31','apt40','apt41','bronze butler','bronze vinewood','comment crew','deep panda','gothic panda','hurricane panda','menupass','mustang panda','stone panda','temp.periscope','winnti','wicked panda','emissary panda','ke3chang','leviathan','bronze highland','axiom','lazarus group','velvet chollima'],
+    iran:        ['iran','iranian','apt33','apt34','apt35','apt39','charming kitten','cleaver','cobalt gypsy','crambus','fox kitten','helix kitten','muddywater','oilrig','phosphorus','rocket kitten','seedworm','static kitten','temp.zagros','tortoiseshell','yellow maero'],
+    northkorea:  ['north korea','north korean','dprk','apt37','apt38','bluenoroff','hidden cobra','kimsuky','konni','lab 110','lazarus','ricochet chollima','silent chollima','stardust chollima','temp.hermit','velvet chollima','zinc'],
+    vietnam:     ['vietnam','vietnamese','apt32','apt-c-00','ocean lotus','oceanlotus','tin woodlawn'],
+    india:       ['india','indian','apt-c-35','donot','patchwork','sidewinder','slimming'],
+    pakistan:    ['pakistan','pakistani','apt36','gorgon','operation c-major','transparent tribe'],
+    turkey:      ['turkey','turkish','apt-c-23','moonlight','sea turtle','silicon']
+};
+
+let _activeNation = '';
+let _filterTimer = null;
+
+function setNation(chip) {
+    _activeNation = chip.dataset.nation;
+    document.querySelectorAll('.nation-chip').forEach(c => c.classList.remove('nation-chip--active'));
+    chip.classList.add('nation-chip--active');
+    applyGroupFilters();
+}
+
+function filterGroups(query) {
+    clearTimeout(_filterTimer);
+    _filterTimer = setTimeout(applyGroupFilters, 120);
+}
+
+function applyGroupFilters() {
+    const q = (document.getElementById('group-search').value || '').trim().toLowerCase();
+    const nationKws = _activeNation ? NATION_KEYWORDS[_activeNation] || [] : [];
+    document.querySelectorAll('#groups-grid .group-card').forEach(card => {
+        const search = card.dataset.search;
+        const textMatch = !q || search.includes(q);
+        const nationMatch = !_activeNation || nationKws.some(kw => search.includes(kw));
+        card.classList.toggle('hidden', !(textMatch && nationMatch));
+    });
+}
+
+/* ── ID Search ── */
+function prefillSearch(val) {
+    document.getElementById('id-search-input').value = val;
+    doIdSearch();
+}
+function doIdSearch() {
+    const q = document.getElementById('id-search-input').value.trim();
+    if (!q) return;
+    const container = document.getElementById('search-results');
+    container.innerHTML = '<div class="modal-spinner"><div class="spinner-ring"></div> Searching...</div>';
+
+    fetch('/api/mitre-attack/search?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                container.innerHTML = `<p style="color:#fc8181;font-size:13px;">Error: ${esc(data.error)}</p>`;
+                return;
+            }
+            // api_success merges flat: data.results (exact) or data.results.{techniques,groups,...}
+            let html = '';
+            const results = data.results;
+            if (Array.isArray(results)) {
+                // exact match: results is array of technique objects
+                if (!results.length) {
+                    container.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;">No results found.</p>';
+                    return;
+                }
+                html = results.map(t => renderSearchTech(t)).join('');
+            } else if (results && typeof results === 'object') {
+                // general search: results is {techniques, groups, software, mitigations}
+                const all = [
+                    ...(results.techniques||[]).map(t => renderSearchTech(t)),
+                    ...(results.groups||[]).map(g => renderSearchGroup(g)),
+                    ...(results.software||[]).map(s => renderSearchSoftware(s)),
+                    ...(results.mitigations||[]).map(m => renderSearchMit(m))
+                ];
+                if (!all.length) {
+                    container.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;">No results found.</p>';
+                    return;
+                }
+                html = all.join('');
+            } else {
+                container.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;">No results found.</p>';
+                return;
+            }
+            container.innerHTML = `<ul class="modal-list">${html}</ul>`;
+        })
+        .catch(() => {
+            container.innerHTML = '<p style="color:#fc8181;font-size:13px;">Network error.</p>';
+        });
+}
+function renderSearchTech(t) {
+    return `<li class="modal-list-item" style="cursor:pointer;" onclick="openTechModal('${esc(t.id)}')">
+        <strong>${esc(t.id)}</strong> · ${esc(t.name)}
+        ${(t.tactics&&t.tactics.length)?`<div class="tactic-chips" style="margin-top:5px;">${t.tactics.map(tac=>`<span class="tactic-chip">${esc(tac)}</span>`).join('')}</div>`:''}
+        <p>${esc(truncate(t.description||'',160))}</p>
+    </li>`;
+}
+function renderSearchGroup(g) {
+    return `<li class="modal-list-item" style="cursor:pointer;" onclick="openGroupModal('${esc(g.id)}','${esc(g.name)}')">
+        <strong>${esc(g.id)}</strong> · ${esc(g.name)} <span style="color:#a78bfa;font-size:11px;">[group]</span>
+        <p>${esc(truncate(g.description||'',120))}</p>
+    </li>`;
+}
+function renderSearchSoftware(s) {
+    return `<li class="modal-list-item">
+        <strong>${esc(s.id)}</strong> · ${esc(s.name)} <span style="color:#86efac;font-size:11px;">[${esc(s.type)}]</span>
+        <p>${esc(truncate(s.description||'',120))}</p>
+    </li>`;
+}
+function renderSearchMit(m) {
+    return `<li class="modal-list-item">
+        <strong>${esc(m.id)}</strong> · ${esc(m.name)} <span style="color:#fde68a;font-size:11px;">[mitigation]</span>
+        <p>${esc(truncate(m.description||'',120))}</p>
+    </li>`;
+}
+
+/* ── Matrix Filters ── */
+let _activeGroup = '';
+let _activePlatform = '';
+let _matrixFilterTimer = null;
+let _techniqueGroupCache = {};
+let _ttpIocCache = null;
+
+// Load techniques with IOCs and highlight them
+function highlightTtpWithIocs() {
+    if (_ttpIocCache) {
+        applyTtpHighlighting(_ttpIocCache);
+        return;
+    }
+    
+    fetch('/api/mitre-attack/my-ttps')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                _ttpIocCache = data.ttps || [];
+                applyTtpHighlighting(_ttpIocCache);
+            }
+        })
+        .catch(() => {});
+}
+
+function applyTtpHighlighting(ttps) {
+    ttps.forEach(ttp => {
+        const cells = document.querySelectorAll(`.matrix-tech[data-tid="${ttp.technique_id}"]`);
+        cells.forEach(cell => {
+            cell.style.border = '2px solid #86efac';
+            cell.style.background = 'rgba(34,197,94,0.15)';
+            // Add observation count badge
+            if (!cell.querySelector('.ioc-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'ioc-badge';
+                badge.style.cssText = 'position: absolute; top: -8px; right: -8px; background: #22c55e; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: bold;';
+                badge.textContent = `${ttp.ioc_count} observation${ttp.ioc_count > 1 ? 's' : ''}`;
+                cell.style.position = 'relative';
+                cell.appendChild(badge);
+            }
+        });
+    });
+}
+
+function filterMatrixByGroup(groupId) {
+    _activeGroup = groupId;
+    applyMatrixFilters();
+}
+
+function filterMatrixByPlatform(platform) {
+    _activePlatform = platform;
+    applyMatrixFilters();
+}
+
+function searchMatrixTechniques(query) {
+    clearTimeout(_matrixFilterTimer);
+    _matrixFilterTimer = setTimeout(() => applyMatrixFilters(query), 150);
+}
+
+function applyMatrixFilters(searchQuery) {
+    const q = (searchQuery || document.getElementById('matrix-search').value || '').trim().toLowerCase();
+    
+    // If group filter is active, fetch group techniques
+    if (_activeGroup && !_techniqueGroupCache[_activeGroup]) {
+        fetch('/api/mitre-attack/groups/' + encodeURIComponent(_activeGroup) + '/techniques')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    _techniqueGroupCache[_activeGroup] = new Set(data.techniques.map(t => t.id));
+                    applyMatrixFiltersInternal(q);
+                }
+            });
+    } else {
+        applyMatrixFiltersInternal(q);
+    }
+}
+
+function applyMatrixFiltersInternal(q) {
+    const groupTechs = _activeGroup ? _techniqueGroupCache[_activeGroup] : null;
+    let visibleCount = 0;
+    let totalCount = 0;
+    
+    // Show/hide technique cells - only show matching ones
+    document.querySelectorAll('.matrix-tech[data-tid]').forEach(cell => {
+        totalCount++;
+        const tid = cell.dataset.tid;
+        const tname = (cell.querySelector('.tech-tname')?.textContent || '').toLowerCase();
+        const tidLower = tid.toLowerCase();
+        const platforms = cell.dataset.platforms || '';
+        
+        // Search match
+        const matchesSearch = !q || tidLower.includes(q) || tname.includes(q);
+        
+        // Group filter match - only show techniques used by this group
+        const matchesGroup = !groupTechs || groupTechs.has(tid);
+        
+        // Platform filter match
+        const matchesPlatform = !_activePlatform || platforms.includes(_activePlatform);
+        
+        // Only show if ALL filters match (search, group, platform)
+        if (matchesSearch && matchesGroup && matchesPlatform) {
+            cell.style.display = '';
+            cell.style.opacity = '1';
+            cell.classList.remove('dimmed');
+            visibleCount++;
+        } else {
+            // Hide completely (not dim)
+            cell.style.display = 'none';
+        }
+    });
+    
+    // Hide empty tactic columns (columns with no visible techniques)
+    document.querySelectorAll('.matrix-table th').forEach((th, index) => {
+        // Skip the first column (tactic names)
+        if (index === 0) return;
+        
+        const columnIndex = index;
+        const cellsInColumn = document.querySelectorAll(`.matrix-table td:nth-child(${columnIndex + 1}) .matrix-tech[data-tid]`);
+        const visibleCells = Array.from(cellsInColumn).filter(cell => cell.style.display !== 'none');
+        
+        // Hide column header if no visible techniques
+        if (visibleCells.length === 0 && groupTechs) {
+            th.style.opacity = '0.3';
+        } else {
+            th.style.opacity = '1';
+        }
+    });
+    
+    // Update filter results counter
+    const resultsDiv = document.getElementById('filter-results');
+    if (groupTechs || q) {
+        resultsDiv.textContent = `Showing ${visibleCount} of ${totalCount} techniques`;
+    } else {
+        resultsDiv.textContent = '';
+    }
+}
+
+function resetMatrixFilters() {
+    _activeGroup = '';
+    _activePlatform = '';
+    _techniqueGroupCache = {};
+    document.getElementById('group-filter').value = '';
+    document.getElementById('platform-filter').value = '';
+    document.getElementById('matrix-search').value = '';
+    
+    // Clear results counter
+    const resultsDiv = document.getElementById('filter-results');
+    if (resultsDiv) {
+        resultsDiv.textContent = '';
+    }
+    
+    document.querySelectorAll('.matrix-tech[data-tid]').forEach(cell => {
+        cell.style.display = '';
+        cell.style.opacity = '1';
+        cell.classList.remove('dimmed');
+    });
+    
+    // Reset column headers opacity
+    document.querySelectorAll('.matrix-table th').forEach(th => {
+        th.style.opacity = '1';
+    });
+}
+
+/* ── Linked IOCs Tab ── */
+function loadLinkedIocs() {
+    const loadingDiv = document.getElementById('linked-iocs-loading');
+    const contentDiv = document.getElementById('linked-iocs-content');
+    const statsDiv = document.getElementById('linked-iocs-stats');
+    const listDiv = document.getElementById('linked-iocs-list');
+    
+    loadingDiv.style.display = 'block';
+    contentDiv.style.display = 'none';
+    
+    fetch('/api/mitre-attack/linked-iocs')
+        .then(r => r.json())
+        .then(data => {
+            loadingDiv.style.display = 'none';
+            contentDiv.style.display = 'block';
+            
+            if (!data.success || !data.data || data.data.length === 0) {
+                listDiv.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 2rem;">No IOCs linked to MITRE ATT&CK techniques found. Link IOCs to techniques via the IOC detail page.</p>';
+                statsDiv.innerHTML = '';
+                return;
+            }
+            
+            // Stats
+            const totalIocs = data.data.length;
+            const uniqueTechniques = new Set(data.data.map(d => d.technique_id)).size;
+            statsDiv.innerHTML = `
+                <div style="background: rgba(109,40,217,0.2); border: 1px solid rgba(139,92,246,0.3); border-radius: 8px; padding: 0.75rem 1rem;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary);">Linked IOCs:</span>
+                    <span style="font-size: 1.25rem; font-weight: 600; color: #a78bfa; margin-left: 0.5rem;">${totalIocs}</span>
+                </div>
+                <div style="background: rgba(109,40,217,0.2); border: 1px solid rgba(139,92,246,0.3); border-radius: 8px; padding: 0.75rem 1rem;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary);">Techniques:</span>
+                    <span style="font-size: 1.25rem; font-weight: 600; color: #a78bfa; margin-left: 0.5rem;">${uniqueTechniques}</span>
+                </div>
+            `;
+            
+            // Group by technique
+            const byTechnique = {};
+            data.data.forEach(item => {
+                if (!byTechnique[item.technique_id]) {
+                    byTechnique[item.technique_id] = {
+                        iocs: []
+                    };
+                }
+                byTechnique[item.technique_id].iocs.push(item);
+            });
+            
+            // Render
+            listDiv.innerHTML = Object.entries(byTechnique).map(([techId, tech]) => `
+                <div style="background: rgba(30,20,60,0.6); border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(139,92,246,0.2);">
+                        <span style="background: rgba(139,92,246,0.3); color: #a78bfa; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.85rem;">${techId}</span>
+                        <button onclick="openTechModal('${techId}')" style="margin-left: auto; background: rgba(109,40,217,0.3); border: 1px solid rgba(139,92,246,0.4); color: #e9d5ff; padding: 0.25rem 0.75rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
+                            View Details
+                        </button>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                        ${tech.iocs.map(ioc => `
+                            <div style="background: rgba(109,40,217,0.2); border: 1px solid rgba(139,92,246,0.3); border-radius: 6px; padding: 0.5rem 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 0.75rem; text-transform: uppercase; color: #c4b5fd; background: rgba(139,92,246,0.2); padding: 0.15rem 0.35rem; border-radius: 3px;">${ioc.ioc_type}</span>
+                                <span style="color: #e9d5ff; font-family: monospace; font-size: 0.9rem;">${ioc.ioc_value}</span>
+                                <a href="/ioc/${ioc.ioc_id}" style="color: #a78bfa; font-size: 0.8rem; text-decoration: none;">→</a>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        })
+        .catch(e => {
+            loadingDiv.style.display = 'none';
+            listDiv.innerHTML = `<p style="text-align: center; color: #ef4444; padding: 2rem;">Error loading linked IOCs: ${e.message}</p>`;
+        });
+}
+
+/* ── Import (for case where file exists but not yet loaded) ── */
+function importMitreData() {
+    const btn = document.getElementById('import-btn');
+    btn.disabled = true;
+    btn.textContent = 'Loading...';
+    fetch('/api/mitre-attack/import', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) { location.reload(); }
+            else {
+                alert('Failed: ' + (data.error || 'Unknown error'));
+                btn.disabled = false;
+                btn.textContent = 'Load MITRE ATT&CK Data';
+            }
+        })
+        .catch(e => {
+            alert('Error: ' + e);
+            btn.disabled = false;
+            btn.textContent = 'Load MITRE ATT&CK Data';
+        });
+}
+
+/* ── MITRE ATT&CK Download ── */
+function mitreDoDownload(btn) {
+    if (!confirm('Download the latest MITRE ATT&CK data (~50 MB)?\n\nIf a file already exists, it will be backed up and replaced.')) return;
+    var oldText = buttonText ? buttonText.textContent : btn.textContent;
+    var buttonText = btn.querySelector && btn.querySelector('.button-text');
+    btn.disabled = true;
+    if (buttonText) {
+        buttonText.textContent = 'Downloading... (~50 MB)';
+    } else {
+        btn.textContent = 'Downloading... (~50 MB)';
+    }
+    var progressContainer = document.getElementById('progressContainer');
+    if (progressContainer) {
+        progressContainer.classList.add('active');
+    }
+    beginDownloadProgress('Downloading MITRE ATT&CK (~50 MB)...');
+    fetch('/api/mitre-attack/download', { method: 'POST', headers: {'Content-Type': 'application/json'} })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                endDownloadProgress(true, 'Download completed!');
+                if (buttonText) {
+                    buttonText.textContent = 'Downloaded! Reloading...';
+                } else {
+                    btn.textContent = 'Downloaded! Reloading...';
+                }
+                setTimeout(function() { window.location.reload(); }, 1000);
+            } else {
+                endDownloadProgress(false, 'Download failed');
+                btn.disabled = false;
+                if (buttonText) {
+                    buttonText.textContent = oldText;
+                } else {
+                    btn.textContent = oldText;
+                }
+                alert('Download failed: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(function(e) {
+            endDownloadProgress(false, 'Download failed');
+            btn.disabled = false;
+            if (buttonText) {
+                buttonText.textContent = oldText;
+            } else {
+                btn.textContent = oldText;
+            }
+            alert('Error: ' + e.message);
+        });
+}
+
+/* ── Keyboard: Escape closes modals ── */
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closeTechModal();
+        closeGroupModal();
+    }
+});
+
+/* ── Auto-open modal from URL params (?technique=T1486 or ?group=G0032) ── */
+document.addEventListener('DOMContentLoaded', () => {
+    // Highlight techniques with IOCs in database
+    highlightTtpWithIocs();
+    
+    const downloadBtn = document.getElementById('downloadBtn');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', function() { mitreDoDownload(this); });
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const techParam = params.get('technique');
+    const groupParam = params.get('group');
+    if (techParam) {
+        openTechModal(techParam.toUpperCase());
+    } else if (groupParam) {
+        const gid = groupParam.toUpperCase();
+        const card = document.querySelector(`[data-gid="${CSS.escape(gid)}"]`);
+        const gname = card ? card.dataset.gname : gid;
+        switchTab('groups');
+        openGroupModal(gid, gname);
+    }
+});
+
+/* ── APT Research Base ── */
+let aptSourcesCache = [];
+
+async function loadAptResearchTab() {
+    try {
+        const response = await fetch('/api/apt-annotations/status');
+        const data = await response.json();
+        if (!data.success) return;
+        const status = data.available !== undefined ? data : (data.data || {});
+        document.getElementById('apt-source-count').textContent = status.source_count ?? '-';
+        document.getElementById('apt-favorites-count').textContent = status.favorites_count ?? '-';
+        const lastUpdate = status.last_update;
+        document.getElementById('apt-last-update').textContent = lastUpdate
+            ? new Date(lastUpdate).toLocaleString()
+            : 'Not loaded';
+        await loadAptSourcesList();
+    } catch (e) {
+        console.error('APT status load error:', e);
+    }
+}
+
+async function refreshAptAnnotations(btn) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Refreshing...'; }
+    try {
+        const response = await fetch('/api/apt-annotations/refresh', { method: 'POST' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Refresh failed');
+        await loadAptResearchTab();
+        alert('APT reference sources updated successfully.');
+    } catch (e) {
+        alert('Refresh failed: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Refresh Sources'; }
+    }
+}
+
+async function loadAptSourcesList() {
+    const listEl = document.getElementById('apt-sources-list');
+    listEl.innerHTML = '<p style="color: var(--text-secondary); padding: 1rem;">Loading...</p>';
+    try {
+        const response = await fetch('/api/apt-annotations/sources');
+        const data = await response.json();
+        aptSourcesCache = data.sources || data.data?.sources || [];
+        renderAptSourcesList(aptSourcesCache);
+    } catch (e) {
+        listEl.innerHTML = `<p style="color:#ef4444;padding:1rem;">Error: ${esc(e.message)}</p>`;
+    }
+}
+
+function renderAptSourcesList(sources) {
+    const listEl = document.getElementById('apt-sources-list');
+    if (!sources.length) {
+        listEl.innerHTML = '<p style="color: var(--text-secondary); padding: 1rem;">No sources loaded. Click Refresh Sources.</p>';
+        return;
+    }
+    listEl.innerHTML = sources.map(src => `
+        <div class="apt-source-row" style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid rgba(139,92,246,0.12);font-size:13px;">
+            <button type="button" onclick="toggleAptFavorite('${esc(src.url)}', this)" title="Toggle favorite"
+                style="background:none;border:none;cursor:pointer;font-size:16px;color:${src.is_favorite ? '#fbbf24' : '#6b7280'};">${src.is_favorite ? '★' : '☆'}</button>
+            <div style="flex:1;min-width:0;">
+                <strong style="color:var(--text-primary);">${esc(src.name || src.domain || 'Source')}</strong>
+                <div style="color:var(--text-secondary);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(src.url)}</div>
+            </div>
+            <a href="${esc(src.url)}" target="_blank" rel="noopener" style="color:var(--violet-light);font-size:12px;white-space:nowrap;">Open</a>
+            ${src.is_manual ? `<button type="button" onclick="deleteAptManualSource('${esc(src.url)}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:12px;">Remove</button>` : ''}
+        </div>
+    `).join('');
+}
+
+function filterAptSources(query) {
+    const q = (query || '').trim().toLowerCase();
+    const favoritesOnly = document.getElementById('apt-favorites-only')?.checked;
+    let filtered = aptSourcesCache;
+    if (favoritesOnly) filtered = filtered.filter(s => s.is_favorite);
+    if (q) {
+        filtered = filtered.filter(s =>
+            (s.name || '').toLowerCase().includes(q) ||
+            (s.url || '').toLowerCase().includes(q) ||
+            (s.domain || '').toLowerCase().includes(q)
+        );
+    }
+    renderAptSourcesList(filtered);
+}
+
+async function searchAptActor() {
+    const actor = document.getElementById('apt-actor-search').value.trim();
+    const resultsEl = document.getElementById('apt-actor-results');
+    if (!actor) return;
+    document.getElementById('aptnotes-link').href = `https://github.com/aptnotes/data/search?q=${encodeURIComponent(actor)}`;
+    resultsEl.innerHTML = '<p style="color:var(--text-secondary);padding:0.75rem;">Searching...</p>';
+    try {
+        const response = await fetch(`/api/apt-annotations/search-actor?actor=${encodeURIComponent(actor)}`);
+        const data = await response.json();
+        const results = data.sources || data.data?.sources || [];
+        if (!results.length) {
+            resultsEl.innerHTML = '<p style="color:var(--text-secondary);padding:0.75rem;">No sources available. Refresh sources first.</p>';
+            return;
+        }
+        resultsEl.innerHTML = results.slice(0, 50).map(r => `
+            <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(139,92,246,0.1);font-size:13px;">
+                <span style="flex:1;color:var(--text-primary);">${esc(r.name || r.domain)}</span>
+                <a href="${esc(r.search_url)}" target="_blank" rel="noopener" style="color:#10B981;font-size:12px;white-space:nowrap;">Google Search</a>
+                <a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--violet-light);font-size:12px;white-space:nowrap;">Source</a>
+            </div>
+        `).join('') + (results.length > 50 ? `<p style="color:var(--text-secondary);font-size:12px;padding:0.5rem 0;">Showing 50 of ${results.length} sources</p>` : '');
+    } catch (e) {
+        resultsEl.innerHTML = `<p style="color:#ef4444;padding:0.75rem;">Error: ${esc(e.message)}</p>`;
+    }
+}
+
+async function addAptManualSource() {
+    const url = document.getElementById('apt-manual-url').value.trim();
+    const name = document.getElementById('apt-manual-name').value.trim();
+    if (!url) { alert('URL is required'); return; }
+    try {
+        const response = await fetch('/api/apt-annotations/manual', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, name })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not add source');
+        document.getElementById('apt-manual-url').value = '';
+        document.getElementById('apt-manual-name').value = '';
+        await loadAptResearchTab();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function deleteAptManualSource(url) {
+    if (!confirm('Remove this manual source?')) return;
+    try {
+        const response = await fetch('/api/apt-annotations/manual', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not remove source');
+        await loadAptResearchTab();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function toggleAptFavorite(url, btn) {
+    try {
+        const response = await fetch('/api/apt-annotations/favorite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not update favorite');
+        const isFavorite = data.is_favorite ?? data.data?.is_favorite;
+        btn.textContent = isFavorite ? '★' : '☆';
+        btn.style.color = isFavorite ? '#fbbf24' : '#6b7280';
+        const src = aptSourcesCache.find(s => s.url === url);
+        if (src) src.is_favorite = isFavorite;
+        document.getElementById('apt-favorites-count').textContent =
+            aptSourcesCache.filter(s => s.is_favorite).length;
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+</script>
+{% endblock %}

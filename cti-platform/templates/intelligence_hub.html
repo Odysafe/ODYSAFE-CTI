@@ -1,0 +1,63 @@
+{% extends &quot;base.html&quot; %}
+
+{% block title %}Analysis - CTI Platform{% endblock %}
+
+{% block extra_head %}
+<style>
+.intel-hub-hero {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 40px 0 20px;
+}
+.intel-hub-hero h1 {
+    font-size: clamp(32px, 5vw, 48px);
+    font-weight: 700;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, var(--violet-light), var(--violet-aurora));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.intel-hub-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+}
+.intel-hub-card {
+    display: block;
+    text-decoration: none;
+    padding: 28px;
+    background: rgba(139, 92, 246, 0.06);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 16px;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.intel-hub-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(167, 139, 250, 0.35);
+    box-shadow: 0 12px 32px rgba(139, 92, 246, 0.15);
+}
+.intel-hub-card-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+}
+.intel-hub-card h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 10px;
+}
+.intel-hub-card p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section"><div class="container"><div class="intel-hub-hero"><h1>Analysis</h1><p style="font-size: 18px; color: var(--text-secondary); max-width: 720px; margin: 0 auto; line-height: 1.6;">
+                Analysis and research tools for threat intelligence work. Pick a module below to get started.
+            </p></div><div class="intel-hub-grid"><a href="{{ url_for('memory.memory_home') }}" class="intel-hub-card"><div class="intel-hub-card-icon">🧠</div><h3>CTI Memory</h3><p>Local semantic memory and entity graph (ZettelForge): recall past notes, traverse links, ingest Sigma/YARA rules.</p></a><a href="/stix-graph" class="intel-hub-card"><div class="intel-hub-card-icon">🕸️</div><h3>STIX Graph</h3><p>Visualize STIX 2.0 and STIX 2.1 bundles. Explore relationships between indicators, actors, and techniques.</p></a><a href="{{ url_for('cti_resources') }}" class="intel-hub-card"><div class="intel-hub-card-icon">🌐</div><h3>DeepDarkCTI</h3><p>Browse Deep and Dark Web CTI source catalogs from the deepdarkCTI community repository.</p></a><a href="{{ url_for('cti_resources_mitre_attack') }}" class="intel-hub-card"><div class="intel-hub-card-icon">🎯</div><h3>MITRE ATT&amp;CK</h3><p>Explore the Enterprise ATT&amp;CK matrix, threat groups, techniques, and linked IOCs.</p></a><a href="{{ url_for('cti_resources_ransomware_matrix') }}" class="intel-hub-card"><div class="intel-hub-card-icon">🔒</div><h3>Ransomware Tool Matrix</h3><p>Review ransomware gang tools, group profiles, and community reports for detection and blocking.</p></a></div></div></section>
+{% endblock %}

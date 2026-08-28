@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Memory - My CTI{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/memory.css') }}?v=20260624">
+{% endblock %}
+
+{% block content %}
+<section class="section mem-page">
+    <div class="mem-shell mem-shell--wide">
+
+        <header class="mem-top mem-top--compact">
+            <div class="mem-top-copy">
+                <p class="mem-eyebrow">Workspace search &amp; notes</p>
+                <h1>Memory</h1>
+                <p class="mem-lead">Search IOCs, TTPs, sources, and notes. Add analyst notes to any value.</p>
+            </div>
+            <div id="mem-status-badge" class="mem-pill {% if memory_status.available %}mem-pill--on{% else %}mem-pill--off{% endif %}">
+                <span class="mem-pill-dot" aria-hidden="true"></span>
+                {% if memory_status.available %}Ready{% else %}Offline{% endif %}
+            </div>
+        </header>
+
+        {% if not memory_status.available %}
+        <div class="mem-offline">
+            <h2>Memory is not available</h2>
+            <p>Install the optional dependency, then restart the platform.</p>
+            <code>pip install zettelforge</code>
+            {% if memory_status.error %}<p class="mem-offline-detail">{{ memory_status.error }}</p>{% endif %}
+        </div>
+        {% else %}
+
+        <div class="mem-search-hero">
+            <svg class="mem-search-icon mem-search-icon--hero" width="22" height="22" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M13 13l3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <input type="search" id="mem-search" class="mem-search-input mem-search-input--hero"
+                   placeholder="Search IOCs, TTPs, CVEs, actors, sources, and notes"
+                   autocomplete="off" spellcheck="false" autofocus>
+            <p class="mem-search-hint">Same scope as Ctrl+K · searches your full workspace, not only notes.</p>
+        </div>
+
+        <div id="mem-unified-results" class="mem-unified" hidden></div>
+
+        <div id="mem-attach-banner" class="mem-attach" hidden>
+            <div class="mem-attach-icon" aria-hidden="true">↳</div>
+            <div class="mem-attach-body">
+                <strong id="mem-attach-title">Linked note</strong>
+                <p id="mem-attach-desc"></p>
+            </div>
+            <button type="button" id="mem-attach-clear" class="mem-attach-clear" title="Detach">×</button>
+        </div>
+
+        <div class="mem-compose" id="mem-compose">
+            <label class="mem-compose-label" for="mem-add-title">New note</label>
+            <input type="text" id="mem-add-title" class="mem-title-input"
+                   placeholder="Title (optional but recommended)" maxlength="200">
+            <textarea id="mem-add-content" class="mem-compose-input" rows="1"
+                      placeholder="Your analysis, context, hypotheses…"
+                      spellcheck="true"></textarea>
+            <div class="mem-compose-bar">
+                <span class="mem-compose-hint"><kbd>Ctrl</kbd><kbd>Enter</kbd> to save</span>
+                <button type="button" id="mem-save-btn" class="mem-save-btn">Save note</button>
+            </div>
+            <div id="mem-add-feedback" class="mem-toast" hidden></div>
+        </div>
+
+        <div class="mem-feed-head">
+            <h2 id="mem-feed-title" class="mem-feed-title">Your notes</h2>
+            <span id="mem-feed-count" class="mem-feed-count"></span>
+        </div>
+
+        <div id="mem-feed" class="mem-feed">
+            <div class="mem-feed-loading">Loading notes…</div>
+        </div>
+
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    window.MEMORY_BOOT = {{ memory_status | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/memory.js') }}?v=20260624"></script>
+{% endblock %}
