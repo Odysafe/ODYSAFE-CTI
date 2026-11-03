@@ -1,0 +1,2045 @@
+{% extends "base.html" %}
+
+{% block title %}Profiles & Clusters - ODYSAFE CTI{% endblock %}
+
+{% block extra_head %}
+<style>
+    .pc-shell {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 24px;
+        font-size: 15px;
+        line-height: 1.5;
+    }
+    .pc-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .pc-title {
+        margin: 0 0 8px;
+        font-size: 30px;
+        line-height: 1.1;
+        color: var(--text-primary);
+    }
+    .pc-subtitle {
+        margin: 0;
+        max-width: 760px;
+        color: var(--text-secondary);
+        font-size: 14px;
+        line-height: 1.5;
+    }
+    .pc-toolbar,
+    .pc-card,
+    .pc-panel {
+        background: rgba(20, 17, 32, 0.82);
+        border: 1px solid rgba(139, 92, 246, 0.22);
+        border-radius: 8px;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+    }
+    .pc-toolbar {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) repeat(5, minmax(140px, 170px));
+        gap: 10px;
+        padding: 12px;
+        margin-bottom: 18px;
+    }
+    .pc-input,
+    .pc-select,
+    .pc-textarea {
+        width: 100%;
+        background: rgba(8, 6, 14, 0.72);
+        color: var(--text-primary);
+        border: 1px solid rgba(167, 139, 250, 0.18);
+        border-radius: 8px;
+        padding: 9px 10px;
+        font: inherit;
+        font-size: 15px;
+        line-height: 1.45;
+    }
+    .pc-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+    .pc-card {
+        padding: 16px;
+        cursor: pointer;
+        overflow: hidden;
+        transition: border-color .16s ease, transform .16s ease, background .16s ease;
+    }
+    .pc-card:hover {
+        border-color: rgba(167, 139, 250, 0.48);
+        background: rgba(26, 22, 42, 0.92);
+        transform: translateY(-1px);
+    }
+    .pc-card-head,
+    .pc-row-between,
+    .pc-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        row-gap: 10px;
+        flex-wrap: wrap;
+    }
+    .pc-card-name {
+        margin: 0;
+        font-size: 19px;
+        color: var(--text-primary);
+    }
+    .pc-id {
+        color: var(--text-muted);
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+    }
+    .pc-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+    }
+    .pc-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: .01em;
+        border: 1px solid transparent;
+        white-space: nowrap;
+    }
+    .pc-badge-blue { color: #93C5FD; background: rgba(59,130,246,.12); border-color: rgba(59,130,246,.26); }
+    .pc-badge-green { color: #86EFAC; background: rgba(34,197,94,.12); border-color: rgba(34,197,94,.25); }
+    .pc-badge-orange { color: #FBBF24; background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.25); }
+    .pc-badge-red { color: #FCA5A5; background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.25); }
+    .pc-badge-gray { color: #CBD5E1; background: rgba(148,163,184,.10); border-color: rgba(148,163,184,.22); }
+    .pc-badge-purple { color: #C4B5FD; background: rgba(139,92,246,.14); border-color: rgba(139,92,246,.28); }
+    .pc-banner,
+    .pc-definition {
+        margin-bottom: 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.45;
+    }
+    .pc-banner {
+        color: #FDE68A;
+        background: rgba(245, 158, 11, 0.10);
+        border: 1px solid rgba(245, 158, 11, 0.30);
+    }
+    .pc-definition {
+        color: var(--text-secondary);
+        background: rgba(139, 92, 246, 0.07);
+        border: 1px solid rgba(139, 92, 246, 0.18);
+    }
+    .pc-meta {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin: 14px 0;
+    }
+    .pc-metric {
+        background: rgba(139, 92, 246, 0.06);
+        border: 1px solid rgba(139, 92, 246, 0.12);
+        border-radius: 8px;
+        padding: 8px;
+        min-height: 54px;
+        overflow-wrap: anywhere;
+    }
+    .pc-label {
+        display: block;
+        color: var(--text-muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        margin-bottom: 4px;
+    }
+    .pc-value {
+        color: var(--text-primary);
+        font-size: 14px;
+        font-weight: 700;
+        overflow-wrap: anywhere;
+    }
+    .pc-btn {
+        border: 1px solid rgba(167, 139, 250, 0.26);
+        background: rgba(139, 92, 246, 0.10);
+        color: var(--violet-light);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        margin: 1px;
+    }
+    .pc-btn:hover { background: rgba(139, 92, 246, 0.18); }
+    .pc-btn:disabled {
+        opacity: .5;
+        cursor: not-allowed;
+        background: rgba(139, 92, 246, 0.06);
+    }
+    .pc-btn:disabled:hover { background: rgba(139, 92, 246, 0.06); }
+    .pc-btn-primary {
+        background: linear-gradient(135deg, #7C3AED, #2563EB);
+        color: white;
+        border-color: transparent;
+    }
+    .pc-detail {
+        display: none;
+    }
+    .pc-detail.active,
+    .pc-list.active {
+        display: block;
+    }
+    .pc-list {
+        display: none;
+    }
+    .pc-detail-hero {
+        padding: 18px;
+        margin-bottom: 12px;
+    }
+    .pc-detail-hero .pc-actions {
+        justify-content: flex-end;
+    }
+    .pc-tabs {
+        display: flex;
+        gap: 6px;
+        border-bottom: 1px solid rgba(167, 139, 250, 0.16);
+        margin-bottom: 14px;
+        overflow-x: auto;
+    }
+    .pc-tab {
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--text-secondary);
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .pc-tab.active {
+        color: var(--violet-light);
+        border-bottom-color: var(--violet-light);
+    }
+    .pc-tab-panel { display: none; }
+    .pc-tab-panel.active { display: block; }
+    .pc-section-title {
+        margin: 0 0 10px;
+        color: rgba(196, 181, 253, 0.92);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: .1em;
+    }
+    .pc-panel {
+        padding: 14px;
+        margin-bottom: 12px;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+    }
+    .pc-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-size: 14px;
+    }
+    .pc-table th {
+        text-align: left;
+        color: rgba(196, 181, 253, 0.78);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        border-bottom: 1px solid rgba(167, 139, 250, 0.14);
+        padding: 8px;
+        white-space: nowrap;
+        overflow-wrap: normal;
+    }
+    .pc-table td {
+        padding: 8px;
+        border-bottom: 1px solid rgba(167, 139, 250, 0.08);
+        color: var(--text-secondary);
+        vertical-align: top;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    .pc-table tr:hover td {
+        background: rgba(139, 92, 246, 0.06);
+    }
+    .pc-ioc {
+        font-family: "Courier New", monospace;
+        color: var(--text-primary);
+        word-break: break-all;
+    }
+    .pc-warning {
+        margin: 10px 0;
+        padding: 9px 11px;
+        background: rgba(33, 38, 45, 0.72);
+        border-left: 3px solid #F59E0B;
+        color: var(--text-secondary);
+        font-size: 13px;
+        border-radius: 6px;
+    }
+    .pc-two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    .pc-timeline {
+        display: grid;
+        gap: 10px;
+        border-left: 1px solid rgba(167, 139, 250, 0.24);
+        padding-left: 14px;
+    }
+    .pc-timeline-item {
+        position: relative;
+        padding: 10px 12px;
+        background: rgba(139,92,246,.06);
+        border: 1px solid rgba(139,92,246,.13);
+        border-radius: 8px;
+    }
+    .pc-timeline-item::before {
+        content: "";
+        position: absolute;
+        left: -20px;
+        top: 14px;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--violet-light);
+    }
+    .pc-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 20000;
+        align-items: flex-start;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.62);
+        padding: 96px 20px 28px;
+        overflow: auto;
+    }
+    .pc-modal.active { display: flex; }
+    .pc-modal-card {
+        width: min(860px, 100%);
+        max-height: calc(100vh - 124px);
+        overflow: auto;
+        background: rgba(18, 15, 30, 0.98);
+        border: 1px solid rgba(167, 139, 250, 0.28);
+        border-radius: 10px;
+        padding: 18px;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    }
+    body.pc-modal-open {
+        overflow: hidden;
+    }
+    .pc-status-line {
+        margin: 8px 0 0;
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+    .pc-empty-state {
+        padding: 18px;
+        color: var(--text-secondary);
+        text-align: center;
+    }
+    .pc-panel ul,
+    .pc-panel ol {
+        margin: 8px 0 0;
+        padding-left: 22px;
+        list-style-position: outside;
+    }
+    .pc-panel li {
+        margin-bottom: 8px;
+        line-height: 1.5;
+        color: var(--text-secondary);
+        overflow-wrap: anywhere;
+    }
+    .pc-create-hidden {
+        display: none;
+    }
+    .pc-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    .pc-field {
+        display: grid;
+        gap: 5px;
+    }
+    .pc-field-full {
+        grid-column: 1 / -1;
+    }
+    .pc-error {
+        display: none;
+        color: #FCA5A5;
+        font-size: 11px;
+    }
+    .pc-field.invalid .pc-error { display: block; }
+    .pc-row-removed td {
+        opacity: .58;
+        background: rgba(148, 163, 184, 0.08);
+    }
+    .pc-list-footer {
+        margin-top: 14px;
+        text-align: right;
+    }
+    @media (max-width: 1100px) {
+        .pc-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .pc-grid, .pc-two-col { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="pc-shell">
+        <div id="profiles-list-view" class="pc-list active">
+            <div class="pc-header">
+                <div>
+                    <h1 class="pc-title">Profiles & Clusters</h1>
+                    <p class="pc-subtitle">Persistent CTI knowledge objects that accumulate reusable understanding across investigations. Profiles are analyst-maintained and never imply automatic attribution.</p>
+                </div>
+                <div class="pc-actions">
+                    <button type="button" class="pc-btn" onclick="loadDemoData()">Load Demo Data</button>
+                    <button type="button" class="pc-btn" onclick="exportAllProfilesJson()">Export Workspace JSON</button>
+                    <button type="button" class="pc-btn pc-btn-primary" onclick="openProfileModal()">+ New Profile</button>
+                </div>
+            </div>
+            <div class="pc-banner"><strong>Demo templates available</strong> — Synthetic profiles can be loaded as examples. Analyst-created profiles are stored separately in this browser workspace.</div>
+            <div class="pc-banner"><strong>Workspace persistence</strong> — Changes are saved through the ODYSAFE workspace API and mirrored in browser localStorage for recovery. Export JSON for portable sharing.</div>
+            <div id="pc-save-status" class="pc-status-line">Local workspace ready.</div>
+
+            <div class="pc-toolbar">
+                <input id="pc-search" class="pc-input" type="search" placeholder="Search profiles, IDs, sectors, infrastructure..." autocomplete="off">
+                <select id="pc-type-filter" class="pc-select"><option value="">All profile types</option></select>
+                <select id="pc-status-filter" class="pc-select"><option value="">All workflow statuses</option></select>
+                <select id="pc-activity-filter" class="pc-select"><option value="">All activity states</option></select>
+                <select id="pc-confidence-filter" class="pc-select"><option value="">All analytic confidence</option></select>
+                <select id="pc-relevance-filter" class="pc-select"><option value="">All internal relevance</option></select>
+            </div>
+
+            <div id="pc-profiles-grid" class="pc-grid"></div>
+            <div class="pc-list-footer"><button type="button" class="pc-btn" onclick="resetDemoData()">Clear local workspace</button></div>
+        </div>
+
+        <div id="profile-detail-view" class="pc-detail">
+            <button type="button" class="pc-btn" onclick="showListView()" style="margin-bottom:12px;">← Back</button>
+            <div id="pc-detail-root"></div>
+        </div>
+    </div>
+</section>
+
+<div id="pc-member-modal" class="pc-modal" role="dialog" aria-modal="true" aria-labelledby="pc-member-modal-title">
+    <div class="pc-modal-card">
+        <div class="pc-row-between" style="margin-bottom:14px;">
+            <h2 id="pc-member-modal-title" class="pc-card-name">Add Member</h2>
+            <button type="button" class="pc-btn" onclick="closeMemberModal()">Close</button>
+        </div>
+        <div class="pc-warning">Membership is contextual and does not mark the object as globally malicious.</div>
+        <form id="pc-member-form" class="pc-form-grid" onsubmit="saveMember(event)" novalidate>
+            <input type="hidden" name="memberIndex">
+            <label class="pc-field" data-field="value"><span class="pc-label">Value</span><input class="pc-input" name="value" placeholder="Select a type first" required><span class="pc-error">Value is required.</span></label>
+            <label class="pc-field" data-field="type"><span class="pc-label">Type</span><select class="pc-select" name="type" onchange="updateMemberPlaceholder(this.form)"><option>IPv4</option><option>IPv6</option><option>Domain</option><option>URL</option><option>Email</option><option>Hash_SHA256</option><option>Hash_MD5</option><option>Certificate</option><option>ASN</option><option>Mutex</option><option>Registry_Key</option><option>Named_Pipe</option><option>User_Agent</option><option>URI_Path</option></select></label>
+            <label class="pc-field" data-field="role"><span class="pc-label">Role</span><select class="pc-select" name="role"><option>C2</option><option>Phishing</option><option>Payload_Hosting</option><option>Redirector</option><option>Scanner</option><option>Authentication</option><option>Unknown</option></select></label>
+            <label class="pc-field" data-field="status"><span class="pc-label">Analytic Status</span><select class="pc-select" name="status"><option>OBSERVED</option><option>REPORTED</option><option>INFERRED</option><option>REFUTED</option></select></label>
+            <label class="pc-field"><span class="pc-label">Confidence</span><select class="pc-select" name="confidence"><option>HIGH</option><option>MEDIUM</option><option>LOW</option><option>UNKNOWN</option></select></label>
+            <label class="pc-field"><span class="pc-label">Discriminative Value</span><select class="pc-select" name="discriminativeValue"><option>HIGH</option><option>MEDIUM</option><option>LOW</option><option>UNKNOWN</option></select></label>
+            <label class="pc-field pc-field-full" data-field="rationale"><span class="pc-label">Rationale</span><textarea class="pc-textarea" name="rationale" placeholder="Why is this member associated?" rows="3" required></textarea><span class="pc-error">Rationale is required.</span></label>
+            <label class="pc-field"><span class="pc-label">Source Reference</span><input class="pc-input" name="sourceRef" placeholder="SRC-XXX or free text"></label>
+            <label class="pc-field"><span class="pc-label">First Seen</span><input class="pc-input" name="firstSeen" type="date"></label>
+            <label class="pc-field"><span class="pc-label">Last Seen</span><input class="pc-input" name="lastSeen" type="date"></label>
+            <label class="pc-field pc-field-full"><span class="pc-label">Notes</span><textarea class="pc-textarea" name="notes" placeholder="Optional analyst notes" rows="2"></textarea></label>
+            <div style="grid-column:1 / -1;display:flex;justify-content:flex-end;gap:8px;">
+                <button type="button" class="pc-btn" onclick="closeMemberModal()">Cancel</button>
+                <button type="submit" class="pc-btn pc-btn-primary" id="pc-member-submit">Add Member</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="pc-profile-modal" class="pc-modal" role="dialog" aria-modal="true" aria-labelledby="pc-profile-modal-title">
+    <div class="pc-modal-card">
+        <div class="pc-row-between" style="margin-bottom:14px;">
+            <h2 id="pc-profile-modal-title" class="pc-card-name">New Profile</h2>
+            <button type="button" class="pc-btn" onclick="closeProfileModal()">Close</button>
+        </div>
+        <form id="pc-profile-form" class="pc-form-grid" onsubmit="saveProfile(event)" novalidate>
+            <input type="hidden" name="mode" value="create">
+            <input type="hidden" name="profileId">
+            <label class="pc-field" data-field="type"><span class="pc-label">Profile Type</span><select class="pc-select" name="type"><option>ACTIVITY_CLUSTER</option><option>INFRASTRUCTURE_CLUSTER</option><option>PHISHING_CLUSTER</option><option>MALWARE_CLUSTER</option><option>CAMPAIGN</option><option>ACTOR_PROFILE</option></select></label>
+            <label class="pc-field" data-field="canonicalName"><span class="pc-label">Canonical Name</span><input class="pc-input" name="canonicalName" placeholder="CLUSTER-2026-XXX" required><span class="pc-error">Canonical Name is required.</span></label>
+            <label class="pc-field" data-field="displayName"><span class="pc-label">Display Name</span><input class="pc-input" name="displayName" placeholder="Short descriptive name" required><span class="pc-error">Display Name is required.</span></label>
+            <label class="pc-field pc-edit-only"><span class="pc-label">Workflow Status</span><select class="pc-select" name="workflowStatus"><option>OPEN</option><option>MONITORING</option><option>CLOSED</option><option>ARCHIVED</option><option>MERGED</option><option>SPLIT</option></select></label>
+            <label class="pc-field pc-edit-only"><span class="pc-label">Activity State</span><select class="pc-select" name="activityState"><option>UNKNOWN</option><option>ACTIVE</option><option>INACTIVE</option><option>HISTORICAL</option></select></label>
+            <label class="pc-field" data-field="confidence"><span class="pc-label">Initial Analytic Confidence</span><select class="pc-select" name="confidence"><option>NOT_ASSESSED</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option><option>UNKNOWN</option></select></label>
+            <label class="pc-field pc-edit-only"><span class="pc-label">Internal Relevance</span><select class="pc-select" name="relevance"><option>NOT_ASSESSED</option><option>UNKNOWN</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></label>
+            <label class="pc-field"><span class="pc-label">First Seen</span><input class="pc-input" name="firstSeen" type="date"></label>
+            <label class="pc-field pc-edit-only"><span class="pc-label">Last Seen</span><input class="pc-input" name="lastSeen" type="date"></label>
+            <label class="pc-field pc-field-full" data-field="confidenceRationale"><span class="pc-label">Confidence Rationale</span><textarea class="pc-textarea" name="confidenceRationale" placeholder="Why this confidence level?" rows="3" required></textarea><span class="pc-error">Confidence Rationale is required.</span></label>
+            <label class="pc-field pc-field-full"><span class="pc-label">Description</span><textarea class="pc-textarea" name="description" placeholder="What is this profile tracking?" rows="2"></textarea></label>
+            <label class="pc-field pc-field-full"><span class="pc-label">Purpose / Tracking Question</span><input class="pc-input" name="purpose" placeholder="What question are we trying to answer?"></label>
+            <label class="pc-field pc-field-full"><span class="pc-label">Initial Scope</span><input class="pc-input" name="scope" placeholder="What is in scope for this profile?"></label>
+            <label class="pc-field pc-field-full"><span class="pc-label">Created From Workspace</span><input class="pc-input" name="createdFromWorkspace" placeholder="FLINT-XXX or investigation reference"></label>
+            <label class="pc-field pc-field-full"><span class="pc-label">Assessment</span><textarea class="pc-textarea" name="assessment" placeholder="Analyst assessment" rows="5"></textarea></label>
+            <div style="grid-column:1 / -1;display:flex;justify-content:flex-end;gap:8px;">
+                <button type="button" class="pc-btn" onclick="closeProfileModal()">Cancel</button>
+                <button type="submit" class="pc-btn pc-btn-primary" id="pc-profile-submit">Create Profile</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="pc-small-modal" class="pc-modal" role="dialog" aria-modal="true" aria-labelledby="pc-small-modal-title">
+    <div class="pc-modal-card">
+        <div class="pc-row-between" style="margin-bottom:14px;">
+            <h2 id="pc-small-modal-title" class="pc-card-name">Add Item</h2>
+            <button type="button" class="pc-btn" onclick="closeSmallModal()">Close</button>
+        </div>
+        <form id="pc-small-form" class="pc-form-grid" onsubmit="saveSmallItem(event)" novalidate></form>
+    </div>
+</div>
+
+<div id="pc-remove-modal" class="pc-modal" role="dialog" aria-modal="true" aria-labelledby="pc-remove-modal-title">
+    <div class="pc-modal-card">
+        <h2 id="pc-remove-modal-title" class="pc-card-name" style="margin-bottom:10px;">Remove this member?</h2>
+        <p style="color:var(--text-secondary);margin-top:0;">The member will be marked as REMOVED and kept in the table for auditability.</p>
+        <div style="display:flex;justify-content:flex-end;gap:8px;">
+            <button type="button" class="pc-btn" onclick="closeRemoveModal()">Cancel</button>
+            <button type="button" class="pc-btn pc-btn-primary" onclick="confirmRemoveMember()">Confirm Remove</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+/* === DEMO DATA === */
+const profiles = [
+    {
+        id: 'CLUSTER-2026-017',
+        name: 'Cloud Credential Phishing',
+        type: 'ACTIVITY_CLUSTER',
+        status: 'OPEN',
+        activity: 'ACTIVE',
+        confidence: 'HIGH',
+        relevance: 'HIGH',
+        attribution: 'UNATTRIBUTED',
+        externalReporting: 'Vendor reporting describes overlapping M365 credential phishing activity, but ODYSAFE has not adopted actor attribution.',
+        confidenceRationale: 'High confidence is based on repeated backend path reuse, internal proxy evidence, and consistent activity timing. It is not a severity or maliciousness score.',
+        exclusionCriteria: ['Same ASN alone', 'Same hosting provider alone', 'Same generic ATT&CK technique', 'Same Microsoft 365 lure without supporting evidence'],
+        review: { lastReviewed: '2026-09-24', reviewAfter: '2026-10-24', status: 'CURRENT' },
+        scope: {
+            temporal: '2026-05 to 2026-09',
+            geographic: 'Western Europe reporting and telemetry',
+            sector: 'Financial services and legal services',
+            technical: 'Microsoft 365 credential phishing infrastructure',
+            excluded: 'Endpoint malware activity without phishing infrastructure overlap'
+        },
+        firstSeen: '2026-05-06',
+        lastSeen: '2026-09-24',
+        counters: { workspaces: 4, iocs: 18, ttps: 3, gaps: 2 },
+        assessment: 'Recurring credential-phishing activity targeting Microsoft 365 identities across financial and legal sectors. Infrastructure rotates frequently but backend panel identifier remains stable across rotations.',
+        judgements: [
+            ['OBSERVED', 'HIGH', 'The activity repeatedly uses fake Microsoft 365 authentication pages with matching backend path structure.'],
+            ['REPORTED', 'MEDIUM', 'Two vendor reports describe similar delivery lures and redirect behavior.'],
+            ['UNKNOWN', 'LOW', 'The relationship with CLUSTER-2026-023 remains unresolved.']
+        ],
+        discriminators: [
+            ['/api/v3/gate backend panel ID', 'HIGH', 'Stable across several infrastructure rotations.'],
+            ['TLS certificate fingerprint aa:bb:cc:dd:ee', 'HIGH', 'Observed on two unrelated-looking hostnames.'],
+            ['/login/{random}/index.php URL path structure', 'MEDIUM', 'Recurring path format, but not unique alone.'],
+            ['Same VPS provider', 'LOW', 'Useful context but excluded as sole basis.']
+        ],
+        gaps: [
+            ['Link between CLUSTER-017 and CLUSTER-023?', 'HIGH', 'OPEN'],
+            ['Exfiltration destination?', 'MEDIUM', 'OPEN']
+        ],
+        alternatives: ['Commodity phishing kit reuse by unrelated operators.', 'Shared hosting provider causing infrastructure overlap without operational relationship.'],
+        alternativeConfidence: {
+            increase: 'Same backend identifier is observed on additional infrastructure with independent evidence.',
+            decrease: 'Independent operators are established for the overlapping infrastructure.'
+        },
+        members: [
+            { id: 'MEMBERSHIP-081', value: 'login-secure-m365[.]com', type: 'Domain', role: 'PHISHING_HOST', status: 'OBSERVED', confidence: 'HIGH', rationale: 'Captured phishing page reused the same backend gate path during the activity window.', source_refs: ['SRC-021'], evidence_refs: ['EVID-021'], first_seen: '2026-05-06', last_seen: '2026-09-24', last_validated: '2026-09-24', discriminative_value: 'HIGH', state: 'ACTIVE', artifact_context: 'ATTACKER_CONTROLLED' },
+            { id: 'MEMBERSHIP-082', value: 'auth-office-verify[.]net', type: 'Domain', role: 'PHISHING_HOST', status: 'OBSERVED', confidence: 'HIGH', rationale: 'Internal telemetry observed the same lure and backend structure as the primary phishing domain.', source_refs: ['SRC-018'], evidence_refs: ['EVID-012'], first_seen: '2026-05-14', last_seen: '2026-09-19', last_validated: '2026-09-19', discriminative_value: 'HIGH', state: 'ACTIVE', artifact_context: 'ATTACKER_CONTROLLED' },
+            { id: 'MEMBERSHIP-083', value: '185.220.101.45', type: 'IPv4', role: 'REDIRECTOR', status: 'OBSERVED', confidence: 'MEDIUM', rationale: 'Domain resolution linked this IP to the phishing flow during the observed campaign window.', source_refs: ['SRC-018'], evidence_refs: ['EVID-012'], first_seen: '2026-08-11', last_seen: '2026-09-18', last_validated: '2026-09-18', discriminative_value: 'MEDIUM', state: 'HISTORICAL', artifact_context: 'ATTACKER_CONTROLLED' },
+            { id: 'MEMBERSHIP-084', value: 'update-cdn-static[.]com', type: 'Domain', role: 'PAYLOAD_HOST', status: 'REPORTED', confidence: 'MEDIUM', rationale: 'Vendor reporting connects the domain to a related delivery path; no internal observation has confirmed it yet.', source_refs: ['SRC-044'], evidence_refs: ['SRC-044'], first_seen: '2026-09-02', last_seen: '2026-09-12', last_validated: '2026-09-12', discriminative_value: 'LOW', state: 'HISTORICAL', artifact_context: 'UNKNOWN' }
+        ],
+        ttps: [
+            ['T1566.002', 'Spearphishing Link', 'File-sharing lure to fake M365 authentication.', 'Initial Access', '2026-05-06 / 2026-09-24', 'HIGH', 'EVID-021'],
+            ['T1078', 'Valid Accounts', 'Harvested credentials reused against cloud services.', 'Defense Evasion', '2026-06-02 / 2026-09-17', 'MEDIUM', 'CLAIM-009'],
+            ['T1539', 'Steal Web Session Cookie', 'Post-auth cookie theft reported by vendor.', 'Credential Access', '2026-09-02 / 2026-09-02', 'MEDIUM', 'SRC-044']
+        ],
+        tools: [['Phishing kit', 'M365-themed panel with rotating lures'], ['Redirector', 'Short-lived VPS redirect layer']],
+        targeting: {
+            sectors: [['Financial services', 'OBSERVED', 'HIGH'], ['Legal services', 'OBSERVED', 'MEDIUM']],
+            geographies: [['Western Europe', 'INFERRED', 'MEDIUM']],
+            technologies: [['Microsoft 365', 'OBSERVED', 'HIGH'], ['SharePoint lures', 'REPORTED', 'MEDIUM']],
+            objectives: [['Credential theft', 'OBSERVED', 'HIGH'], ['Session access', 'REPORTED', 'MEDIUM']]
+        },
+        sources: [['Vendor phishing report 2026-08', 'Vendor', 'TLP:AMBER', 'B'], ['Internal proxy evidence', 'Internal log', 'TLP:GREEN', 'A'], ['User report batch', 'User reports', 'TLP:GREEN', 'B']],
+        evidence: [
+            { id: 'EVID-012', type: 'WEB_PROXY_EVENT', description: 'User browsed fake M365 login page.', source_ref: 'SRC-018', observed_at: '2026-09-18 07:48 UTC', integrity: 'Proxy log retained' },
+            { id: 'EVID-021', type: 'URL_CAPTURE', description: 'Captured phishing page with backend path /api/v3/gate.', source_ref: 'SRC-021', observed_at: '2026-09-19 11:32 UTC', integrity: 'Screenshot and HAR stored' },
+            { id: 'EVID-028', type: 'IDENTITY_LOG_EVENT', description: 'Successful authentication from related redirector IP.', source_ref: 'SRC-007', observed_at: '2026-09-24 07:48 UTC', integrity: 'Entra sign-in event retained' }
+        ],
+        entities: [
+            { id: 'ENTITY-00442', type: 'DOMAIN', canonical_value: 'login-secure-m365.com', display_value: 'login-secure-m365[.]com' },
+            { id: 'ENTITY-00443', type: 'DOMAIN', canonical_value: 'auth-office-verify.net', display_value: 'auth-office-verify[.]net' },
+            { id: 'ENTITY-00444', type: 'IPv4', canonical_value: '185.220.101.45', display_value: '185.220.101.45' },
+            { id: 'ENTITY-00445', type: 'ATT&CK Technique', canonical_value: 'T1566.002', display_value: 'T1566.002 Spearphishing Link' }
+        ],
+        relationships: [
+            { id: 'REL-0081', source: 'ENTITY-00442', type: 'RESOLVES_TO', target: 'ENTITY-00444', analytic_status: 'OBSERVED', confidence: 'MEDIUM', rationale: 'Domain resolved to this IPv4 during the campaign activity window.', evidence_refs: ['EVID-012'], source_refs: ['SRC-018'], observed_at: '2026-09-18 07:48 UTC' },
+            { id: 'REL-0082', source: 'CLUSTER-2026-017', type: 'ASSOCIATED_WITH', target: 'ENTITY-00445', analytic_status: 'OBSERVED', confidence: 'HIGH', rationale: 'Delivery behavior matches spearphishing link procedure.', evidence_refs: ['EVID-021'], source_refs: ['SRC-021'], observed_at: '2026-09-19 11:32 UTC' }
+        ],
+        claims: [['Backend path remains stable across rotations.', 'OBSERVED', 'HIGH', 'EVID-012, EVID-021'], ['Credential reuse followed several submissions.', 'OBSERVED', 'MEDIUM', 'EVID-028'], ['Activity may overlap with SocGholish distribution.', 'UNKNOWN', 'LOW', 'GAP-002']],
+        independence: { publications: 12, roots: 5, derived: 7 },
+        contradictions: ['Provider overlap is insufficient for attribution.'],
+        history: [['2026-09-24', 'CTI-01', 'Added internal proxy evidence and updated last seen.'], ['2026-09-02', 'CTI-02', 'Added vendor-reported cookie theft claim.'], ['2026-05-06', 'CTI-01', 'Created from FLINT-2026-027.']],
+        aliases: [['Cloud M365 Phish Set A', 'Vendor A', 'PARTIAL_OVERLAP'], ['CLUSTER-023', 'ODYSAFE', 'POSSIBLE_OVERLAP']]
+    },
+    {
+        id: 'CLUSTER-2026-023',
+        name: 'SocGholish Distribution',
+        type: 'PHISHING_CLUSTER',
+        status: 'MONITORING',
+        activity: 'ACTIVE',
+        confidence: 'MEDIUM',
+        relevance: 'MEDIUM',
+        attribution: 'UNATTRIBUTED',
+        confidenceRationale: 'Synthetic preview profile. Confidence requires analyst evidence before operational use.',
+        externalReporting: 'No ODYSAFE attribution adopted.',
+        exclusionCriteria: [],
+        review: { lastReviewed: 'Not reviewed', reviewAfter: 'Not set', status: 'REVIEW NOT SET' },
+        firstSeen: '2026-06-18',
+        lastSeen: '2026-09-22',
+        counters: { workspaces: 2, iocs: 11, ttps: 4, gaps: 1 }
+    },
+    {
+        id: 'MALWARE-2026-008',
+        name: 'Lumma Stealer Variant',
+        type: 'MALWARE_CLUSTER',
+        status: 'OPEN',
+        activity: 'ACTIVE',
+        confidence: 'MEDIUM',
+        relevance: 'HIGH',
+        attribution: 'UNATTRIBUTED',
+        confidenceRationale: 'Synthetic preview profile. Confidence requires analyst evidence before operational use.',
+        externalReporting: 'No ODYSAFE attribution adopted.',
+        exclusionCriteria: [],
+        review: { lastReviewed: 'Not reviewed', reviewAfter: 'Not set', status: 'REVIEW NOT SET' },
+        firstSeen: '2026-07-01',
+        lastSeen: '2026-09-20',
+        counters: { workspaces: 3, iocs: 22, ttps: 6, gaps: 3 }
+    },
+    {
+        id: 'ACTOR-2026-002',
+        name: 'Suspected Financial Actor',
+        type: 'ACTOR_PROFILE',
+        status: 'MONITORING',
+        activity: 'UNKNOWN',
+        confidence: 'LOW',
+        relevance: 'MEDIUM',
+        attribution: 'EXTERNAL_REPORTING_ONLY',
+        confidenceRationale: 'Synthetic preview profile. Confidence requires analyst evidence before operational use.',
+        externalReporting: 'External reporting only; ODYSAFE has not adopted an internal attribution.',
+        exclusionCriteria: [],
+        review: { lastReviewed: 'Not reviewed', reviewAfter: 'Not set', status: 'REVIEW NOT SET' },
+        firstSeen: '2026-03-11',
+        lastSeen: '2026-09-05',
+        counters: { workspaces: 5, iocs: 8, ttps: 5, gaps: 4 }
+    }
+];
+
+const fallbackDetail = {
+    assessment: '',
+    confidenceRationale: '',
+    externalReporting: '',
+    exclusionCriteria: [],
+    review: { lastReviewed: 'Not reviewed', reviewAfter: 'Not set', status: 'NOT_REVIEWED' },
+    scope: { temporal: 'Not set', geographic: 'Not set', sector: 'Not set', technical: 'Not set', excluded: 'Not set' },
+    judgements: [],
+    discriminators: [],
+    gaps: [],
+    alternatives: [],
+    members: [],
+    ttps: [],
+    tools: [],
+    targeting: { sectors: [], geographies: [], technologies: [], objectives: [] },
+    sources: [],
+    claims: [],
+    evidence: [],
+    entities: [],
+    relationships: [],
+    independence: { publications: 0, roots: 0, derived: 0 },
+    contradictions: [],
+    history: [],
+    aliases: []
+};
+
+const STORAGE_KEY = 'odysafe_profiles';
+const PROFILE_WORKSPACE_API = '/api/profiles-clusters/workspace';
+const demoProfiles = JSON.parse(JSON.stringify(profiles)).map(profile => Object.assign({}, profile, {demo_data: true}));
+let currentProfile = profiles[0];
+let demoModeExplicit = false;
+let smallModalMode = '';
+let pendingRemoveMemberIndex = null;
+
+function nowIso() { return new Date().toISOString(); }
+function todayIso() { return new Date().toISOString().slice(0, 10); }
+function setSaveStatus(message) {
+    const status = document.getElementById('pc-save-status');
+    if (status) status.textContent = message;
+}
+function nextVersion(profile) { return String((normalizeHistory(profile.history).length || 0) + 1); }
+function addHistory(profile, action, description, changedFields = []) {
+    profile.history = normalizeHistory(profile.history);
+    profile.history.push({
+        version: nextVersion(profile),
+        timestamp: nowIso(),
+        action,
+        description,
+        changed_fields: changedFields
+    });
+    profile.updated_at = nowIso();
+}
+function normalizeHistory(history) {
+    return (history || []).map((entry, index) => Array.isArray(entry) ? {
+        version: String(index + 1),
+        timestamp: entry[0],
+        action: 'LEGACY_NOTE',
+        description: `${entry[1]} — ${entry[2]}`,
+        changed_fields: []
+    } : Object.assign({version: String(index + 1), timestamp: '', action: 'NOTE', description: '', changed_fields: []}, entry));
+}
+function normalizeProfile(profile) {
+    const id = profile.profile_id || profile.id || profile.canonical_name || `PROFILE-${Date.now()}`;
+    const scopeValue = profile.scope;
+    const scopeObject = typeof scopeValue === 'string'
+        ? { temporal: scopeValue, geographic: 'Not set', sector: 'Not set', technical: scopeValue || 'Not set', excluded: 'Not set' }
+        : Object.assign({ temporal: 'Not set', geographic: 'Not set', sector: 'Not set', technical: 'Not set', excluded: 'Not set' }, scopeValue || {});
+    const normalizedGaps = normalizeGaps(profile.gaps || []);
+    const normalizedMembers = normalizeMembers(profile.members || []);
+    const normalizedDiscriminators = normalizeDiscriminators(profile.key_discriminators || profile.discriminators || []);
+    const normalizedJudgements = normalizeJudgements(profile.key_judgements || profile.judgements || []);
+    return Object.assign({}, profile, {
+        id,
+        profile_id: id,
+        canonical_name: profile.canonical_name || id,
+        name: profile.display_name || profile.name || id,
+        display_name: profile.display_name || profile.name || id,
+        type: profile.profile_type || profile.type || 'ACTIVITY_CLUSTER',
+        profile_type: profile.profile_type || profile.type || 'ACTIVITY_CLUSTER',
+        status: profile.workflow_status || profile.status || 'OPEN',
+        workflow_status: profile.workflow_status || profile.status || 'OPEN',
+        activity: profile.activity_state || profile.activity || 'UNKNOWN',
+        activity_state: profile.activity_state || profile.activity || 'UNKNOWN',
+        confidence: profile.analytic_confidence || profile.confidence || 'NOT_ASSESSED',
+        analytic_confidence: profile.analytic_confidence || profile.confidence || 'NOT_ASSESSED',
+        relevance: profile.internal_relevance || profile.relevance || 'NOT_ASSESSED',
+        internal_relevance: profile.internal_relevance || profile.relevance || 'NOT_ASSESSED',
+        attribution: profile.internal_attribution_status || profile.attribution || 'UNATTRIBUTED',
+        internal_attribution_status: profile.internal_attribution_status || profile.attribution || 'UNATTRIBUTED',
+        confidenceRationale: profile.confidence_rationale || profile.confidenceRationale || '',
+        confidence_rationale: profile.confidence_rationale || profile.confidenceRationale || '',
+        firstSeen: profile.first_seen || profile.firstSeen || '',
+        first_seen: profile.first_seen || profile.firstSeen || '',
+        lastSeen: profile.last_seen || profile.lastSeen || '',
+        last_seen: profile.last_seen || profile.lastSeen || '',
+        demo_data: Boolean(profile.demo_data),
+        description: profile.description || '',
+        purpose: profile.purpose || '',
+        created_from_workspace: profile.created_from_workspace || profile.createdFromWorkspace || '',
+        scope: scopeObject,
+        members: normalizedMembers,
+        discriminators: normalizedDiscriminators,
+        key_discriminators: normalizedDiscriminators,
+        judgements: normalizedJudgements,
+        key_judgements: normalizedJudgements,
+        gaps: normalizedGaps,
+        history: normalizeHistory(profile.history || []),
+        sources: Array.isArray(profile.sources) ? profile.sources : [],
+        claims: Array.isArray(profile.claims) ? profile.claims : [],
+        ttps: Array.isArray(profile.ttps) ? profile.ttps : [],
+        tools: Array.isArray(profile.tools) ? profile.tools : [],
+        evidence: Array.isArray(profile.evidence) ? profile.evidence : [],
+        collection_requirements: Array.isArray(profile.collection_requirements) ? profile.collection_requirements : [],
+        actions: Array.isArray(profile.actions) ? profile.actions : [],
+        limitations: profile.limitations || '',
+        assumptions: profile.assumptions || '',
+        attribution_basis: profile.attribution_basis || {},
+        attribution_rationale: profile.attribution_rationale || '',
+        alternatives: Array.isArray(profile.alternatives) ? profile.alternatives : [],
+        exclusionCriteria: Array.isArray(profile.exclusionCriteria) ? profile.exclusionCriteria : [],
+        created_at: profile.created_at || profile.createdAt || '',
+        updated_at: profile.updated_at || profile.updatedAt || '',
+        owner: profile.owner || 'CTI Team',
+        counters: Object.assign({workspaces:0, iocs: normalizedMembers.length, ttps:0, gaps: normalizedGaps.filter(g => g.status !== 'CLOSED').length}, profile.counters || {}, {
+            iocs: normalizedMembers.length,
+            ttps: Array.isArray(profile.ttps) ? profile.ttps.length : 0,
+            gaps: normalizedGaps.filter(g => g.status !== 'CLOSED').length
+        })
+    });
+}
+function normalizeDiscriminators(items) {
+    return (items || []).map((item, index) => Array.isArray(item) ? {
+        id: `DISC-${String(index + 1).padStart(3, '0')}`,
+        description: item[0],
+        value: item[0],
+        discriminative_value: item[1],
+        rationale: item[2],
+        source_ref: ''
+    } : Object.assign({id: `DISC-${String(index + 1).padStart(3, '0')}`, description: '', value: '', discriminative_value: 'UNKNOWN', rationale: '', source_ref: ''}, item));
+}
+function normalizeJudgements(items) {
+    return (items || []).map((item, index) => Array.isArray(item) ? {
+        id: `JUDGEMENT-${String(index + 1).padStart(3, '0')}`,
+        status: item[0],
+        confidence: item[1],
+        judgement: item[2],
+        evidence_refs: ''
+    } : Object.assign({id: `JUDGEMENT-${String(index + 1).padStart(3, '0')}`, status: 'TENTATIVE', confidence: 'UNKNOWN', judgement: '', evidence_refs: ''}, item));
+}
+function normalizeGaps(items) {
+    return (items || []).map((item, index) => Array.isArray(item) ? {
+        id: `GAP-${String(index + 1).padStart(3, '0')}`,
+        question: item[0],
+        priority: item[1],
+        status: item[2] || 'OPEN',
+        why_it_matters: '',
+        resolution_criteria: '',
+        closed_at: ''
+    } : Object.assign({id: `GAP-${String(index + 1).padStart(3, '0')}`, question: '', priority: 'MEDIUM', status: 'OPEN', why_it_matters: '', resolution_criteria: '', closed_at: ''}, item));
+}
+function workspacePayload() {
+    return {
+        schema: 'odysafe.profiles_clusters.v1',
+        version: '1.0',
+        workspace_id: 'default',
+        last_updated: nowIso(),
+        demo_loaded: demoModeExplicit,
+        profiles: profiles.map(profile => normalizeProfile(profile))
+    };
+}
+function applyWorkspaceData(data, message) {
+    const storedProfiles = Array.isArray(data?.profiles) ? data.profiles : [];
+    demoModeExplicit = Boolean(data?.demo_loaded);
+    profiles.splice(0, profiles.length, ...storedProfiles.map(normalizeProfile));
+    currentProfile = profiles[0] || null;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload()));
+    setSaveStatus(message || `Workspace loaded. ${profiles.length} profile(s) available.`);
+}
+function loadFromStorage() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+            profiles.splice(0, profiles.length);
+            currentProfile = null;
+            saveToStorage();
+            setSaveStatus('Local workspace is empty. Create a profile or load demo data.');
+            return;
+        }
+        const data = JSON.parse(raw);
+        const storedProfiles = Array.isArray(data.profiles) ? data.profiles : [];
+        if (storedProfiles.length && storedProfiles.every(profile => profile && profile.demo_data) && !data.demo_loaded) {
+            profiles.splice(0, profiles.length);
+            currentProfile = null;
+            saveToStorage();
+            setSaveStatus('Old auto-loaded demo profiles were cleared. Create a profile or load demo data explicitly.');
+            return;
+        }
+        demoModeExplicit = Boolean(data.demo_loaded);
+        profiles.splice(0, profiles.length, ...storedProfiles.map(normalizeProfile));
+        currentProfile = profiles[0] || null;
+        setSaveStatus(`Local workspace loaded. ${profiles.length} profile(s) available.`);
+    } catch (error) {
+        profiles.splice(0, profiles.length);
+        currentProfile = null;
+        saveToStorage();
+        setSaveStatus('Local workspace was unreadable and was reset. Create a profile or load demo data.');
+    }
+}
+function saveToStorage() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(workspacePayload()));
+    setSaveStatus(`Saved locally at ${new Date().toLocaleTimeString()}.`);
+}
+async function loadWorkspace() {
+    try {
+        const response = await fetch(PROFILE_WORKSPACE_API);
+        if (!response.ok) throw new Error(`Server load failed (${response.status})`);
+        const body = await response.json();
+        const payload = body?.data?.workspace?.json_payload;
+        if (payload && Array.isArray(payload.profiles)) {
+            applyWorkspaceData(payload, `Server workspace loaded. ${payload.profiles.length} profile(s) available.`);
+            return;
+        }
+        loadFromStorage();
+    } catch (error) {
+        loadFromStorage();
+        setSaveStatus('Server workspace unavailable. Using local browser workspace.');
+    }
+}
+async function saveWorkspace() {
+    const payload = workspacePayload();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    try {
+        const response = await fetch(PROFILE_WORKSPACE_API, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error(`Server save failed (${response.status})`);
+        setSaveStatus(`Saved to server at ${new Date().toLocaleTimeString()}.`);
+    } catch (error) {
+        setSaveStatus(`Saved locally at ${new Date().toLocaleTimeString()}. Server save unavailable.`);
+    }
+}
+function persistAndRefresh(action = 'detail') {
+    saveWorkspace();
+    renderProfileCards();
+    if (action === 'detail' && currentProfile) {
+        currentProfile = detailOf(profiles.find(profile => profile.id === currentProfile.id) || currentProfile);
+        renderDetail();
+    }
+}
+
+/* === HELPERS === */
+function badgeClass(value) {
+    const v = String(value || '').toUpperCase();
+    if (['HIGH', 'ACTIVE'].includes(v)) return 'pc-badge-green';
+    if (['MEDIUM', 'MONITORING'].includes(v)) return 'pc-badge-orange';
+    if (['LOW', 'UNATTRIBUTED'].includes(v)) return 'pc-badge-red';
+    if (['OPEN', 'HISTORICAL', 'ACTIVITY_CLUSTER', 'PHISHING_CLUSTER'].includes(v)) return 'pc-badge-blue';
+    if (['ACTOR_PROFILE', 'MALWARE_CLUSTER', 'CAMPAIGN', 'INFRASTRUCTURE_CLUSTER'].includes(v)) return 'pc-badge-purple';
+    if (['NOT_ASSESSED', 'NOT_REVIEWED'].includes(v)) return 'pc-badge-gray';
+    return 'pc-badge-gray';
+}
+function esc(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+}
+function badge(value, title) {
+    return `<span class="pc-badge ${badgeClass(value)}" title="${esc(title || value)}">${esc(value)}</span>`;
+}
+function detailOf(profile) {
+    profile = normalizeProfile(profile || {});
+    const detail = Object.assign({}, fallbackDetail, profile, {
+        targeting: Object.assign({}, fallbackDetail.targeting, profile.targeting || {}),
+        counters: Object.assign({workspaces:0,iocs:0,ttps:0,gaps:0}, profile.counters || {}),
+        independence: Object.assign({}, fallbackDetail.independence, profile.independence || {}),
+        review: Object.assign({}, fallbackDetail.review, profile.review || {}),
+        scope: Object.assign({}, fallbackDetail.scope, profile.scope || {})
+    });
+    ['exclusionCriteria', 'alternatives', 'members', 'ttps', 'tools', 'sources', 'claims', 'evidence', 'entities', 'relationships', 'contradictions', 'history', 'aliases', 'judgements', 'discriminators', 'gaps'].forEach(key => {
+        if (!Array.isArray(detail[key])) detail[key] = [];
+    });
+    detail.targeting = {
+        sectors: Array.isArray(detail.targeting.sectors) ? detail.targeting.sectors : [],
+        geographies: Array.isArray(detail.targeting.geographies) ? detail.targeting.geographies : [],
+        technologies: Array.isArray(detail.targeting.technologies) ? detail.targeting.technologies : [],
+        objectives: Array.isArray(detail.targeting.objectives) ? detail.targeting.objectives : [],
+        assessment: detail.targeting.assessment || ''
+    };
+    return detail;
+}
+
+/* === LIST VIEW === */
+function initFilters() {
+    const filters = [
+        ['pc-type-filter', 'type'],
+        ['pc-status-filter', 'status'],
+        ['pc-activity-filter', 'activity'],
+        ['pc-confidence-filter', 'confidence'],
+        ['pc-relevance-filter', 'relevance']
+    ];
+    filters.forEach(([id, key]) => {
+        const select = document.getElementById(id);
+        select.querySelectorAll('option:not(:first-child)').forEach(option => option.remove());
+        [...new Set(profiles.map(p => p[key]))].sort().forEach(value => {
+            select.insertAdjacentHTML('beforeend', `<option value="${esc(value)}">${esc(value)}</option>`);
+        });
+        select.onchange = renderProfileCards;
+    });
+    document.getElementById('pc-search').oninput = renderProfileCards;
+}
+function profileMatches(profile) {
+    const query = document.getElementById('pc-search').value.trim().toLowerCase();
+    const fields = ['type', 'status', 'activity', 'confidence', 'relevance'];
+    if (query && ![profile.id, profile.name, profile.type, profile.status, profile.activity].join(' ').toLowerCase().includes(query)) return false;
+    return fields.every(key => {
+        const selected = document.getElementById(`pc-${key === 'type' ? 'type' : key}-filter`);
+        return !selected || !selected.value || profile[key] === selected.value;
+    });
+}
+function renderProfileCards() {
+    const grid = document.getElementById('pc-profiles-grid');
+    const rows = profiles.filter(profileMatches);
+    grid.innerHTML = rows.length ? rows.map(profile => `
+        <article class="pc-card" onclick="showDetail('${esc(profile.id)}')">
+            <div class="pc-card-head">
+                <div>
+                    <h2 class="pc-card-name">${esc(profile.name)}</h2>
+                    <div class="pc-id">${esc(profile.id)}</div>
+                </div>
+                <div class="pc-badges">${profile.demo_data ? '<span class="pc-badge pc-badge-orange">DEMO</span><span class="pc-badge pc-badge-gray">SYNTHETIC DATA</span>' : '<span class="pc-badge pc-badge-green">ANALYST WORKSPACE</span>'}${badge(profile.type)}${badge(profile.status, 'Workflow Status describes the lifecycle of the profile in ODYSAFE. It does not describe whether the threat activity is currently active.')}${badge(profile.activity, 'Activity State describes whether the tracked activity is believed to be currently active.')}</div>
+            </div>
+            <div class="pc-meta">
+                <div class="pc-metric"><span class="pc-label">First Seen</span><span class="pc-value">${esc(profile.firstSeen)}</span></div>
+                <div class="pc-metric"><span class="pc-label">Last Seen</span><span class="pc-value">${esc(profile.lastSeen)}</span></div>
+                <div class="pc-metric"><span class="pc-label">Analytic Confidence</span><span class="pc-value">${badge(profile.confidence, 'Analytic Confidence reflects confidence in the overall assessment, not maliciousness, severity, probability, or source reliability.')}</span></div>
+                <div class="pc-metric"><span class="pc-label">Internal Relevance</span><span class="pc-value">${badge(profile.relevance, 'Internal Relevance measures applicability to the organization. It does not represent severity, actor capability, likelihood, or confidence.')}</span></div>
+            </div>
+            <div class="pc-row-between">
+                <div class="pc-badges">
+                    <span class="pc-badge pc-badge-gray">${profile.counters.workspaces} workspaces</span>
+                    <span class="pc-badge pc-badge-gray">${profile.counters.iocs} IOCs</span>
+                    <span class="pc-badge pc-badge-gray">${profile.counters.ttps} TTPs</span>
+                    <span class="pc-badge pc-badge-orange">${profile.counters.gaps} open gaps</span>
+                </div>
+                <button type="button" class="pc-btn" onclick="event.stopPropagation();showDetail('${esc(profile.id)}')">Open</button>
+            </div>
+        </article>`).join('') : '<div class="pc-panel">No profile matches the current filters.</div>';
+}
+
+/* === DETAIL VIEW === */
+function showListView() {
+    document.getElementById('profile-detail-view').classList.remove('active');
+    document.getElementById('profiles-list-view').classList.add('active');
+    renderProfileCards();
+}
+function showDetail(profileId) {
+    const selected = profiles.find(p => p.id === profileId);
+    if (!selected) {
+        currentProfile = null;
+        showListView();
+        setSaveStatus('Selected profile was not found. Returned to the profile list.');
+        return;
+    }
+    currentProfile = detailOf(selected);
+    currentProfile.__sourceId = profileId;
+    document.getElementById('profiles-list-view').classList.remove('active');
+    document.getElementById('profile-detail-view').classList.add('active');
+    renderDetail();
+}
+function renderDetail() {
+    const root = document.getElementById('pc-detail-root');
+    if (!currentProfile) {
+        root.innerHTML = '<div class="pc-panel pc-empty-state">No profile is selected.</div>';
+        return;
+    }
+    try {
+    const demoBadges = currentProfile.demo_data
+        ? '<span class="pc-badge pc-badge-orange">DEMO</span><span class="pc-badge pc-badge-gray">SYNTHETIC DATA</span>'
+        : '<span class="pc-badge pc-badge-green">ANALYST WORKSPACE</span>';
+    const persistenceBanner = currentProfile.demo_data
+        ? '<div class="pc-banner"><strong>DEMO DATA</strong> — This profile is a synthetic example and does not represent validated intelligence.</div>'
+        : '<div class="pc-banner"><strong>Analyst workspace</strong> — This profile was created or edited in the ODYSAFE Profiles & Clusters workspace and can be exported to JSON or Excel.</div>';
+    const tabs = ['overview','members','infrastructure','behavior','targeting','analysis','evidence','operations','relationships','history'];
+    root.innerHTML = `
+        <div class="pc-panel pc-detail-hero">
+            <div class="pc-row-between">
+                <div>
+                    <h1 class="pc-title">${esc(currentProfile.name)}</h1>
+                    <div class="pc-id">${esc(currentProfile.id)}</div>
+                </div>
+                <div class="pc-actions">
+                    <button class="pc-btn" onclick="openProfileModal(currentProfile.id)">Edit Profile</button>
+                    <a class="pc-btn" href="${memoryProfileUrl(currentProfile)}">Open in Memory</a>
+                    <button class="pc-btn" onclick="exportProfileJson()">Export ODYSAFE JSON</button>
+                    <button class="pc-btn" onclick="exportProfileExcel()">Export Excel</button>
+                    <button class="pc-btn" onclick="exportProfileStixSummary()">Export STIX Summary</button>
+                    <button class="pc-btn" onclick="viewProfileStixSummary()">View in STIX Graph</button>
+                    <button class="pc-btn pc-badge-red" onclick="deleteCurrentProfile()">Delete Profile</button>
+                    <button class="pc-btn" disabled title="Backend export is not implemented in this preview.">Hunt Pack</button>
+                    <button class="pc-btn" disabled title="Backend export is not implemented in this preview.">Detection</button>
+                    <button class="pc-btn" disabled title="Sharing is not implemented in this preview.">Share</button>
+                </div>
+            </div>
+            <div class="pc-badges" style="margin-top:12px;">
+                ${demoBadges}${badge(currentProfile.type)}${badge(currentProfile.status, 'Workflow Status describes the lifecycle of the profile in ODYSAFE. It does not describe whether the threat activity is currently active. CLOSED does not mean threat inactive.')}${badge(currentProfile.activity, 'Activity State describes whether the tracked activity is believed to be currently active. It is separate from the ODYSAFE workflow state.')}${badge(currentProfile.confidence, 'Analytic Confidence reflects confidence in the overall assessment, not maliciousness, severity, probability, or source reliability.')}${badge(currentProfile.relevance, 'Internal Relevance measures applicability to the organization. It does not represent severity, actor capability, likelihood, or confidence.')}${badge(currentProfile.attribution || 'UNATTRIBUTED', 'Attribution status describes whether ODYSAFE analysts have adopted an attribution assessment. External reporting does not automatically become ODYSAFE attribution.')}
+            </div>
+            ${persistenceBanner}
+            <div class="pc-banner"><strong>Workspace persistence</strong> — Analyst changes are saved through the workspace API and mirrored in browser localStorage for draft recovery.</div>
+            <div class="pc-warning">ODYSAFE does not generate automatic attribution. Attribution status must be maintained by an analyst.</div>
+        </div>
+        <div class="pc-tabs" id="pc-tabs">
+            ${tabs.map((tab, index) => `<button class="pc-tab ${index === 0 ? 'active' : ''}" data-tab="${tab}">${tab.toUpperCase()}</button>`).join('')}
+        </div>
+        <div id="pc-tab-content">${renderOverview()}${renderMembers()}${renderInfrastructure()}${renderBehavior()}${renderTargeting()}${renderAnalysis()}${renderEvidence()}${renderOperations()}${renderRelationships()}${renderHistory()}</div>
+    `;
+    document.getElementById('pc-tabs').addEventListener('click', event => {
+        const button = event.target.closest('[data-tab]');
+        if (!button) return;
+        document.querySelectorAll('.pc-tab').forEach(tab => tab.classList.toggle('active', tab === button));
+        document.querySelectorAll('.pc-tab-panel').forEach(panel => panel.classList.toggle('active', panel.id === `tab-${button.dataset.tab}`));
+    });
+    } catch (error) {
+        root.innerHTML = `<div class="pc-panel pc-empty-state">This profile could not be rendered. Return to the list and edit the required fields.<br><span class="pc-id">${esc(error.message || error)}</span></div>`;
+        setSaveStatus('Profile rendering failed because some local data was incomplete.');
+    }
+}
+function renderOverview() {
+    return `<section id="tab-overview" class="pc-tab-panel active">
+        <div class="pc-panel">
+            <h3 class="pc-section-title">Analytic Guardrails</h3>
+            <div class="pc-badges">
+                <span class="pc-badge pc-badge-gray">Membership ≠ certainty</span>
+                <span class="pc-badge pc-badge-gray">Recurrence ≠ corroboration</span>
+                <span class="pc-badge pc-badge-gray">Shared infrastructure ≠ shared operator</span>
+                <span class="pc-badge pc-badge-gray">ATT&CK overlap ≠ attribution</span>
+                <span class="pc-badge pc-badge-gray">External attribution ≠ ODYSAFE attribution</span>
+                <span class="pc-badge pc-badge-gray">Source count ≠ independent confirmation count</span>
+                <span class="pc-badge pc-badge-gray">Profile confidence ≠ maliciousness or severity</span>
+            </div>
+        </div>
+        <div class="pc-panel">
+            <h3 class="pc-section-title">Profile Semantics</h3>
+            <div class="pc-meta">
+                <div class="pc-metric" title="Workflow Status describes the lifecycle of the profile in ODYSAFE. It does not describe whether the threat activity is currently active."><span class="pc-label">Workflow Status</span><span class="pc-value">${badge(currentProfile.status)}</span></div>
+                <div class="pc-metric" title="Activity State describes whether the tracked activity is believed to be currently active. It is separate from the ODYSAFE workflow state."><span class="pc-label">Activity State</span><span class="pc-value">${badge(currentProfile.activity)}</span></div>
+                <div class="pc-metric" title="Analytic Confidence reflects confidence in the overall assessment. It does not measure maliciousness, severity, probability, or source reliability."><span class="pc-label">Overall Analytic Confidence</span><span class="pc-value">${badge(currentProfile.confidence)}</span></div>
+                <div class="pc-metric" title="Internal Relevance measures applicability to the organization. It does not represent severity, actor capability, likelihood, or confidence."><span class="pc-label">Internal Relevance</span><span class="pc-value">${badge(currentProfile.relevance)}</span></div>
+                <div class="pc-metric" title="Attribution status describes whether ODYSAFE analysts have adopted an attribution assessment. External reporting does not automatically become ODYSAFE attribution."><span class="pc-label">Internal Attribution Status</span><span class="pc-value">${badge(currentProfile.attribution || 'UNATTRIBUTED')}</span></div>
+                <div class="pc-metric" title="Review Due means the profile should be re-evaluated. It does not mean the profile is invalid."><span class="pc-label">Review Status</span><span class="pc-value">${esc(currentProfile.review.status)}</span></div>
+                <div class="pc-metric"><span class="pc-label">Last Reviewed</span><span class="pc-value">${esc(currentProfile.review.lastReviewed)}</span></div>
+                <div class="pc-metric"><span class="pc-label">Review After</span><span class="pc-value">${esc(currentProfile.review.reviewAfter)}</span></div>
+                <div class="pc-metric"><span class="pc-label">Created From</span><span class="pc-value">${esc(currentProfile.created_from_workspace || 'Not recorded')}</span></div>
+                <div class="pc-metric"><span class="pc-label">Owner</span><span class="pc-value">${esc(currentProfile.owner || 'CTI Team')}</span></div>
+                <div class="pc-metric"><span class="pc-label">Created At</span><span class="pc-value">${esc(currentProfile.created_at || 'Not recorded')}</span></div>
+                <div class="pc-metric"><span class="pc-label">Updated At</span><span class="pc-value">${esc(currentProfile.updated_at || 'Not recorded')}</span></div>
+            </div>
+            <div class="pc-definition"><strong>Purpose / Tracking Question:</strong> ${esc(currentProfile.purpose || 'No tracking question recorded.')}</div>
+            <div class="pc-definition"><strong>Confidence Rationale:</strong> ${esc(currentProfile.confidenceRationale)}</div>
+            <div class="pc-definition"><strong>External Reporting:</strong> ${esc(currentProfile.externalReporting)}</div>
+        </div>
+        <div class="pc-panel">
+            <h3 class="pc-section-title">Profile Scope</h3>
+            <div class="pc-meta">
+                <div class="pc-metric"><span class="pc-label">Temporal Scope</span><span class="pc-value">${esc(currentProfile.scope.temporal)}</span></div>
+                <div class="pc-metric"><span class="pc-label">Geographic Scope</span><span class="pc-value">${esc(currentProfile.scope.geographic)}</span></div>
+                <div class="pc-metric"><span class="pc-label">Sector Scope</span><span class="pc-value">${esc(currentProfile.scope.sector)}</span></div>
+                <div class="pc-metric"><span class="pc-label">Technical Scope</span><span class="pc-value">${esc(currentProfile.scope.technical)}</span></div>
+            </div>
+            <div class="pc-definition"><strong>Excluded:</strong> ${esc(currentProfile.scope.excluded)}</div>
+        </div>
+        <div class="pc-panel"><h3 class="pc-section-title">Assessment</h3><p style="color:var(--text-secondary);line-height:1.6;margin:0;">${currentProfile.assessment ? esc(currentProfile.assessment) : 'No assessment recorded yet.'}</p></div>
+        <div class="pc-two-col">
+            <div class="pc-panel"><div class="pc-row-between"><h3 class="pc-section-title">Key Judgements</h3><button class="pc-btn" onclick="openSmallModal('judgement')">+ Add Judgement</button></div><ol>${normalizeJudgements(currentProfile.judgements).map(j => `<li style="margin-bottom:8px;color:var(--text-secondary);">${badge(j.status)} ${badge(j.confidence, 'Confidence')} ${esc(j.judgement)} <span class="pc-id">${esc(j.evidence_refs || '')}</span></li>`).join('')}</ol></div>
+            <div class="pc-panel"><div class="pc-row-between"><h3 class="pc-section-title">Open Gaps</h3><button class="pc-btn" onclick="openSmallModal('gap')">+ Add Gap</button></div>${normalizeGaps(currentProfile.gaps).map((g, index) => `<div style="margin-bottom:8px;">${badge(g.priority)} ${badge(g.status)} <span style="color:var(--text-secondary);">${esc(g.question)}</span>${g.why_it_matters ? `<div class="pc-id">${esc(g.why_it_matters)}</div>` : ''}${g.status !== 'CLOSED' ? ` <button class="pc-btn" style="padding:5px 8px;font-size:11px;" onclick="closeGap(${index})">Close Gap</button>` : `<span class="pc-id">Closed ${esc(g.closed_at || '')}</span>`}</div>`).join('')}</div>
+        </div>
+        <div class="pc-panel"><div class="pc-row-between"><h3 class="pc-section-title" title="Discriminators help distinguish this activity from unrelated activity. Their value is analyst-assessed and does not constitute attribution by itself.">Key Discriminators</h3><button class="pc-btn" onclick="openSmallModal('discriminator')">+ Add Discriminator</button></div><div class="pc-definition">Discriminators help distinguish this activity from unrelated activity. Their value is analyst-assessed and does not constitute attribution by itself.</div>${table(['Description','Value','Weight','Rationale','Source'], normalizeDiscriminators(currentProfile.discriminators).map(d => [esc(d.description), esc(d.value), badge(d.discriminative_value), esc(d.rationale), esc(d.source_ref)]))}</div>
+        <div class="pc-panel"><h3 class="pc-section-title">Exclusion Criteria</h3>${currentProfile.exclusionCriteria.length ? `<ul>${currentProfile.exclusionCriteria.map(item => `<li style="color:var(--text-secondary);margin-bottom:6px;">${esc(item)}</li>`).join('')}</ul>` : '<span style="color:var(--text-secondary);">No exclusion criteria recorded.</span>'}</div>
+        <div class="pc-panel"><h3 class="pc-section-title">Alternative Explanations</h3>${currentProfile.alternatives.length ? `<ul>${currentProfile.alternatives.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : '<span style="color:var(--text-secondary);">No alternative explanations recorded.</span>'}<div class="pc-definition"><strong>Would increase confidence if:</strong> ${esc((currentProfile.alternativeConfidence || {}).increase || 'Not defined.')}</div><div class="pc-definition"><strong>Would decrease confidence if:</strong> ${esc((currentProfile.alternativeConfidence || {}).decrease || 'Not defined.')}</div></div>
+    </section>`;
+}
+function renderMembers() {
+    const memberCounts = countMemberTypes(currentProfile.members);
+    return `<section id="tab-members" class="pc-tab-panel">
+        <div class="pc-badges" style="margin-bottom:10px;">${memberCounts.map(item => `<span class="pc-badge pc-badge-gray">${esc(item.label)} ${item.count}</span>`).join('')}</div>
+        <div class="pc-panel"><div class="pc-row-between"><h3 class="pc-section-title">Members</h3><div class="pc-actions"><button class="pc-btn" onclick="openMemberModal()">+ Add Member</button><button class="pc-btn" onclick="openSmallModal('ioc')">Import IOCs</button></div></div>
+        <div class="pc-warning">Membership Status describes the basis for associating this member with the profile and does not indicate whether the member is malicious globally.</div>
+        <div class="pc-definition">Artifact Context describes the analyst’s current interpretation of ownership/context within this profile. It is not a universal property of the observable.</div>
+        <div class="pc-definition">Infrastructure overlap may reflect shared hosting, reassigned resources, common providers, compromised infrastructure, or third-party services. It does not by itself establish common operation or ownership.</div>
+        ${table(['Value','Type','Role','Analytic Status','Confidence','Rationale','Source','First Seen','Last Seen','Discriminative Value','Actions'], normalizeMembers(currentProfile.members).map((m, index) => [`<span class="pc-ioc">${esc(m.value)}</span>${m.removed_at ? `<div class="pc-id">Removed ${esc(m.removed_at)}</div>` : ''}`, esc(m.type), esc(m.role), badge(m.status), badge(m.confidence), esc(m.rationale), esc((m.source_refs || []).join(', ')), esc(m.first_seen), esc(m.last_seen), badge(m.discriminative_value), `<button class="pc-btn" style="padding:5px 8px;font-size:11px;" onclick="openMemberModal(${index})">Edit</button> <button class="pc-btn" style="padding:5px 8px;font-size:11px;" onclick="removeMember(${index})">Remove</button>`, m.status === 'REMOVED' ? 'pc-row-removed' : '']))}</div>
+    </section>`;
+}
+function renderInfrastructure() {
+    return `<section id="tab-infrastructure" class="pc-tab-panel">
+        <div class="pc-panel">
+            <h3 class="pc-section-title">Infrastructure Context</h3>
+            <div class="pc-definition">Use Members for individual observables. Use this section to keep higher-level infrastructure interpretation without implying ownership from overlap alone.</div>
+            <div class="pc-meta">
+                <div class="pc-metric"><span class="pc-label">Domains</span><span class="pc-value">${countMemberTypes(currentProfile.members).find(item => item.label === 'Domains')?.count || 0}</span></div>
+                <div class="pc-metric"><span class="pc-label">IPs</span><span class="pc-value">${countMemberTypes(currentProfile.members).find(item => item.label === 'IPs')?.count || 0}</span></div>
+                <div class="pc-metric"><span class="pc-label">URLs</span><span class="pc-value">${countMemberTypes(currentProfile.members).find(item => item.label === 'URLs')?.count || 0}</span></div>
+                <div class="pc-metric"><span class="pc-label">Certificates</span><span class="pc-value">${countMemberTypes(currentProfile.members).find(item => item.label === 'Certificates')?.count || 0}</span></div>
+            </div>
+        </div>
+        <div class="pc-panel"><h3 class="pc-section-title">Infrastructure Lifecycle</h3><span style="color:var(--text-secondary);">No lifecycle notes recorded yet.</span></div>
+    </section>`;
+}
+function renderBehavior() {
+    return `<section id="tab-behavior" class="pc-tab-panel">
+        <div class="pc-definition">ATT&CK overlap describes behavioral similarity only. Common techniques may be widely used and do not establish common actor identity or attribution.</div>
+        <div class="pc-panel"><div class="pc-row-between"><h3 class="pc-section-title">TTPs</h3><button class="pc-btn" onclick="openSmallModal('ttp')">+ Add TTP</button></div>${table(['Technique ID','Technique Name','Procedure','Phase','First / Last Seen','Confidence','Source'], normalizeTtps(currentProfile.ttps).map(t => [`<span class="pc-ioc">${esc(t.technique_id)}</span>`, esc(t.name), esc(t.procedure), esc(t.phase), esc(t.seen), badge(t.confidence), esc(t.source_ref)]))}</div>
+        <div class="pc-panel"><div class="pc-row-between"><h3 class="pc-section-title">Malware / Tools</h3><button class="pc-btn" onclick="openSmallModal('tool')">+ Add Tool / Malware</button></div><div class="pc-grid">${normalizeTools(currentProfile.tools).map(t => `<div class="pc-metric"><span class="pc-label">${esc(t.name)}</span><span class="pc-value">${esc(t.description)}</span></div>`).join('') || '<span style="color:var(--text-secondary);">No tools recorded.</span>'}</div></div>
+    </section>`;
+}
+function renderTargeting() {
+    const block = (title, key, rows) => `<div class="pc-panel"><div class="pc-row-between"><h3 class="pc-section-title">${title}</h3><button class="pc-btn" onclick="openSmallModal('target:${key}')">+ Add</button></div>${rows.length ? rows.map(r => `<div style="margin-bottom:8px;color:var(--text-secondary);">${esc(r[0])} ${badge(r[1])} ${badge(r[2])}</div>`).join('') : '<span style="color:var(--text-secondary);">No entries recorded yet.</span>'}</div>`;
+    return `<section id="tab-targeting" class="pc-tab-panel">
+        <div class="pc-panel"><h3 class="pc-section-title">Targeting Observations</h3><div class="pc-definition">Observed victimology or technology context is not automatically intentional targeting. Add assessment only when supported.</div></div>
+        <div class="pc-two-col">${block('Sectors', 'sectors', currentProfile.targeting.sectors)}${block('Geographies', 'geographies', currentProfile.targeting.geographies)}${block('Technologies', 'technologies', currentProfile.targeting.technologies)}${block('Objectives', 'objectives', currentProfile.targeting.objectives)}</div>
+        <div class="pc-panel"><h3 class="pc-section-title">Targeting Assessment</h3><div class="pc-definition">${esc(currentProfile.targeting.assessment || 'No targeting assessment recorded.')}</div></div>
+    </section>`;
+}
+function renderEvidence() {
+    return `<section id="tab-evidence" class="pc-tab-panel">
+        <div class="pc-warning">Source count ≠ independent confirmation count.</div>
+        <div class="pc-panel"><div class="pc-row-between"><h3 class="pc-section-title">Sources</h3><button class="pc-btn" onclick="openSmallModal('source')">+ Add Source</button></div>${table(['Name','Type','TLP','Reliability'], normalizeSources(currentProfile.sources).map(s => [esc(s.name), esc(s.type), badge(s.tlp), esc(s.reliability)] ))}</div>
+        <div class="pc-panel"><h3 class="pc-section-title">Evidence Register</h3>${table(['Evidence ID','Type','Description','Source','Observed At','Integrity'], normalizeEvidence(currentProfile.evidence).map(e => [esc(e.id), esc(e.type), esc(e.description), esc(e.source_ref), esc(e.observed_at), esc(e.integrity)]))}</div>
+        <div class="pc-panel"><h3 class="pc-section-title">Source Independence</h3><div class="pc-badges"><span class="pc-badge pc-badge-gray">Publications: ${currentProfile.independence.publications}</span><span class="pc-badge pc-badge-green">Independent root sources: ${currentProfile.independence.roots}</span><span class="pc-badge pc-badge-orange">Derived: ${currentProfile.independence.derived}</span></div></div>
+        <div class="pc-definition">Cross-workspace recurrence means that the same canonical observable or entity appeared in multiple ODYSAFE workspaces. It does not establish maliciousness, common ownership, attribution, or independent corroboration.</div>
+    </section>`;
+}
+function renderAnalysis() {
+    return `<section id="tab-analysis" class="pc-tab-panel">
+        <div class="pc-warning">Claims are analytic statements. Evidence and sources belong in the Evidence tab.</div>
+        <div class="pc-panel"><div class="pc-row-between"><h3 class="pc-section-title">Key Judgements</h3><button class="pc-btn" onclick="openSmallModal('judgement')">+ Add Judgement</button></div><ol>${normalizeJudgements(currentProfile.judgements).map(j => `<li>${badge(j.status)} ${badge(j.confidence, 'Confidence')} ${esc(j.judgement)} <span class="pc-id">${esc(j.evidence_refs || '')}</span></li>`).join('') || '<span style="color:var(--text-secondary);">No key judgements recorded.</span>'}</ol></div>
+        <div class="pc-panel"><h3 class="pc-section-title">Analytic Claims</h3>${table(['Claim text','Status','Confidence','Evidence refs'], currentProfile.claims.map(c => [esc(c[0]), badge(c[1]), badge(c[2]), esc(c[3])] ))}</div>
+        <div class="pc-panel"><h3 class="pc-section-title">Contradictions</h3>${currentProfile.contradictions.map(c => `<div style="color:var(--text-secondary);margin-bottom:8px;">${esc(c)}</div>`).join('') || '<span style="color:var(--text-secondary);">No contradictions recorded.</span>'}</div>
+        <div class="pc-panel"><h3 class="pc-section-title">Limitations & Assumptions</h3><div class="pc-definition"><strong>Limitations:</strong> ${esc(currentProfile.limitations || 'No limitations recorded.')}</div><div class="pc-definition"><strong>Assumptions:</strong> ${esc(currentProfile.assumptions || 'No assumptions recorded.')}</div></div>
+        <div class="pc-panel"><h3 class="pc-section-title">Attribution Basis</h3>${renderAttributionBasis(currentProfile)}</div>
+    </section>`;
+}
+function renderOperations() {
+    return `<section id="tab-operations" class="pc-tab-panel">
+        <div class="pc-panel"><div class="pc-row-between"><h3 class="pc-section-title">Intelligence Gaps</h3><button class="pc-btn" onclick="openSmallModal('gap')">+ Add Gap</button></div>${normalizeGaps(currentProfile.gaps).map((g, index) => `<div style="margin-bottom:8px;">${badge(g.priority)} ${badge(g.status)} <span style="color:var(--text-secondary);">${esc(g.question)}</span>${g.why_it_matters ? `<div class="pc-id">${esc(g.why_it_matters)}</div>` : ''}${g.status !== 'CLOSED' ? ` <button class="pc-btn" style="padding:5px 8px;font-size:11px;" onclick="closeGap(${index})">Close Gap</button>` : `<span class="pc-id">Closed ${esc(g.closed_at || '')}</span>`}</div>`).join('') || '<span style="color:var(--text-secondary);">No intelligence gaps recorded.</span>'}</div>
+        <div class="pc-panel"><div class="pc-row-between"><h3 class="pc-section-title">Collection Requirements</h3><button class="pc-btn" onclick="openSmallModal('collection')">+ Add Collection Requirement</button></div>${table(['Question','Data Needed','Priority','Owner','Status'], normalizeCollectionRequirements(currentProfile.collection_requirements).map(item => [esc(item.question), esc(item.data_needed), badge(item.priority), esc(item.owner), badge(item.status)]))}</div>
+        <div class="pc-panel"><div class="pc-row-between"><h3 class="pc-section-title">Hunt / Detection / Actions</h3><button class="pc-btn" onclick="openSmallModal('action')">+ Add Action</button></div>${table(['Type','Description','Status','Owner'], normalizeActions(currentProfile.actions).map(item => [esc(item.type), esc(item.description), badge(item.status), esc(item.owner)]))}</div>
+        <div class="pc-panel"><h3 class="pc-section-title">Profile Review</h3>${renderQualityReview(currentProfile)}</div>
+    </section>`;
+}
+function renderHistory() {
+    return `<section id="tab-history" class="pc-tab-panel">
+        <div class="pc-panel"><h3 class="pc-section-title">Local Audit History</h3><div class="pc-definition">This timeline is persisted in browser localStorage for the analyst workspace.</div><div class="pc-timeline">${normalizeHistory(currentProfile.history).map(h => `<div class="pc-timeline-item"><strong style="color:var(--text-primary);">v${esc(h.version)} ${esc(h.action)}</strong> <span style="color:var(--text-muted);">${esc(h.timestamp)}</span><div style="color:var(--text-secondary);margin-top:4px;">${esc(h.description)}</div>${(h.changed_fields || []).length ? `<div class="pc-id">${esc((h.changed_fields || []).join(', '))}</div>` : ''}</div>`).join('') || '<span style="color:var(--text-secondary);">No history recorded.</span>'}</div></div>
+        <div class="pc-panel"><h3 class="pc-section-title">Aliases</h3>${table(['Alias','Provider','Relationship Type'], currentProfile.aliases.map(a => [esc(a[0]), esc(a[1] || 'Not specified'), badge(a[2] || a[1] || 'UNKNOWN_RELATION')] ))}</div>
+        <div class="pc-panel"><h3 class="pc-section-title">Merge / Split History</h3><span style="color:var(--text-secondary);">No merge or split operation recorded.</span></div>
+    </section>`;
+}
+function renderRelationships() {
+    return `<section id="tab-relationships" class="pc-tab-panel">
+        <div class="pc-warning">Internal ODYSAFE semantics are preserved here even when no direct STIX mapping exists.</div>
+        <div class="pc-panel"><h3 class="pc-section-title">Entities</h3>${table(['Entity ID','Type','Canonical Value','Display Value'], normalizeEntities(currentProfile.entities, currentProfile.members).map(e => [esc(e.id), esc(e.type), `<span class="pc-ioc">${esc(e.canonical_value)}</span>`, esc(e.display_value)]))}</div>
+        <div class="pc-panel"><h3 class="pc-section-title">Relationships</h3>${table(['Relationship ID','Source','Type','Target','Basis','Observed At','Evidence','Source Ref','Confidence','Rationale'], normalizeRelationships(currentProfile.relationships).map(r => [esc(r.id), esc(r.source), esc(r.type), esc(r.target), badge(r.analytic_status || r.basis), esc(r.observed_at), esc((r.evidence_refs || []).join(', ')), esc(r.source_ref), badge(r.confidence), esc(r.rationale)]))}</div>
+        <div class="pc-panel"><h3 class="pc-section-title">Context Graph</h3><div class="pc-definition">Open this profile in STIX Graph when a visual graph is needed. The in-profile view keeps the auditable relationship table as the source of truth.</div><button class="pc-btn" onclick="viewProfileStixSummary()">View in STIX Graph</button></div>
+        <div class="pc-panel"><h3 class="pc-section-title">Export Loss Report</h3>${table(['Internal Semantic','STIX Mapping','Handling'], buildStixLossReport(currentProfile).map(r => [esc(r.semantic), esc(r.mapping), esc(r.handling)]))}</div>
+    </section>`;
+}
+function table(headers, rows) {
+    if (!rows.length) return '<span style="color:var(--text-secondary);">No data recorded.</span>';
+    return `<table class="pc-table"><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => {
+        const cssClass = Array.isArray(row) && typeof row[row.length - 1] === 'string' && row[row.length - 1].startsWith('pc-row-') ? row.pop() : '';
+        return `<tr class="${cssClass}">${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+/* === MODALS AND ACTIONS === */
+function clearErrors(form) { form.querySelectorAll('.pc-field').forEach(field => field.classList.remove('invalid')); }
+function requireFields(form, names) {
+    clearErrors(form);
+    let ok = true;
+    names.forEach(name => {
+        const control = form.elements[name];
+        if (!control || String(control.value || '').trim()) return;
+        const field = control.closest('.pc-field');
+        if (field) field.classList.add('invalid');
+        ok = false;
+    });
+    return ok;
+}
+function openProfileModal(profileId = null) {
+    const modal = document.getElementById('pc-profile-modal');
+    const form = document.getElementById('pc-profile-form');
+    form.reset();
+    clearErrors(form);
+    const editing = Boolean(profileId);
+    const profile = editing ? detailOf(profiles.find(item => item.id === profileId)) : null;
+    document.getElementById('pc-profile-modal-title').textContent = editing ? 'Edit Profile' : 'New Profile';
+    document.getElementById('pc-profile-submit').textContent = editing ? 'Save Changes' : 'Create Profile';
+    form.querySelectorAll('.pc-edit-only').forEach(field => field.classList.toggle('pc-create-hidden', !editing));
+    form.elements.mode.value = editing ? 'edit' : 'create';
+    form.elements.profileId.value = editing ? profile.id : '';
+    form.elements.workflowStatus.disabled = false;
+    form.elements.activityState.disabled = false;
+    form.elements.relevance.disabled = false;
+    form.elements.lastSeen.disabled = false;
+    form.elements.canonicalName.disabled = editing;
+    if (editing) {
+        form.elements.type.value = profile.type;
+        form.elements.canonicalName.value = profile.id;
+        form.elements.displayName.value = profile.name;
+        form.elements.workflowStatus.value = profile.status;
+        form.elements.activityState.value = profile.activity;
+        form.elements.confidence.value = profile.confidence;
+        form.elements.relevance.value = profile.relevance;
+        form.elements.firstSeen.value = profile.firstSeen || '';
+        form.elements.lastSeen.value = profile.lastSeen || '';
+        form.elements.confidenceRationale.value = profile.confidenceRationale || '';
+        form.elements.description.value = profile.description || '';
+        form.elements.purpose.value = profile.purpose || '';
+        form.elements.scope.value = profile.scope && profile.scope.technical !== 'Not set' ? profile.scope.technical : '';
+        form.elements.createdFromWorkspace.value = profile.created_from_workspace || '';
+        form.elements.assessment.value = profile.assessment || '';
+    } else {
+        form.elements.workflowStatus.value = 'OPEN';
+        form.elements.activityState.value = 'UNKNOWN';
+        form.elements.relevance.value = 'NOT_ASSESSED';
+        form.elements.confidence.value = 'NOT_ASSESSED';
+    }
+    openModal(modal);
+}
+function closeProfileModal() { closeModal(document.getElementById('pc-profile-modal')); }
+function saveProfile(event) {
+    event.preventDefault();
+    const form = event.target;
+    if (!requireFields(form, ['canonicalName', 'displayName', 'confidenceRationale'])) return;
+    const data = new FormData(form);
+    const mode = data.get('mode');
+    if (mode === 'edit') {
+        const profile = profiles.find(item => item.id === data.get('profileId'));
+        if (!profile) return;
+        const changed = [];
+        const updates = {
+            name: data.get('displayName'),
+            display_name: data.get('displayName'),
+            status: data.get('workflowStatus'),
+            workflow_status: data.get('workflowStatus'),
+            activity: data.get('activityState'),
+            activity_state: data.get('activityState'),
+            confidence: data.get('confidence'),
+            analytic_confidence: data.get('confidence') || 'NOT_ASSESSED',
+            relevance: data.get('relevance'),
+            internal_relevance: data.get('relevance'),
+            firstSeen: data.get('firstSeen'),
+            first_seen: data.get('firstSeen'),
+            lastSeen: data.get('lastSeen'),
+            last_seen: data.get('lastSeen'),
+            confidenceRationale: data.get('confidenceRationale'),
+            confidence_rationale: data.get('confidenceRationale'),
+            description: data.get('description'),
+            purpose: data.get('purpose'),
+            created_from_workspace: data.get('createdFromWorkspace'),
+            assessment: data.get('assessment')
+        };
+        Object.keys(updates).forEach(key => { if (profile[key] !== updates[key]) changed.push(key); profile[key] = updates[key]; });
+        profile.scope = Object.assign({}, profile.scope || {}, { technical: data.get('scope') || 'Not set' });
+        addHistory(profile, 'PROFILE_EDITED', 'Profile updated by analyst', changed);
+        currentProfile = detailOf(profile);
+    } else {
+        const id = String(data.get('canonicalName')).trim();
+        if (profiles.some(profile => profile.id === id)) {
+            form.elements.canonicalName.closest('.pc-field').classList.add('invalid');
+            return;
+        }
+        const profile = normalizeProfile({
+            profile_id: id,
+            canonical_name: id,
+            display_name: data.get('displayName'),
+            profile_type: data.get('type'),
+            description: data.get('description'),
+            purpose: data.get('purpose'),
+            scope: data.get('scope') || '',
+            created_from_workspace: data.get('createdFromWorkspace'),
+            workflow_status: 'OPEN',
+            activity_state: 'UNKNOWN',
+            analytic_confidence: data.get('confidence'),
+            confidence_rationale: data.get('confidenceRationale'),
+            internal_attribution_status: 'UNATTRIBUTED',
+            internal_relevance: 'NOT_ASSESSED',
+            first_seen: data.get('firstSeen'),
+            last_seen: '',
+            created_at: nowIso(),
+            updated_at: nowIso(),
+            demo_data: false,
+            assessment: data.get('description') || '',
+            members: [],
+            key_discriminators: [],
+            key_judgements: [],
+            gaps: [],
+            ttps: [],
+            tools: [],
+            targeting: { sectors: [], geographies: [], technologies: [], objectives: [] },
+            sources: [],
+            claims: [],
+            evidence: [],
+            entities: [],
+            relationships: [],
+            collection_requirements: [],
+            actions: [],
+            contradictions: [],
+            aliases: [],
+            history: []
+        });
+        addHistory(profile, 'PROFILE_CREATED', 'Profile created by analyst', ['profile']);
+        profiles.unshift(profile);
+        currentProfile = detailOf(profile);
+    }
+    closeProfileModal();
+    saveWorkspace();
+    initFilters();
+    renderProfileCards();
+    showDetail(currentProfile.id);
+}
+function updateMemberPlaceholder(form) {
+    const placeholders = { IPv4: '192.0.2.10', IPv6: '2001:db8::1', Domain: 'example.com', URL: 'https://example.com/path', Email: 'user@example.com', Hash_SHA256: '64-character SHA256 hash', Hash_MD5: '32-character MD5 hash', Certificate: 'Certificate fingerprint', ASN: 'AS12345', Mutex: 'Global\\MutexName', Registry_Key: 'HKCU\\Software\\...', Named_Pipe: '\\\\.\\pipe\\name', User_Agent: 'Mozilla/5.0...', URI_Path: '/login/index.php' };
+    form.elements.value.placeholder = placeholders[form.elements.type.value] || 'Observable value';
+}
+function openMemberModal(index = null) {
+    const form = document.getElementById('pc-member-form');
+    form.reset();
+    clearErrors(form);
+    form.elements.memberIndex.value = index === null ? '' : String(index);
+    document.getElementById('pc-member-modal-title').textContent = index === null ? 'Add Member' : 'Edit Member';
+    document.getElementById('pc-member-submit').textContent = index === null ? 'Add Member' : 'Save Member';
+    if (index !== null) {
+        const member = normalizeMembers(currentProfile.members)[index];
+        form.elements.value.value = member.value || '';
+        form.elements.type.value = member.type || 'IPv4';
+        form.elements.role.value = member.role || 'Unknown';
+        form.elements.status.value = member.status === 'REMOVED' ? 'OBSERVED' : (member.status || 'OBSERVED');
+        form.elements.confidence.value = member.confidence || 'UNKNOWN';
+        form.elements.discriminativeValue.value = member.discriminative_value || 'UNKNOWN';
+        form.elements.rationale.value = member.rationale || '';
+        form.elements.sourceRef.value = (member.source_refs || [])[0] || '';
+        form.elements.firstSeen.value = member.first_seen || '';
+        form.elements.lastSeen.value = member.last_seen || '';
+        form.elements.notes.value = member.notes || '';
+    }
+    updateMemberPlaceholder(form);
+    openModal(document.getElementById('pc-member-modal'));
+}
+function closeMemberModal() { closeModal(document.getElementById('pc-member-modal')); }
+function saveMember(event) {
+    event.preventDefault();
+    const form = event.target;
+    if (!requireFields(form, ['value', 'rationale'])) return;
+    const data = new FormData(form);
+    const member = {
+        id: data.get('memberIndex') ? normalizeMembers(currentProfile.members)[Number(data.get('memberIndex'))].id : `MEMBERSHIP-${String(Date.now()).slice(-6)}`,
+        value: data.get('value'),
+        type: data.get('type'),
+        role: data.get('role'),
+        status: data.get('status'),
+        confidence: data.get('confidence'),
+        rationale: data.get('rationale'),
+        source_refs: data.get('sourceRef') ? [data.get('sourceRef')] : [],
+        evidence_refs: [],
+        first_seen: data.get('firstSeen'),
+        last_seen: data.get('lastSeen'),
+        last_validated: '',
+        discriminative_value: data.get('discriminativeValue'),
+        notes: data.get('notes'),
+        artifact_context: 'UNKNOWN',
+        state: 'ACTIVE'
+    };
+    const profile = profiles.find(item => item.id === currentProfile.id);
+    profile.members = normalizeMembers(profile.members);
+    if (data.get('memberIndex')) {
+        profile.members[Number(data.get('memberIndex'))] = Object.assign({}, profile.members[Number(data.get('memberIndex'))], member);
+        addHistory(profile, 'MEMBER_EDITED', `Member updated: ${member.value}`, ['members']);
+    } else {
+        profile.members.push(member);
+        addHistory(profile, 'MEMBER_ADDED', `Member added: ${member.value}`, ['members']);
+    }
+    closeMemberModal();
+    currentProfile = detailOf(profile);
+    persistAndRefresh('detail');
+}
+function removeMember(index) {
+    pendingRemoveMemberIndex = index;
+    openModal(document.getElementById('pc-remove-modal'));
+}
+function closeRemoveModal() {
+    pendingRemoveMemberIndex = null;
+    closeModal(document.getElementById('pc-remove-modal'));
+}
+function confirmRemoveMember() {
+    if (pendingRemoveMemberIndex === null) return;
+    const profile = profiles.find(item => item.id === currentProfile.id);
+    profile.members = normalizeMembers(profile.members);
+    const member = profile.members[pendingRemoveMemberIndex];
+    member.status = 'REMOVED';
+    member.removed_at = nowIso();
+    addHistory(profile, 'MEMBER_REMOVED', `Member marked as removed: ${member.value}`, ['members']);
+    closeRemoveModal();
+    currentProfile = detailOf(profile);
+    persistAndRefresh('detail');
+}
+function closeGap(index) {
+    const profile = profiles.find(item => item.id === currentProfile.id);
+    profile.gaps = normalizeGaps(profile.gaps);
+    profile.gaps[index].status = 'CLOSED';
+    profile.gaps[index].closed_at = nowIso();
+    addHistory(profile, 'GAP_CLOSED', `Gap closed: ${profile.gaps[index].question}`, ['gaps']);
+    currentProfile = detailOf(profile);
+    persistAndRefresh('detail');
+}
+function openSmallModal(mode) {
+    smallModalMode = mode;
+    const form = document.getElementById('pc-small-form');
+    form.reset?.();
+    clearErrors(form);
+    const title = { gap: 'Add Gap', discriminator: 'Add Discriminator', judgement: 'Add Judgement', source: 'Add Source', ttp: 'Add TTP', tool: 'Add Tool / Malware', ioc: 'Import IOCs', collection: 'Add Collection Requirement', action: 'Add Action' }[mode] || (mode.startsWith('target:') ? 'Add Targeting Entry' : 'Add Item');
+    document.getElementById('pc-small-modal-title').textContent = title;
+    if (mode === 'gap') {
+        form.innerHTML = `<label class="pc-field pc-field-full" data-field="question"><span class="pc-label">Question</span><textarea class="pc-textarea" name="question" placeholder="What do we not know?" required></textarea><span class="pc-error">Question is required.</span></label><label class="pc-field pc-field-full"><span class="pc-label">Why it matters</span><input class="pc-input" name="why" placeholder="Analytical or operational impact"></label><label class="pc-field"><span class="pc-label">Priority</span><select class="pc-select" name="priority"><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></label><label class="pc-field pc-field-full"><span class="pc-label">What would resolve it</span><textarea class="pc-textarea" name="resolve" placeholder="What evidence or action would close this gap?"></textarea></label>${smallModalButtons('Add Gap')}`;
+    } else if (mode === 'discriminator') {
+        form.innerHTML = `<label class="pc-field pc-field-full" data-field="description"><span class="pc-label">Description</span><input class="pc-input" name="description" placeholder="What makes this cluster distinctive?" required><span class="pc-error">Description is required.</span></label><label class="pc-field pc-field-full"><span class="pc-label">Value</span><input class="pc-input" name="value" placeholder="Specific value or pattern"></label><label class="pc-field"><span class="pc-label">Discriminative Value</span><select class="pc-select" name="weight"><option>HIGH</option><option>MEDIUM</option><option>LOW</option><option>UNKNOWN</option></select></label><label class="pc-field pc-field-full" data-field="rationale"><span class="pc-label">Rationale</span><textarea class="pc-textarea" name="rationale" required></textarea><span class="pc-error">Rationale is required.</span></label><label class="pc-field pc-field-full"><span class="pc-label">Source Reference</span><input class="pc-input" name="sourceRef"></label>${smallModalButtons('Add Discriminator')}`;
+    } else if (mode === 'source') {
+        form.innerHTML = `<label class="pc-field pc-field-full" data-field="name"><span class="pc-label">Source Name</span><input class="pc-input" name="name" placeholder="SRC-001 or source title" required><span class="pc-error">Source Name is required.</span></label><label class="pc-field"><span class="pc-label">Type</span><select class="pc-select" name="type"><option>INTERNAL</option><option>EXTERNAL_REPORT</option><option>VENDOR_REPORT</option><option>OSINT</option><option>CASE_NOTE</option><option>OTHER</option></select></label><label class="pc-field"><span class="pc-label">TLP</span><select class="pc-select" name="tlp"><option>TLP:CLEAR</option><option>TLP:GREEN</option><option>TLP:AMBER</option><option>TLP:AMBER+STRICT</option><option>TLP:RED</option><option>UNKNOWN</option></select></label><label class="pc-field"><span class="pc-label">Reliability</span><select class="pc-select" name="reliability"><option>UNKNOWN</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option></select></label>${smallModalButtons('Add Source')}`;
+    } else if (mode === 'ttp') {
+        form.innerHTML = `<div class="pc-field pc-field-full"><span class="pc-label">MITRE ATT&CK Matrix</span><div class="pc-actions"><input class="pc-input" id="pc-mitre-search" type="search" placeholder="Search techniques by ID or name" style="flex:1;min-width:220px;"><button type="button" class="pc-btn" onclick="searchMitreTechniques()">Search MITRE</button><button type="button" class="pc-btn" onclick="addSelectedMitreTechniques()">Add Selected</button></div><div id="pc-mitre-results" class="pc-definition" style="max-height:220px;overflow:auto;">Search MITRE to select techniques in bulk, or fill the manual fields below.</div></div><label class="pc-field" data-field="techniqueId"><span class="pc-label">Technique ID</span><input class="pc-input" name="techniqueId" placeholder="T1566.002" required><span class="pc-error">Technique ID is required for manual add.</span></label><label class="pc-field"><span class="pc-label">Technique Name</span><input class="pc-input" name="name" placeholder="Spearphishing Link"></label><label class="pc-field pc-field-full"><span class="pc-label">Procedure</span><textarea class="pc-textarea" name="procedure" placeholder="How this profile uses or is reported to use the technique" rows="3"></textarea></label><label class="pc-field"><span class="pc-label">Phase</span><input class="pc-input" name="phase" placeholder="Initial Access"></label><label class="pc-field"><span class="pc-label">First / Last Seen</span><input class="pc-input" name="seen" placeholder="2026-09 / 2026-09"></label><label class="pc-field"><span class="pc-label">Confidence</span><select class="pc-select" name="confidence"><option>UNKNOWN</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></label><label class="pc-field pc-field-full"><span class="pc-label">Source Reference</span><input class="pc-input" name="sourceRef" placeholder="SRC-XXX or free text"></label>${smallModalButtons('Add TTP Manually')}`;
+    } else if (mode === 'tool') {
+        form.innerHTML = `<label class="pc-field pc-field-full" data-field="name"><span class="pc-label">Tool / Malware Name</span><input class="pc-input" name="name" placeholder="Tool or malware family" required><span class="pc-error">Name is required.</span></label><label class="pc-field"><span class="pc-label">Type</span><select class="pc-select" name="type"><option>TOOL</option><option>MALWARE</option><option>FRAMEWORK</option><option>SCRIPT</option><option>UNKNOWN</option></select></label><label class="pc-field pc-field-full"><span class="pc-label">Description</span><textarea class="pc-textarea" name="description" placeholder="How this tool or malware relates to the profile" rows="3"></textarea></label>${smallModalButtons('Add Tool / Malware')}`;
+    } else if (mode === 'ioc') {
+        form.innerHTML = `<div class="pc-field pc-field-full"><span class="pc-label">Search existing IOCs</span><div class="pc-actions"><input class="pc-input" id="pc-ioc-search" type="search" placeholder="IOC value or type" style="flex:1;min-width:180px;"><input class="pc-input" id="pc-ioc-source" type="search" placeholder="Optional source name" style="flex:1;min-width:180px;"><button type="button" class="pc-btn" onclick="searchProfileIocs()">Search IOCs</button><button type="button" class="pc-btn" onclick="addSelectedProfileIocs()">Add Selected</button></div><div id="pc-ioc-results" class="pc-definition" style="max-height:260px;overflow:auto;">Search existing ODYSAFE IOCs by value or by source, then select the ones to add as profile members.</div></div><div style="grid-column:1 / -1;display:flex;justify-content:flex-end;gap:8px;"><button type="button" class="pc-btn" onclick="closeSmallModal()">Close</button></div>`;
+    } else if (mode === 'collection') {
+        form.innerHTML = `<label class="pc-field pc-field-full" data-field="question"><span class="pc-label">Question</span><textarea class="pc-textarea" name="question" placeholder="What data do we need to answer?" required></textarea><span class="pc-error">Question is required.</span></label><label class="pc-field pc-field-full"><span class="pc-label">Data Needed</span><input class="pc-input" name="dataNeeded" placeholder="Passive DNS, proxy logs, firewall logs..."></label><label class="pc-field"><span class="pc-label">Priority</span><select class="pc-select" name="priority"><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></label><label class="pc-field"><span class="pc-label">Owner</span><input class="pc-input" name="owner" value="CTI"></label><label class="pc-field"><span class="pc-label">Status</span><select class="pc-select" name="status"><option>OPEN</option><option>IN_PROGRESS</option><option>BLOCKED</option><option>CLOSED</option></select></label>${smallModalButtons('Add Collection Requirement')}`;
+    } else if (mode === 'action') {
+        form.innerHTML = `<label class="pc-field"><span class="pc-label">Type</span><select class="pc-select" name="type"><option>HUNT_LEAD</option><option>HUNT_RESULT</option><option>DETECTION_CONTENT</option><option>ACTION</option></select></label><label class="pc-field"><span class="pc-label">Status</span><select class="pc-select" name="status"><option>OPEN</option><option>IN_PROGRESS</option><option>DONE</option><option>BLOCKED</option></select></label><label class="pc-field pc-field-full" data-field="description"><span class="pc-label">Description</span><textarea class="pc-textarea" name="description" placeholder="What should be hunted, detected, or done?" required></textarea><span class="pc-error">Description is required.</span></label><label class="pc-field"><span class="pc-label">Owner</span><input class="pc-input" name="owner" value="CTI"></label>${smallModalButtons('Add Action')}`;
+    } else if (mode.startsWith('target:')) {
+        form.innerHTML = `<label class="pc-field pc-field-full" data-field="value"><span class="pc-label">Value</span><input class="pc-input" name="value" placeholder="Sector, geography, technology, or objective" required><span class="pc-error">Value is required.</span></label><label class="pc-field"><span class="pc-label">Relevance</span><select class="pc-select" name="relevance"><option>UNKNOWN</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></label><label class="pc-field"><span class="pc-label">Confidence</span><select class="pc-select" name="confidence"><option>UNKNOWN</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></label>${smallModalButtons('Add Entry')}`;
+    } else {
+        form.innerHTML = `<label class="pc-field pc-field-full" data-field="judgement"><span class="pc-label">Judgement</span><textarea class="pc-textarea" name="judgement" placeholder="A specific analytical judgement..." required></textarea><span class="pc-error">Judgement is required.</span></label><label class="pc-field"><span class="pc-label">Status</span><select class="pc-select" name="status"><option>ASSESSED</option><option>INFERRED</option><option>REPORTED</option><option>TENTATIVE</option></select></label><label class="pc-field"><span class="pc-label">Confidence</span><select class="pc-select" name="confidence"><option>HIGH</option><option>MEDIUM</option><option>LOW</option><option>UNKNOWN</option></select></label><label class="pc-field pc-field-full"><span class="pc-label">Evidence References</span><input class="pc-input" name="evidenceRefs" placeholder="EVID-XXX, EVID-XXX"></label>${smallModalButtons('Add Judgement')}`;
+    }
+    openModal(document.getElementById('pc-small-modal'));
+}
+function smallModalButtons(label) {
+    return `<div style="grid-column:1 / -1;display:flex;justify-content:flex-end;gap:8px;"><button type="button" class="pc-btn" onclick="closeSmallModal()">Cancel</button><button type="submit" class="pc-btn pc-btn-primary">${label}</button></div>`;
+}
+function closeSmallModal() { closeModal(document.getElementById('pc-small-modal')); }
+function memberRoleFromIocType(type) {
+    const normalized = String(type || '').toLowerCase();
+    if (['domain', 'url', 'email'].includes(normalized)) return 'Phishing';
+    if (normalized.includes('hash')) return 'Payload_Hosting';
+    if (['ipv4', 'ipv6', 'ip'].includes(normalized)) return 'Unknown';
+    return 'Unknown';
+}
+function countMemberTypes(members) {
+    const counts = { Domains: 0, IPs: 0, Certificates: 0, URLs: 0, ASNs: 0, Other: 0 };
+    normalizeMembers(members).filter(member => member.status !== 'REMOVED').forEach(member => {
+        const type = String(member.type || '').toLowerCase();
+        if (type === 'domain') counts.Domains += 1;
+        else if (type === 'ipv4' || type === 'ipv6' || type === 'ip') counts.IPs += 1;
+        else if (type === 'certificate') counts.Certificates += 1;
+        else if (type === 'url') counts.URLs += 1;
+        else if (type === 'asn') counts.ASNs += 1;
+        else counts.Other += 1;
+    });
+    return Object.entries(counts).map(([label, count]) => ({ label, count }));
+}
+function memoryProfileUrl(profile) {
+    const p = new URLSearchParams();
+    p.set('attach', 'entity');
+    p.set('entity_type', 'profile');
+    p.set('name', profile.name || profile.id || '');
+    p.set('value', profile.id || profile.name || '');
+    return `/memory?${p.toString()}`;
+}
+function deleteCurrentProfile() {
+    if (!currentProfile) return;
+    if (!confirm(`Delete profile ${currentProfile.id}? This removes it from the local Profiles & Clusters workspace.`)) return;
+    const index = profiles.findIndex(profile => profile.id === currentProfile.id);
+    if (index === -1) return;
+    profiles.splice(index, 1);
+    currentProfile = null;
+    saveWorkspace();
+    initFilters();
+    renderProfileCards();
+    showListView();
+    setSaveStatus('Profile deleted from the local workspace.');
+}
+async function searchMitreTechniques() {
+    const results = document.getElementById('pc-mitre-results');
+    const input = document.getElementById('pc-mitre-search');
+    if (!results || !input) return;
+    const query = input.value.trim();
+    results.textContent = 'Searching MITRE ATT&CK...';
+    try {
+        const response = await fetch(`/api/mitre-attack/techniques?search=${encodeURIComponent(query)}${query ? '' : '&limit=50'}`);
+        const body = await response.json();
+        const techniques = (body.data && body.data.techniques) || body.techniques || [];
+        results.innerHTML = techniques.slice(0, 80).map(t => {
+            const id = t.id || t.technique_id || t.external_id || '';
+            const name = t.name || '';
+            const tactic = t.tactic || t.tactics || '';
+            return `<label style="display:block;margin-bottom:8px;color:var(--text-secondary);"><input type="checkbox" class="pc-mitre-choice" data-id="${esc(id)}" data-name="${esc(name)}" data-phase="${esc(Array.isArray(tactic) ? tactic.join(', ') : tactic)}"> <span class="pc-ioc">${esc(id)}</span> ${esc(name)}</label>`;
+        }).join('') || 'No MITRE techniques found.';
+    } catch (error) {
+        results.textContent = 'MITRE ATT&CK data is not available.';
+    }
+}
+function addSelectedMitreTechniques() {
+    const profile = profiles.find(item => item.id === currentProfile.id);
+    if (!profile) return;
+    const selected = Array.from(document.querySelectorAll('.pc-mitre-choice:checked'));
+    if (!selected.length) return;
+    profile.ttps = normalizeTtps(profile.ttps);
+    selected.forEach(choice => {
+        profile.ttps.push({
+            technique_id: choice.dataset.id,
+            name: choice.dataset.name,
+            procedure: '',
+            phase: choice.dataset.phase || '',
+            seen: '',
+            confidence: 'UNKNOWN',
+            source_ref: 'MITRE ATT&CK'
+        });
+    });
+    addHistory(profile, 'TTP_BULK_ADDED', `${selected.length} MITRE technique(s) added`, ['ttps']);
+    closeSmallModal();
+    currentProfile = detailOf(profile);
+    persistAndRefresh('detail');
+}
+async function searchProfileIocs() {
+    const results = document.getElementById('pc-ioc-results');
+    const input = document.getElementById('pc-ioc-search');
+    const sourceInput = document.getElementById('pc-ioc-source');
+    if (!results || !input) return;
+    const query = input.value.trim();
+    const source = sourceInput ? sourceInput.value.trim() : '';
+    results.textContent = 'Searching IOCs...';
+    try {
+        const response = await fetch(`/api/iocs/load?search=${encodeURIComponent(query)}&source=${encodeURIComponent(source)}&per_page=50`);
+        const body = await response.json();
+        const iocs = (body.data && body.data.iocs) || body.iocs || [];
+        results.innerHTML = iocs.map(ioc => {
+            const value = ioc.ioc_value || ioc.value || '';
+            const type = ioc.ioc_type || ioc.type || 'Unknown';
+            const source = ioc.source_name || ioc.source || '';
+            return `<label style="display:block;margin-bottom:8px;color:var(--text-secondary);"><input type="checkbox" class="pc-ioc-choice" data-value="${esc(value)}" data-type="${esc(type)}" data-source="${esc(source)}"> <span class="pc-ioc">${esc(value)}</span> ${badge(type)} <span class="pc-id">${esc(source)}</span></label>`;
+        }).join('') || 'No IOCs found.';
+    } catch (error) {
+        results.textContent = 'Unable to load IOCs.';
+    }
+}
+function addSelectedProfileIocs() {
+    const profile = profiles.find(item => item.id === currentProfile.id);
+    if (!profile) return;
+    const selected = Array.from(document.querySelectorAll('.pc-ioc-choice:checked'));
+    if (!selected.length) return;
+    profile.members = normalizeMembers(profile.members);
+    selected.forEach(choice => {
+        profile.members.push({
+            id: `MEMBERSHIP-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            value: choice.dataset.value,
+            type: choice.dataset.type,
+            role: memberRoleFromIocType(choice.dataset.type),
+            status: 'OBSERVED',
+            confidence: 'UNKNOWN',
+            rationale: 'Imported from an existing ODYSAFE IOC selected by the analyst.',
+            source_refs: choice.dataset.source ? [choice.dataset.source] : [],
+            evidence_refs: [],
+            first_seen: '',
+            last_seen: '',
+            discriminative_value: 'UNKNOWN',
+            state: 'ACTIVE',
+            artifact_context: 'UNKNOWN',
+            last_validated: ''
+        });
+    });
+    addHistory(profile, 'MEMBER_BULK_ADDED', `${selected.length} IOC member(s) added`, ['members']);
+    closeSmallModal();
+    currentProfile = detailOf(profile);
+    persistAndRefresh('detail');
+}
+function saveSmallItem(event) {
+    event.preventDefault();
+    const form = event.target;
+    const profile = profiles.find(item => item.id === currentProfile.id);
+    const data = new FormData(form);
+    if (smallModalMode === 'gap') {
+        if (!requireFields(form, ['question'])) return;
+        profile.gaps = normalizeGaps(profile.gaps);
+        profile.gaps.push({ id: `GAP-${Date.now()}`, question: data.get('question'), why_it_matters: data.get('why'), priority: data.get('priority'), resolution_criteria: data.get('resolve'), status: 'OPEN', closed_at: '' });
+        addHistory(profile, 'GAP_ADDED', `Gap added: ${data.get('question')}`, ['gaps']);
+    } else if (smallModalMode === 'discriminator') {
+        if (!requireFields(form, ['description', 'rationale'])) return;
+        profile.discriminators = normalizeDiscriminators(profile.discriminators);
+        profile.discriminators.push({ id: `DISC-${Date.now()}`, description: data.get('description'), value: data.get('value'), discriminative_value: data.get('weight'), rationale: data.get('rationale'), source_ref: data.get('sourceRef') });
+        profile.key_discriminators = profile.discriminators;
+        addHistory(profile, 'DISCRIMINATOR_ADDED', `Discriminator added: ${data.get('description')}`, ['key_discriminators']);
+    } else if (smallModalMode === 'source') {
+        if (!requireFields(form, ['name'])) return;
+        profile.sources = normalizeSources(profile.sources);
+        profile.sources.push({ name: data.get('name'), type: data.get('type'), tlp: data.get('tlp'), reliability: data.get('reliability') });
+        addHistory(profile, 'SOURCE_ADDED', `Source added: ${data.get('name')}`, ['sources']);
+    } else if (smallModalMode === 'ttp') {
+        if (!requireFields(form, ['techniqueId'])) return;
+        profile.ttps = normalizeTtps(profile.ttps);
+        profile.ttps.push({ technique_id: data.get('techniqueId'), name: data.get('name'), procedure: data.get('procedure'), phase: data.get('phase'), seen: data.get('seen'), confidence: data.get('confidence'), source_ref: data.get('sourceRef') });
+        addHistory(profile, 'TTP_ADDED', `TTP added: ${data.get('techniqueId')}`, ['ttps']);
+    } else if (smallModalMode === 'tool') {
+        if (!requireFields(form, ['name'])) return;
+        profile.tools = normalizeTools(profile.tools);
+        profile.tools.push({ name: data.get('name'), type: data.get('type'), description: data.get('description') });
+        addHistory(profile, 'TOOL_ADDED', `Tool or malware added: ${data.get('name')}`, ['tools']);
+    } else if (smallModalMode === 'ioc') {
+        return;
+    } else if (smallModalMode === 'collection') {
+        if (!requireFields(form, ['question'])) return;
+        profile.collection_requirements = normalizeCollectionRequirements(profile.collection_requirements);
+        profile.collection_requirements.push({ id: `COL-${Date.now()}`, question: data.get('question'), data_needed: data.get('dataNeeded'), priority: data.get('priority'), owner: data.get('owner') || 'CTI', status: data.get('status') });
+        addHistory(profile, 'COLLECTION_REQUIREMENT_ADDED', `Collection requirement added: ${data.get('question')}`, ['collection_requirements']);
+    } else if (smallModalMode === 'action') {
+        if (!requireFields(form, ['description'])) return;
+        profile.actions = normalizeActions(profile.actions);
+        profile.actions.push({ id: `ACTION-${Date.now()}`, type: data.get('type'), description: data.get('description'), status: data.get('status'), owner: data.get('owner') || 'CTI' });
+        addHistory(profile, 'ACTION_ADDED', `Action added: ${data.get('description')}`, ['actions']);
+    } else if (smallModalMode.startsWith('target:')) {
+        if (!requireFields(form, ['value'])) return;
+        const key = smallModalMode.split(':')[1];
+        profile.targeting = profile.targeting || { sectors: [], geographies: [], technologies: [], objectives: [] };
+        profile.targeting[key] = Array.isArray(profile.targeting[key]) ? profile.targeting[key] : [];
+        profile.targeting[key].push([data.get('value'), data.get('relevance'), data.get('confidence')]);
+        addHistory(profile, 'TARGETING_ADDED', `Targeting entry added: ${data.get('value')}`, [`targeting.${key}`]);
+    } else {
+        if (!requireFields(form, ['judgement'])) return;
+        profile.judgements = normalizeJudgements(profile.judgements);
+        profile.judgements.push({ id: `JUDGEMENT-${Date.now()}`, judgement: data.get('judgement'), status: data.get('status'), confidence: data.get('confidence'), evidence_refs: data.get('evidenceRefs') });
+        profile.key_judgements = profile.judgements;
+        addHistory(profile, 'JUDGEMENT_ADDED', 'Key judgement added', ['key_judgements']);
+    }
+    closeSmallModal();
+    currentProfile = detailOf(profile);
+    persistAndRefresh('detail');
+}
+function resetDemoData() {
+    if (!confirm('This will clear the local Profiles & Clusters workspace. Continue?')) return;
+    demoModeExplicit = false;
+    localStorage.removeItem(STORAGE_KEY);
+    profiles.splice(0, profiles.length);
+    currentProfile = null;
+    saveWorkspace();
+    initFilters();
+    renderProfileCards();
+    showListView();
+}
+function loadDemoData() {
+    if (!confirm('Load the demo profiles into the local workspace? Existing local profiles will be replaced.')) return;
+    demoModeExplicit = true;
+    profiles.splice(0, profiles.length, ...demoProfiles.map(normalizeProfile));
+    currentProfile = profiles[0] || null;
+    saveWorkspace();
+    initFilters();
+    renderProfileCards();
+    showListView();
+}
+function openModal(modal) {
+    if (!modal) return;
+    modal.classList.add('active');
+    document.body.classList.add('pc-modal-open');
+}
+function closeModal(modal) {
+    if (!modal) return;
+    modal.classList.remove('active');
+    if (!document.querySelector('.pc-modal.active')) {
+        document.body.classList.remove('pc-modal-open');
+    }
+}
+document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    closeMemberModal();
+    closeProfileModal();
+    closeSmallModal();
+    closeRemoveModal();
+});
+['pc-member-modal', 'pc-profile-modal', 'pc-small-modal', 'pc-remove-modal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', event => {
+        if (event.target.id !== id) return;
+        if (id === 'pc-member-modal') closeMemberModal();
+        if (id === 'pc-profile-modal') closeProfileModal();
+        if (id === 'pc-small-modal') closeSmallModal();
+        if (id === 'pc-remove-modal') closeRemoveModal();
+    });
+});
+
+/* === INTERNAL MODEL AND EXPORT === */
+function normalizeMembers(members) {
+    return (members || []).map((m, index) => Array.isArray(m) ? {
+        id: `MEMBERSHIP-${String(index + 1).padStart(3, '0')}`,
+        value: m[0], type: m[1], role: m[2], status: m[3], confidence: m[4],
+        first_seen: m[5], last_seen: m[6], discriminative_value: m[7],
+        rationale: 'Legacy demo membership. Analyst rationale should be added before operational use.',
+        source_refs: [], evidence_refs: [], last_validated: '', state: 'ACTIVE', artifact_context: 'UNKNOWN'
+    } : Object.assign({
+        id: `MEMBERSHIP-${String(index + 1).padStart(3, '0')}`,
+        source_refs: [], evidence_refs: [], state: 'ACTIVE', artifact_context: 'UNKNOWN', last_validated: ''
+    }, m));
+}
+function normalizeSources(sources) {
+    return (sources || []).map(source => Array.isArray(source) ? {
+        name: source[0] || '',
+        type: source[1] || 'OTHER',
+        tlp: source[2] || 'UNKNOWN',
+        reliability: source[3] || 'UNKNOWN'
+    } : Object.assign({name: '', type: 'OTHER', tlp: 'UNKNOWN', reliability: 'UNKNOWN'}, source));
+}
+function normalizeTtps(ttps) {
+    return (ttps || []).map((ttp, index) => Array.isArray(ttp) ? {
+        id: `TTP-${String(index + 1).padStart(3, '0')}`,
+        technique_id: ttp[0] || '',
+        name: ttp[1] || '',
+        procedure: ttp[2] || '',
+        phase: ttp[3] || '',
+        seen: ttp[4] || '',
+        confidence: ttp[5] || 'UNKNOWN',
+        source_ref: ttp[6] || ''
+    } : Object.assign({
+        id: `TTP-${String(index + 1).padStart(3, '0')}`,
+        technique_id: '',
+        name: '',
+        procedure: '',
+        phase: '',
+        seen: '',
+        confidence: 'UNKNOWN',
+        source_ref: ''
+    }, ttp));
+}
+function normalizeTools(tools) {
+    return (tools || []).map((tool, index) => Array.isArray(tool) ? {
+        id: `TOOL-${String(index + 1).padStart(3, '0')}`,
+        name: tool[0] || '',
+        type: 'UNKNOWN',
+        description: tool[1] || ''
+    } : Object.assign({id: `TOOL-${String(index + 1).padStart(3, '0')}`, name: '', type: 'UNKNOWN', description: ''}, tool));
+}
+function normalizeEvidence(evidence) {
+    return evidence || [];
+}
+function normalizeEntities(entities, members) {
+    if (entities && entities.length) return entities;
+    return normalizeMembers(members).map((m, index) => ({
+        id: `ENTITY-${String(index + 1).padStart(5, '0')}`,
+        type: m.type,
+        canonical_value: String(m.value || '').toLowerCase(),
+        display_value: m.value
+    }));
+}
+function normalizeRelationships(relationships) {
+    return relationships || [];
+}
+function normalizeCollectionRequirements(items) {
+    return (items || []).map((item, index) => Object.assign({
+        id: `COL-${String(index + 1).padStart(3, '0')}`,
+        question: '',
+        data_needed: '',
+        priority: 'MEDIUM',
+        owner: 'CTI',
+        status: 'OPEN'
+    }, item));
+}
+function normalizeActions(items) {
+    return (items || []).map((item, index) => Object.assign({
+        id: `ACTION-${String(index + 1).padStart(3, '0')}`,
+        type: 'ACTION',
+        description: '',
+        status: 'OPEN',
+        owner: 'CTI'
+    }, item));
+}
+function renderAttributionBasis(profile) {
+    const basis = Object.assign({
+        infrastructure_overlap: 'NOT_ASSESSED',
+        malware_code_overlap: 'NOT_ASSESSED',
+        procedure_overlap: 'NOT_ASSESSED',
+        victimology: 'NOT_ASSESSED',
+        independent_reporting: 'NOT_ASSESSED'
+    }, profile.attribution_basis || {});
+    return `<div class="pc-meta">
+        <div class="pc-metric"><span class="pc-label">Internal Assessment</span><span class="pc-value">${badge(profile.attribution || 'UNATTRIBUTED')}</span></div>
+        <div class="pc-metric"><span class="pc-label">Infrastructure Overlap</span><span class="pc-value">${badge(basis.infrastructure_overlap)}</span></div>
+        <div class="pc-metric"><span class="pc-label">Malware / Code Overlap</span><span class="pc-value">${badge(basis.malware_code_overlap)}</span></div>
+        <div class="pc-metric"><span class="pc-label">Procedure Overlap</span><span class="pc-value">${badge(basis.procedure_overlap)}</span></div>
+        <div class="pc-metric"><span class="pc-label">Victimology</span><span class="pc-value">${badge(basis.victimology)}</span></div>
+        <div class="pc-metric"><span class="pc-label">Independent Reporting</span><span class="pc-value">${badge(basis.independent_reporting)}</span></div>
+    </div><div class="pc-definition"><strong>Rationale:</strong> ${esc(profile.attribution_rationale || 'No internal attribution rationale recorded.')}</div>`;
+}
+function renderQualityReview(profile) {
+    const checks = [];
+    normalizeMembers(profile.members).forEach(member => {
+        if (!member.rationale) checks.push(['ERROR', `Member ${member.value || member.id} has no rationale.`]);
+        if (!(member.source_refs || []).length && !(member.evidence_refs || []).length) checks.push(['WARNING', `Member ${member.value || member.id} has no source or evidence reference.`]);
+    });
+    if (profile.confidence === 'HIGH' && !profile.confidenceRationale) checks.push(['WARNING', 'HIGH confidence has no rationale.']);
+    if (!normalizeDiscriminators(profile.discriminators).length) checks.push(['WARNING', 'No discriminator documented.']);
+    if (!profile.purpose) checks.push(['WARNING', 'No Purpose / Tracking Question recorded.']);
+    if (!normalizeSources(profile.sources).length) checks.push(['WARNING', 'No source recorded.']);
+    if (!checks.length) checks.push(['OK', 'No blocking review issue detected by the lightweight checks.']);
+    return checks.map(([level, text]) => `<div style="margin-bottom:8px;">${badge(level)} <span style="color:var(--text-secondary);">${esc(text)}</span></div>`).join('');
+}
+function profileExportObject(profile) {
+    const detail = detailOf(profile);
+    const members = normalizeMembers(detail.members);
+    const entities = normalizeEntities(detail.entities, members);
+    const relationships = normalizeRelationships(detail.relationships);
+    return {
+        export_format: 'odysafe-intelligence-profile',
+        export_version: '1.0',
+        exported_at: new Date().toISOString(),
+        demo_data: Boolean(detail.demo_data),
+        synthetic_data_notice: detail.demo_data ? 'This profile is a synthetic example and does not represent validated intelligence.' : '',
+        persistence_scope: 'Browser localStorage; not saved to the ODYSAFE server database.',
+        profile: {
+            profile_id: detail.id,
+            profile_type: detail.type,
+            canonical_name: detail.id,
+            display_name: detail.name,
+            workflow_status: detail.status,
+            activity_state: detail.activity,
+            first_seen: detail.firstSeen,
+            last_seen: detail.lastSeen,
+            analytic_confidence: detail.confidence,
+            internal_attribution_status: detail.attribution || 'UNATTRIBUTED',
+            internal_relevance: detail.relevance,
+            confidence_rationale: detail.confidenceRationale,
+            external_reporting: detail.externalReporting,
+            review: detail.review,
+            scope: detail.scope,
+            assessment: detail.assessment,
+            description: detail.description,
+            purpose: detail.purpose,
+            created_from_workspace: detail.created_from_workspace,
+            owner: detail.owner,
+            created_at: detail.created_at,
+            updated_at: detail.updated_at,
+            key_discriminators: detail.discriminators,
+            key_judgements: detail.judgements,
+            exclusion_criteria: detail.exclusionCriteria,
+            alternative_explanations: detail.alternatives,
+            alternative_confidence: detail.alternativeConfidence || {},
+            attribution_basis: detail.attribution_basis || {},
+            attribution_rationale: detail.attribution_rationale || '',
+            counters: detail.counters
+        },
+        memberships: members,
+        entities,
+        relationships,
+        evidence: normalizeEvidence(detail.evidence),
+        sources: normalizeSources(detail.sources),
+        ttps: normalizeTtps(detail.ttps),
+        tools: normalizeTools(detail.tools),
+        claims: detail.claims,
+        gaps: detail.gaps,
+        collection_requirements: normalizeCollectionRequirements(detail.collection_requirements),
+        actions: normalizeActions(detail.actions),
+        history: detail.history,
+        aliases: detail.aliases,
+        stix_loss_report: buildStixLossReport(detail)
+    };
+}
+function buildStixLossReport(profile) {
+    const relationships = normalizeRelationships(profile.relationships);
+    const relationRows = relationships.map(rel => {
+        const standard = ['RESOLVES_TO', 'BELONGS_TO', 'COMMUNICATES_WITH', 'USES', 'TARGETS'].includes(rel.type);
+        return {
+            semantic: rel.type,
+            mapping: standard ? 'Mapped to STIX relationship where object types support it' : 'No direct STIX mapping',
+            handling: standard ? 'Export as STIX when possible and preserve ODYSAFE fields as custom properties' : 'Preserve in ODYSAFE JSON and report as internal-only semantic'
+        };
+    });
+    return relationRows.length ? relationRows : [
+        { semantic: 'PROFILE_MEMBERSHIP', mapping: 'No direct STIX object', handling: 'Preserve in ODYSAFE JSON as contextual analyst membership' },
+        { semantic: 'KEY_DISCRIMINATOR', mapping: 'No direct STIX object', handling: 'Preserve in ODYSAFE JSON and optionally render as report/note text' }
+    ];
+}
+function downloadText(filename, content, type) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 250);
+}
+function exportProfileJson() {
+    const payload = profileExportObject(currentProfile);
+    downloadText(`${currentProfile.id}-odysafe-profile.json`, JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
+}
+function exportAllProfilesJson() {
+    const payload = {
+        export_format: 'odysafe-intelligence-profile-collection',
+        export_version: '1.0',
+        exported_at: new Date().toISOString(),
+        demo_data: profiles.every(profile => normalizeProfile(profile).demo_data),
+        synthetic_data_notice: profiles.every(profile => normalizeProfile(profile).demo_data) ? 'The exported profiles are synthetic examples and do not represent validated intelligence.' : '',
+        persistence_scope: 'Browser localStorage; not saved to the ODYSAFE server database.',
+        profiles: profiles.map(profileExportObject)
+    };
+    downloadText('odysafe-profiles-clusters.json', JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
+}
+function downloadBlob(filename, blob) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 250);
+}
+function exportProfilesExcelPayload(payload, filename) {
+    fetch('/api/profiles-clusters/export-xlsx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(async response => {
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || `Excel export failed (${response.status})`);
+        }
+        return response.blob();
+    })
+    .then(blob => downloadBlob(filename, blob))
+    .catch(error => alert('Excel export failed: ' + error.message));
+}
+function exportProfileExcel() {
+    exportProfilesExcelPayload(
+        { profile: profileExportObject(currentProfile) },
+        `${currentProfile.id}-profiles-clusters.xlsx`
+    );
+}
+function buildProfileStixSummary() {
+    const payload = profileExportObject(currentProfile);
+    const randomId = () => (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : String(Date.now());
+    return {
+        type: 'bundle',
+        spec_version: '2.1',
+        id: `bundle--${randomId()}`,
+        objects: [
+            {
+                type: 'report',
+                spec_version: '2.1',
+                id: `report--${randomId()}`,
+                name: currentProfile.name,
+                description: currentProfile.assessment,
+                published: new Date().toISOString(),
+                report_types: ['threat-report'],
+                object_refs: []
+            }
+        ],
+        x_odysafe_loss_report: payload.stix_loss_report
+    };
+}
+function exportProfileStixSummary() {
+    const summary = buildProfileStixSummary();
+    downloadText(`${currentProfile.id}-stix-summary.json`, JSON.stringify(summary, null, 2), 'application/json;charset=utf-8');
+}
+function viewProfileStixSummary() {
+    const summary = buildProfileStixSummary();
+    sessionStorage.setItem('odysafe_pending_stix_bundle', JSON.stringify(summary));
+    window.location.href = '/stix-graph?source=profiles-clusters';
+}
+/* === INIT === */
+async function initProfilesPage() {
+    await loadWorkspace();
+    initFilters();
+    renderProfileCards();
+}
+initProfilesPage();
+</script>
+{% endblock %}

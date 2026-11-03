@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Analysis Hub - ODYSAFE CTI{% endblock %}
+
+{% block extra_head %}
+<style>
+.intel-hub {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 24px;
+}
+.intel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 18px;
+}
+.intel-title {
+    margin: 0 0 8px;
+    color: var(--text-primary);
+    font-size: 34px;
+    line-height: 1.1;
+    font-weight: 800;
+}
+.intel-subtitle {
+    margin: 0;
+    max-width: 780px;
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1.6;
+}
+.intel-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #7C3AED, #2563EB);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.intel-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(300px, .55fr);
+    gap: 16px;
+}
+.intel-section {
+    margin-bottom: 16px;
+}
+.intel-section-title {
+    margin: 0 0 10px;
+    color: rgba(196, 181, 253, .92);
+    font-size: 12px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+.intel-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+.intel-card,
+.intel-panel {
+    background: rgba(20, 17, 32, .84);
+    border: 1px solid rgba(139, 92, 246, .22);
+    border-radius: 8px;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .20);
+}
+.intel-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 174px;
+    padding: 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color .16s ease, background .16s ease, transform .16s ease;
+}
+.intel-card:hover {
+    border-color: rgba(167, 139, 250, .48);
+    background: rgba(26, 22, 42, .94);
+    transform: translateY(-1px);
+}
+.intel-card h2 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 19px;
+    line-height: 1.25;
+}
+.intel-card p,
+.intel-panel p,
+.intel-list li {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.55;
+}
+.intel-card p {
+    margin: 0;
+}
+.intel-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: auto;
+}
+.intel-tag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(167, 139, 250, .22);
+    background: rgba(139, 92, 246, .10);
+    color: var(--violet-light);
+    font-size: 12px;
+    font-weight: 700;
+}
+.intel-panel {
+    padding: 16px;
+}
+.intel-panel h2 {
+    margin: 0 0 10px;
+    color: var(--text-primary);
+    font-size: 18px;
+}
+.intel-panel p {
+    margin: 0 0 12px;
+}
+.intel-list {
+    margin: 0;
+    padding-left: 20px;
+}
+.intel-list li {
+    margin-bottom: 8px;
+}
+.intel-secondary-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(167, 139, 250, .26);
+    background: rgba(139, 92, 246, .10);
+    color: var(--violet-light);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 800;
+}
+.intel-note {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(245, 158, 11, .30);
+    background: rgba(245, 158, 11, .10);
+    color: #FDE68A;
+    font-size: 13px;
+    line-height: 1.5;
+}
+@media (max-width: 980px) {
+    .intel-header {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+    .intel-layout {
+        grid-template-columns: 1fr;
+    }
+    .intel-grid {
+        grid-template-columns: 1fr;
+    }
+    .intel-primary {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="intel-hub">
+        <div class="intel-header">
+            <div>
+                <h1 class="intel-title">Analysis Hub</h1>
+                <p class="intel-subtitle">Central entry point for CTI analysis workflows: prepare an intelligence workspace, preserve reusable knowledge, inspect STIX relationships, and consult local CTI reference datasets.</p>
+            </div>
+            <a class="intel-primary" href="{{ url_for('flash_report.flash_report_home') }}">Open Intelligence Workspace</a>
+        </div>
+
+        <div class="intel-layout">
+            <main>
+                <section class="intel-section">
+                    <h2 class="intel-section-title">Operational Workflow</h2>
+                    <div class="intel-grid">
+                        <a href="{{ url_for('flash_report.flash_report_home') }}" class="intel-card">
+                            <h2>Intelligence Workspace</h2>
+                            <p>Build an analyst-ready workspace, capture source context, assess confidence, document gaps, and export a structured Excel report.</p>
+                            <div class="intel-tags"><span class="intel-tag">Report</span><span class="intel-tag">Excel</span><span class="intel-tag">Evidence</span></div>
+                        </a>
+                        <a href="{{ url_for('profiles_clusters') }}" class="intel-card">
+                            <h2>Profiles &amp; Clusters</h2>
+                            <p>Maintain persistent CTI profiles across investigations. Add members, sources, TTPs, tools, gaps, and analyst judgements without implying automatic attribution.</p>
+                            <div class="intel-tags"><span class="intel-tag">Profiles</span><span class="intel-tag">TTPs</span><span class="intel-tag">Sources</span></div>
+                        </a>
+                    </div>
+                </section>
+
+                <section class="intel-section">
+                    <h2 class="intel-section-title">Graph And Knowledge</h2>
+                    <div class="intel-grid">
+                        <a href="{{ url_for('stix_graph') }}" class="intel-card">
+                            <h2>STIX Graph</h2>
+                            <p>Load, inspect, edit, save, and export STIX 2.x bundles. Use it to review relationships between observables, reports, malware, tools, actors, and techniques.</p>
+                            <div class="intel-tags"><span class="intel-tag">STIX</span><span class="intel-tag">Relationships</span><span class="intel-tag">Models</span></div>
+                        </a>
+                        <a href="{{ url_for('memory.memory_home') }}" class="intel-card">
+                            <h2>CTI Memory</h2>
+                            <p>Use the local memory layer to keep notes, entities, and links reusable across investigations when the Memory module is available.</p>
+                            <div class="intel-tags"><span class="intel-tag">Notes</span><span class="intel-tag">Entities</span><span class="intel-tag">Recall</span></div>
+                        </a>
+                    </div>
+                </section>
+
+                <section class="intel-section">
+                    <h2 class="intel-section-title">Reference Data</h2>
+                    <div class="intel-grid">
+                        <a href="{{ url_for('cti_resources_mitre_attack') }}" class="intel-card">
+                            <h2>MITRE ATT&amp;CK</h2>
+                            <p>Browse Enterprise ATT&amp;CK, inspect techniques and groups, and review IOC links already maintained in ODYSAFE.</p>
+                            <div class="intel-tags"><span class="intel-tag">ATT&amp;CK</span><span class="intel-tag">Techniques</span><span class="intel-tag">Groups</span></div>
+                        </a>
+                        <a href="{{ url_for('cti_resources') }}" class="intel-card">
+                            <h2>DeepDarkCTI Sources</h2>
+                            <p>Review the local DeepDarkCTI source catalog and manage source favorites used during CTI collection and research.</p>
+                            <div class="intel-tags"><span class="intel-tag">Sources</span><span class="intel-tag">Catalog</span><span class="intel-tag">Favorites</span></div>
+                        </a>
+                        <a href="{{ url_for('cti_resources_ransomware_matrix') }}" class="intel-card">
+                            <h2>Ransomware Matrix</h2>
+                            <p>Consult ransomware group and tooling references for analyst context, detection planning, and operational triage.</p>
+                            <div class="intel-tags"><span class="intel-tag">Ransomware</span><span class="intel-tag">Tools</span><span class="intel-tag">Groups</span></div>
+                        </a>
+                    </div>
+                </section>
+            </main>
+
+            <aside>
+                <div class="intel-panel">
+                    <h2>Suggested Flow</h2>
+                    <ol class="intel-list">
+                        <li>Start in Intelligence Workspace when the goal is a report or analyst handoff.</li>
+                        <li>Promote reusable findings into Profiles &amp; Clusters when they should survive a single case.</li>
+                        <li>Use STIX Graph when the relationship model or exportable STIX view matters.</li>
+                        <li>Consult MITRE, DeepDarkCTI, and ransomware references when you need local context.</li>
+                    </ol>
+                    <div class="intel-note">Profiles are analyst-maintained knowledge objects. They do not imply automatic attribution, maliciousness, or independent corroboration.</div>
+                </div>
+
+                <div class="intel-panel" style="margin-top:16px;">
+                    <h2>Common Outputs</h2>
+                    <p>Use the module that matches the output you need.</p>
+                    <ul class="intel-list">
+                        <li>Excel report: Intelligence Workspace.</li>
+                        <li>Persistent profile export: Profiles &amp; Clusters.</li>
+                        <li>STIX JSON or visual graph: STIX Graph.</li>
+                        <li>ATT&amp;CK context: MITRE ATT&amp;CK.</li>
+                    </ul>
+                    <a class="intel-secondary-link" href="{{ url_for('onboarding') }}">Open Product Guide</a>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+{% endblock %}

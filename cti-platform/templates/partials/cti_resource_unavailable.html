@@ -1,0 +1,33 @@
+{# Standard unavailable resource block #}
+<style>
+.cti-unavail .refresh-button { padding: 12px 24px; background: linear-gradient(135deg, var(--violet-medium, #7c3aed), var(--violet-light, #a78bfa)); color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.cti-unavail .refresh-button.loading { opacity: 0.7; cursor: not-allowed; }
+.cti-unavail .refresh-button .spinner { display: none; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: ctiSpin 0.8s linear infinite; }
+.cti-unavail .refresh-button.loading .spinner { display: block; }
+.cti-unavail .progress-container { display: none; margin-top: 12px; }
+.cti-unavail .progress-container.active { display: block; }
+.cti-unavail .progress-bar-wrapper { background: rgba(139,92,246,0.15); border-radius: 8px; height: 8px; overflow: hidden; }
+.cti-unavail .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #7c3aed, #a78bfa); transition: width 0.3s ease; }
+.cti-unavail .progress-info { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 12px; }
+.cti-unavail .progress-message { font-size: 12px; color: var(--text-secondary); flex: 1; }
+.cti-unavail .progress-percentage { font-size: 12px; color: var(--violet-light); font-weight: 600; min-width: 36px; text-align: right; }
+@keyframes ctiSpin { to { transform: rotate(360deg); } }
+</style><div class="cti-unavail" style="text-align: center; padding: 40px 20px; max-width: 640px; margin: 0 auto;"><div style="font-size: 48px; margin-bottom: 20px;">📦</div><h2 style="color: var(--text-primary); margin-bottom: 12px;">{{ resource_title }} data not available</h2>
+    {% if resource_description %}
+    <p style="color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6;">{{ resource_description }}</p>
+    {% endif %}
+    <p style="color: var(--text-secondary); margin-bottom: 8px; font-size: 14px;">
+        Expected path:
+        <code style="background: rgba(139,92,246,0.12); color: #c4b5fd; padding: 2px 8px; border-radius: 4px; font-size: 12px;">{{ expected_path }}</code></p>
+    {% if size_warning %}
+    <p style="color: #fbbf24; margin-bottom: 24px; font-size: 13px; font-weight: 500;">⚠ {{ size_warning }}</p>
+    {% endif %}
+
+    <div style="background: rgba(16,185,129,0.07); border: 1.5px solid rgba(16,185,129,0.35); border-radius: 16px; padding: 24px; margin-bottom: 16px; text-align: left;"><div style="font-size: 12px; font-weight: 600; color: #10B981; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px;">Recommended</div><h3 style="color: #e2e8f0; font-size: 16px; font-weight: 600; margin: 0 0 8px;">Auto-Download</h3><p style="color: var(--text-secondary); font-size: 13px; margin: 0 0 16px; line-height: 1.6;">
+            An internet connection is required. Click below to download from the official source.
+        </p><button type="button" id="downloadBtn" class="refresh-button" data-download-api="{{ download_api }}" style="min-width: 200px;"><span class="spinner"></span><span class="button-text">⬇️ Download</span></button><div id="progressContainer" class="progress-container" style="margin-top: 16px;"><div class="progress-bar-wrapper"><div id="progressBar" class="progress-bar"></div></div><div class="progress-info"><span id="progressMessage" class="progress-message">Preparing...</span><span id="progressPercentage" class="progress-percentage">0%</span></div></div></div><div style="background: rgba(10,10,20,0.5); border: 1px solid rgba(139,92,246,0.2); border-radius: 16px; padding: 24px; text-align: left;"><h4 style="color: var(--text-primary); font-size: 14px; font-weight: 600; margin: 0 0 14px;">Manual Setup</h4><ol style="color: var(--text-secondary); font-size: 13px; line-height: 2; padding-left: 18px; margin: 0 0 12px;">
+            {% for step in manual_instructions %}
+            <li>{{ step|safe }}</li>
+            {% endfor %}
+        </ol><p style="margin: 0; font-size: 12px; color: var(--text-secondary);">
+            Official source: <a href="{{ github_url }}" target="_blank" rel="noopener" style="color: var(--violet-light);">{{ github_url }}</a></p></div></div>
