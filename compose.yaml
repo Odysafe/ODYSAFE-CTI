@@ -1,0 +1,78 @@
+name: odysafe-cti
+services:
+  cti:
+    image: ${CTI_IMAGE:-odysafe-cti:1.0.9}
+    platform: linux/amd64
+    pull_policy: never
+    init: true
+    user: "${CTI_UID:?Run ./start.dh}:${CTI_GID:?Run ./start.dh}"
+    networks: ["${CTI_NETWORK:-isolated}"]
+    environment:
+      CTI_PORT: "5001"
+      CTI_USE_SSL: "${CTI_USE_SSL:-true}"
+      CTI_DATASETS_DIR: /datasets
+      CTI_ALLOW_REMOTE: "${CTI_ALLOW_REMOTE:-0}"
+      CTI_REQUIRE_LOCAL_MODEL: "1"
+      CTI_WEB_THREADS: "${CTI_WEB_THREADS:-4}"
+      HF_HUB_OFFLINE: "1"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      FASTEMBED_CACHE_PATH: /opt/cti-bundle/model-cache
+      HF_HOME: /tmp/cti-hf
+    volumes:
+      - "${CTI_STATE_DIR:?Run ./start.dh}/database:/opt/odysafe/ODYSAFE-CTI/cti-platform/database"
+      - "${CTI_STATE_DIR}/uploads:/opt/odysafe/ODYSAFE-CTI/cti-platform/uploads"
+      - "${CTI_STATE_DIR}/outputs:/opt/odysafe/ODYSAFE-CTI/cti-platform/outputs"
+      - "${CTI_STATE_DIR}/zettelforge:/opt/odysafe/ODYSAFE-CTI/cti-platform/data/zettelforge"
+      - "${CTI_STATE_DIR}/cache:/opt/odysafe/ODYSAFE-CTI/cti-platform/modules/cache"
+      - "${CTI_STATE_DIR}/data_shield:/opt/odysafe/ODYSAFE-CTI/cti-platform/modules/data_shield"
+      - "${CTI_STATE_DIR}/docs:/opt/odysafe/ODYSAFE-CTI/docs"
+      - "${CTI_STATE_DIR}/ssl:/opt/odysafe/ODYSAFE-CTI/cti-platform/ssl"
+      - "${CTI_STATE_DIR}/datasets:/datasets"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck: &local-healthcheck
+      test: ["CMD", "python", "-c", "import os, ssl, urllib.request; urllib.request.urlopen(('https' if os.environ['CTI_USE_SSL'] == 'true' else 'http') + '://127.0.0.1:5001/healthz', context=ssl._create_unverified_context(), timeout=3).read()"]
+      interval: 30s
+      start_interval: 2s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    restart: unless-stopped
+    stop_grace_period: 45s
+
+    logging: &bounded-logs
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  local-relay:
+    image: ${CTI_IMAGE:-odysafe-cti:1.0.9}
+    platform: linux/amd64
+    pull_policy: never
+    user: "${CTI_UID:?Run ./start.dh}:${CTI_GID:?Run ./start.dh}"
+    environment:
+      CTI_USE_SSL: "${CTI_USE_SSL:-true}"
+    entrypoint: ["python", "/opt/odysafe/ODYSAFE-CTI/cti-platform/local_relay.py"]
+    networks: [publishing, "${CTI_NETWORK:-isolated}"]
+    ports:
+      - "127.0.0.1:${CTI_HOST_PORT:-5001}:5001"
+    depends_on:
+      cti:
+        condition: service_healthy
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    healthcheck: *local-healthcheck
+    restart: unless-stopped
+    logging: *bounded-logs
+
+networks:
+  isolated:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.gateway_mode_ipv4: isolated
+  connected: {}
+  publishing: {}

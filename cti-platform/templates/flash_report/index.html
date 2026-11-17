@@ -1,0 +1,1007 @@
+{% extends "base.html" %}
+
+{% block title %}Intelligence Workspace (FLINT) - CTI Platform{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flash_report.css') }}?v=20260620">
+{% endblock %}
+
+{% block content %}
+<div class="fr-app">
+    <header class="fr-toolbar">
+        <div class="fr-toolbar-title">
+            <h1><!--cti-i18n-->Intelligence Workspace<!--/cti-i18n--></h1>
+            <div class="fr-toolbar-meta" id="fr-toolbar-meta"><!--cti-i18n-->New report<!--/cti-i18n--></div>
+        </div>
+        <div class="fr-toolbar-actions">
+            <button type="button" class="fr-btn fr-btn-ghost" onclick="openHistoryDrawer()"><!--cti-i18n-->History<!--/cti-i18n--></button>
+            <button type="button" class="fr-btn fr-btn-secondary" onclick="createNewReport()"><!--cti-i18n-->New<!--/cti-i18n--></button>
+            <button type="button" class="fr-btn fr-btn-secondary" onclick="loadExampleWorkspace()"><!--cti-i18n-->Load Sample<!--/cti-i18n--></button>
+            <button type="button" class="fr-btn fr-btn-secondary" onclick="saveReport()"><!--cti-i18n-->Save<!--/cti-i18n--></button>
+            <button type="button" class="fr-btn fr-btn-secondary" onclick="runQualityCheck()"><!--cti-i18n-->Quality Check<!--/cti-i18n--></button>
+            <button type="button" class="fr-btn fr-btn-secondary" onclick="exportJsonWorkspace()"><!--cti-i18n-->Export JSON<!--/cti-i18n--></button>
+            <button type="button" class="fr-btn fr-btn-primary" onclick="exportExcel()"><!--cti-i18n-->Export Excel<!--/cti-i18n--></button>
+        </div>
+    </header>
+
+    <div class="fr-draft-banner" id="fr-draft-banner">
+        <span><!--cti-i18n-->A local draft was found from a previous session.<!--/cti-i18n--></span>
+        <div class="fr-draft-banner-actions">
+            <button type="button" class="fr-btn fr-btn-secondary" onclick="loadDraft()"><!--cti-i18n-->Restore<!--/cti-i18n--></button>
+            <button type="button" class="fr-btn fr-btn-ghost" onclick="dismissDraft()"><!--cti-i18n-->Dismiss<!--/cti-i18n--></button>
+        </div>
+    </div>
+
+    <div class="fr-layout">
+        <aside class="fr-sidebar">
+            <div class="fr-workflow-card" aria-label="Analyst progress">
+                <div class="fr-workflow-title"><!--cti-i18n-->Analyst Progress<!--/cti-i18n--></div>
+                <div class="fr-workflow-steps">
+                    <button type="button" class="fr-progress-step" data-progress-step="purpose" data-target-step="1"><!--cti-i18n-->Purpose<!--/cti-i18n--> <span><!--cti-i18n-->NOT STARTED<!--/cti-i18n--></span></button>
+                    <button type="button" class="fr-progress-step" data-progress-step="collection" data-target-step="1"><!--cti-i18n-->Collection<!--/cti-i18n--> <span><!--cti-i18n-->NOT STARTED<!--/cti-i18n--></span></button>
+                    <button type="button" class="fr-progress-step" data-progress-step="analyze" data-target-step="4"><!--cti-i18n-->Analyze<!--/cti-i18n--> <span><!--cti-i18n-->NOT STARTED<!--/cti-i18n--></span></button>
+                    <button type="button" class="fr-progress-step" data-progress-step="relevance" data-target-step="11"><!--cti-i18n-->Relevance<!--/cti-i18n--> <span><!--cti-i18n-->NOT STARTED<!--/cti-i18n--></span></button>
+                    <button type="button" class="fr-progress-step" data-progress-step="investigate" data-target-step="10"><!--cti-i18n-->Investigate<!--/cti-i18n--> <span><!--cti-i18n-->NOT STARTED<!--/cti-i18n--></span></button>
+                    <button type="button" class="fr-progress-step" data-progress-step="assess" data-target-step="11"><!--cti-i18n-->Assess<!--/cti-i18n--> <span><!--cti-i18n-->NOT STARTED<!--/cti-i18n--></span></button>
+                    <button type="button" class="fr-progress-step" data-progress-step="act" data-target-step="9"><!--cti-i18n-->Act<!--/cti-i18n--> <span><!--cti-i18n-->NOT STARTED<!--/cti-i18n--></span></button>
+                    <button type="button" class="fr-progress-step" data-progress-step="deliver" data-target-step="13"><!--cti-i18n-->Deliver<!--/cti-i18n--> <span><!--cti-i18n-->NOT STARTED<!--/cti-i18n--></span></button>
+                    <button type="button" class="fr-progress-step" data-progress-step="close" data-target-step="13"><!--cti-i18n-->Close<!--/cti-i18n--> <span><!--cti-i18n-->NOT STARTED<!--/cti-i18n--></span></button>
+                </div>
+                <p class="fr-workflow-note"><!--cti-i18n-->Analyst progress is coverage, not quality or truth scoring.<!--/cti-i18n--></p>
+                <div class="fr-progress-tooltip" id="analyst-progress-tooltip" role="tooltip"></div>
+            </div>
+            <div class="fr-progress-wrap">
+                <div class="fr-progress-label">
+                    <span><!--cti-i18n-->Publication Readiness<!--/cti-i18n--></span>
+                    <span id="fr-progress-percent">0% <span><!--cti-i18n-->ready<!--/cti-i18n--></span></span>
+                </div>
+                <div class="fr-progress-bar">
+                    <div class="fr-progress-fill" id="fr-progress-fill"></div>
+                </div>
+            </div>
+            <nav class="wizard-nav">
+                <div class="wizard-step active" data-step="1"><span class="wizard-step-num">1</span><span class="wizard-step-label"><!--cti-i18n-->Header<!--/cti-i18n--></span></div>
+                <div class="wizard-step" data-step="2"><span class="wizard-step-num">2</span><span class="wizard-step-label"><!--cti-i18n-->Subject<!--/cti-i18n--></span></div>
+                <div class="wizard-step" data-step="3"><span class="wizard-step-num">3</span><span class="wizard-step-label"><!--cti-i18n-->Summary<!--/cti-i18n--></span></div>
+                <div class="wizard-step" data-step="4"><span class="wizard-step-num">4</span><span class="wizard-step-label"><!--cti-i18n-->Takeaways<!--/cti-i18n--></span></div>
+                <div class="wizard-step" data-step="5"><span class="wizard-step-num">5</span><span class="wizard-step-label"><!--cti-i18n-->Timeline<!--/cti-i18n--></span></div>
+                <div class="wizard-step" data-step="6"><span class="wizard-step-num">6</span><span class="wizard-step-label"><!--cti-i18n-->Analysis<!--/cti-i18n--></span></div>
+                <div class="wizard-step" data-step="7"><span class="wizard-step-num">7</span><span class="wizard-step-label"><!--cti-i18n-->Indicators<!--/cti-i18n--></span></div>
+                <div class="wizard-step" data-step="8"><span class="wizard-step-num">8</span><span class="wizard-step-label"><!--cti-i18n-->Detection<!--/cti-i18n--></span></div>
+                <div class="wizard-step" data-step="9"><span class="wizard-step-num">9</span><span class="wizard-step-label"><!--cti-i18n-->Actions<!--/cti-i18n--></span></div>
+                <div class="wizard-step" data-step="10"><span class="wizard-step-num">10</span><span class="wizard-step-label"><!--cti-i18n-->Gaps & Investigation<!--/cti-i18n--></span></div>
+                <div class="wizard-step" data-step="11"><span class="wizard-step-num">11</span><span class="wizard-step-label"><!--cti-i18n-->Assessment<!--/cti-i18n--></span></div>
+                <div class="wizard-step" data-step="12"><span class="wizard-step-num">12</span><span class="wizard-step-label">Sources</span></div>
+                <div class="wizard-step" data-step="13"><span class="wizard-step-num">13</span><span class="wizard-step-label"><!--cti-i18n-->Distribution<!--/cti-i18n--></span></div>
+            </nav>
+        </aside>
+
+        <div class="fr-main">
+    <form id="flashReportForm">
+        <div class="fr-sections-stack" id="fr-sections-stack">
+        <!-- BLOCK 1 -->
+        <section class="flash-section active" id="block-1">
+            <h2><!--cti-i18n-->1. Header & Metadata<!--/cti-i18n--> <span class="section-status status-empty"><!--cti-i18n-->Incomplete<!--/cti-i18n--></span></h2>
+            <div class="form-grid-3">
+                <div class="form-group">
+                    <label><!--cti-i18n-->Reference<!--/cti-i18n--></label>
+                    <input type="text" id="reference" name="reference" readonly placeholder="Auto-generated" data-cti-placeholder="Auto-generated">
+                </div>
+                <div class="form-group">
+                    <label><!--cti-i18n-->Created (UTC)<!--/cti-i18n--></label>
+                    <input type="datetime-local" id="created_at" name="created_at" readonly>
+                </div>
+                <div class="form-group">
+                    <label><!--cti-i18n-->Updated<!--/cti-i18n--></label>
+                    <input type="datetime-local" id="updated_at" name="updated_at" readonly>
+                </div>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label><!--cti-i18n-->Author<!--/cti-i18n--> <span class="required">*</span></label>
+                    <input type="text" id="author" name="author" required>
+                </div>
+                <div class="form-group">
+                    <label>TLP <span class="required">*</span></label>
+                    <div class="badge-selector" id="tlp-selector">
+                        <div class="badge-option tlp-red selected" data-value="RED">RED</div>
+                        <div class="badge-option tlp-amber" data-value="AMBER">AMBER</div>
+                        <div class="badge-option tlp-green" data-value="GREEN">GREEN</div>
+                        <div class="badge-option tlp-clear" data-value="CLEAR">CLEAR</div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>PAP <span class="required">*</span></label>
+                <div class="badge-selector" id="pap-selector">
+                    <div class="badge-option pap-red selected" data-value="RED"><!--cti-i18n-->RED - Passive only<!--/cti-i18n--></div>
+                    <div class="badge-option pap-amber" data-value="AMBER"><!--cti-i18n-->AMBER - Scan OK<!--/cti-i18n--></div>
+                    <div class="badge-option pap-green" data-value="GREEN"><!--cti-i18n-->GREEN - Active allowed<!--/cti-i18n--></div>
+                    <div class="badge-option pap-white" data-value="WHITE"><!--cti-i18n-->WHITE - Any action<!--/cti-i18n--></div>
+                </div>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label><!--cti-i18n-->Priority<!--/cti-i18n--></label>
+                    <div class="badge-selector" id="priority-selector">
+                        <div class="badge-option priority-critical" data-value="Critical"><!--cti-i18n-->Critical<!--/cti-i18n--></div>
+                        <div class="badge-option priority-high selected" data-value="High"><!--cti-i18n-->High<!--/cti-i18n--></div>
+                        <div class="badge-option priority-medium" data-value="Medium"><!--cti-i18n-->Medium<!--/cti-i18n--></div>
+                        <div class="badge-option priority-low" data-value="Low"><!--cti-i18n-->Low<!--/cti-i18n--></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label><!--cti-i18n-->Status<!--/cti-i18n--></label>
+                    <div class="badge-selector" id="status-selector">
+                        <div class="badge-option status-draft selected" data-value="Draft"><!--cti-i18n-->Draft<!--/cti-i18n--></div>
+                        <div class="badge-option status-review" data-value="Review"><!--cti-i18n-->Review<!--/cti-i18n--></div>
+                        <div class="badge-option status-final" data-value="Final"><!--cti-i18n-->Final<!--/cti-i18n--></div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label><!--cti-i18n-->Product Type<!--/cti-i18n--></label>
+                    <select id="product_type" name="product_type">
+                        <option value="Intelligence Workspace" data-cti-label="Intelligence Workspace">Intelligence Workspace</option>
+                        <option value="Flash Threat Alert" data-cti-label="Flash Threat Alert">Flash Threat Alert</option>
+                        <option value="Threat Alert" data-cti-label="Threat Alert">Threat Alert</option>
+                        <option value="Vulnerability Intelligence Alert" data-cti-label="Vulnerability Intelligence Alert">Vulnerability Intelligence Alert</option>
+                        <option value="Infrastructure Alert" data-cti-label="Infrastructure Alert">Infrastructure Alert</option>
+                        <option value="Hunt Lead" data-cti-label="Hunt Lead">Hunt Lead</option>
+                        <option value="Detection Package" data-cti-label="Detection Package">Detection Package</option>
+                        <option value="Incident Intelligence Support" data-cti-label="Incident Intelligence Support">Incident Intelligence Support</option>
+                        <option value="Investigation Update" data-cti-label="Investigation Update">Investigation Update</option>
+                        <option value="Technical Intelligence Report" data-cti-label="Technical Intelligence Report">Technical Intelligence Report</option>
+                        <option value="Final Intelligence Assessment" data-cti-label="Final Intelligence Assessment">Final Intelligence Assessment</option>
+                    </select>
+                    <p class="fr-field-hint"><!--cti-i18n-->Select the intended intelligence product. This does not hide sections or change the workflow.<!--/cti-i18n--></p>
+                </div>
+                <div class="form-group">
+                    <label><!--cti-i18n-->PIR / Intelligence Requirement<!--/cti-i18n--></label>
+                    <input type="text" id="pir" name="pir" placeholder="Optional intelligence requirement" data-cti-placeholder="Optional intelligence requirement">
+                    <p class="fr-field-hint"><!--cti-i18n-->Optional short reference to the requirement or PIR that started the work.<!--/cti-i18n--></p>
+                </div>
+            </div>
+            <h3 class="fr-subheading"><!--cti-i18n-->Purpose Context<!--/cti-i18n--></h3>
+            <div class="form-group">
+                <label><!--cti-i18n-->Purpose<!--/cti-i18n--> <span class="required">*</span></label>
+                <textarea id="purpose" name="purpose" rows="2" placeholder="Why this product exists." data-cti-placeholder="Why this product exists."></textarea>
+                <p class="fr-field-hint"><!--cti-i18n-->State the decision, investigation, or defensive activity this intelligence should support.<!--/cti-i18n--></p>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Intelligence Requirement<!--/cti-i18n--> <span class="required">*</span></label>
+                <textarea id="intelligence_requirement" name="intelligence_requirement" rows="2" placeholder="Question this product is intended to answer." data-cti-placeholder="Question this product is intended to answer."></textarea>
+                <p class="fr-field-hint"><!--cti-i18n-->Write the specific question the analysis should answer.<!--/cti-i18n--></p>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label><!--cti-i18n-->Requester<!--/cti-i18n--></label>
+                    <input type="text" id="requester" name="requester" placeholder="Optional team or person requesting the product" data-cti-placeholder="Optional team or person requesting the product">
+                </div>
+                <div class="form-group">
+                    <label><!--cti-i18n-->Intended Consumers<!--/cti-i18n--> <span class="required">*</span></label>
+                    <input type="text" id="intended_consumers" name="intended_consumers" placeholder="SOC, CSIRT, Vulnerability Management...">
+                </div>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Decision Requirement<!--/cti-i18n--> <span class="required">*</span></label>
+                <textarea id="decision_requirement" name="decision_requirement" rows="2" placeholder="Decision the consumer should be able to make." data-cti-placeholder="Decision the consumer should be able to make."></textarea>
+                <p class="fr-field-hint"><!--cti-i18n-->Describe the decision the reader should be able to make after using this product.<!--/cti-i18n--></p>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label><!--cti-i18n-->Decision Deadline<!--/cti-i18n--></label>
+                    <input type="datetime-local" id="decision_deadline" name="decision_deadline">
+                </div>
+                <div class="form-group">
+                    <label><!--cti-i18n-->Deadline Reason<!--/cti-i18n--></label>
+                    <input type="text" id="deadline_reason" name="deadline_reason" placeholder="Optional reason for the deadline" data-cti-placeholder="Optional reason for the deadline">
+                </div>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Scope<!--/cti-i18n--> <span class="required">*</span></label>
+                <textarea id="scope" name="scope" rows="3" placeholder="Organizational, technical, temporal, geographic, or sector scope." data-cti-placeholder="Organizational, technical, temporal, geographic, or sector scope."></textarea>
+            </div>
+            <h3 class="fr-subheading"><!--cti-i18n-->Collection / Data Availability Plan<!--/cti-i18n--></h3>
+            <p class="fr-field-hint"><!--cti-i18n-->Plan required telemetry before drawing conclusions. Missing data makes NO_HIT results easier to interpret.<!--/cti-i18n--></p>
+            <div class="fr-table-scroll"><table class="data-table" id="data-availability-table"><thead><tr><th><!--cti-i18n-->Data Source<!--/cti-i18n--></th><th><!--cti-i18n-->Needed<!--/cti-i18n--></th><th><!--cti-i18n-->Available<!--/cti-i18n--></th><th><!--cti-i18n-->Retention<!--/cti-i18n--></th><th><!--cti-i18n-->Coverage<!--/cti-i18n--></th><th><!--cti-i18n-->Limitation<!--/cti-i18n--></th><th class="fr-table-actions" aria-label="Actions" data-cti-aria-label="Actions"></th></tr></thead><tbody><tr><td><input type="text" placeholder="EDR Process, DNS, Proxy..."></td><td><select><option value="YES" data-cti-label="YES">YES</option><option value="NO" data-cti-label="NO">NO</option><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option></select></td><td><select><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="YES" data-cti-label="YES">YES</option><option value="NO" data-cti-label="NO">NO</option><option value="PARTIAL" data-cti-label="PARTIAL">PARTIAL</option></select></td><td><input type="text" placeholder="30d"></td><td><input type="text" placeholder="92% / scoped notes"></td><td><input type="text" placeholder="Known limitation" data-cti-placeholder="Known limitation"></td><td class="fr-table-actions"><button type="button" class="btn-mini" onclick="createGapFromDataAvailability(this)"><!--cti-i18n-->Gap<!--/cti-i18n--></button><button type="button" class="btn-mini" onclick="recordLimitationFromDataAvailability(this)"><!--cti-i18n-->Limit<!--/cti-i18n--></button><button type="button" class="btn-remove" onclick="this.closest('tr').remove(); updateFieldStatus();" aria-label="Remove row">×</button></td></tr></tbody></table></div>
+            <button type="button" class="btn-add" onclick="addDataAvailabilityRow()"><!--cti-i18n-->+ Add Data Source<!--/cti-i18n--></button>
+        </section>
+
+        <!-- BLOCK 2 -->
+        <section class="flash-section" id="block-2">
+            <h2><!--cti-i18n-->2. Subject & Classification<!--/cti-i18n--> <span class="section-status status-empty"><!--cti-i18n-->Incomplete<!--/cti-i18n--></span></h2>
+            <div class="form-group">
+                <label><!--cti-i18n-->Subject<!--/cti-i18n--> <span class="required">*</span></label>
+                <input type="text" id="subject" name="subject" required placeholder="[TYPE] - [PRODUCT] - [STATUS]">
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label><!--cti-i18n-->Threat / Activity Type<!--/cti-i18n--> <span class="required">*</span></label>
+                    <select id="incident_type" name="incident_type" required>
+                        <option value="" data-cti-label="Select...">Select...</option>
+                        <option value="Espionage" data-cti-label="Espionage">Espionage</option><option value="Cybercrime" data-cti-label="Cybercrime">Cybercrime</option><option value="Ransomware" data-cti-label="Ransomware">Ransomware</option>
+                        <option value="Initial Access" data-cti-label="Initial Access">Initial Access</option><option>Exploitation</option><option value="Credential Theft" data-cti-label="Credential Theft">Credential Theft</option><option value="Phishing / Account Takeover" data-cti-label="Phishing / Account Takeover">Phishing / Account Takeover</option>
+                        <option value="Cloud Abuse" data-cti-label="Cloud Abuse">Cloud Abuse</option><option value="Supply Chain" data-cti-label="Supply Chain">Supply Chain</option><option value="Malware Activity" data-cti-label="Malware Activity">Malware Activity</option>
+                        <option value="Infrastructure Activity" data-cti-label="Infrastructure Activity">Infrastructure Activity</option><option value="Unknown" data-cti-label="Unknown">Unknown</option><option value="Other" data-cti-label="Other">Other</option>
+                    </select>
+                </div>
+                <input type="hidden" id="incident_likelihood" value="">
+                <input type="hidden" id="analytic_confidence" value="">
+                <div class="form-group">
+                    <label><!--cti-i18n-->Investigation Status<!--/cti-i18n--> <span class="required">*</span></label>
+                    <select id="investigation_status"><option value="" data-cti-label="Select...">Select...</option><option value="Initial Assessment" data-cti-label="Initial Assessment">Initial Assessment</option><option value="Under Investigation" data-cti-label="Under Investigation">Under Investigation</option><option value="Monitoring" data-cti-label="Monitoring">Monitoring</option><option value="Closed" data-cti-label="Closed">Closed</option><option value="Escalated" data-cti-label="Escalated">Escalated</option></select>
+                </div>
+            </div>
+            <p id="block-2-missing" class="fr-field-hint" hidden></p>
+            <div class="form-group">
+                <label><!--cti-i18n-->Primary CVEs<!--/cti-i18n--></label>
+                <input type="text" id="cves" name="cves" placeholder="CVE-2024-XXXX, CVE-2024-YYYY">
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Actor / Campaign / Cluster<!--/cti-i18n--></label>
+                <input type="text" id="threat_actor" name="threat_actor" list="mitre_groups_list" placeholder="APT29, FIN7, Lazarus Group..." autocomplete="off">
+                <p class="fr-field-hint"><!--cti-i18n-->Actor, campaign, activity cluster, operation, malware family, tool, and infrastructure cluster are not equivalent. External attribution is not internal attribution.<!--/cti-i18n--></p>
+                <p id="threat-actor-hint" class="fr-field-hint" hidden></p>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Attribution Basis<!--/cti-i18n--></label>
+                <select id="attribution_basis" name="attribution_basis">
+                    <option value="Unattributed" data-cti-label="Unattributed">Unattributed</option>
+                    <option value="Reported by Source" data-cti-label="Reported by Source">Reported by Source</option>
+                    <option value="Associated by Source" data-cti-label="Associated by Source">Associated by Source</option>
+                    <option value="Suspected by Analyst" data-cti-label="Suspected by Analyst">Suspected by Analyst</option>
+                    <option value="Internally Assessed Attribution" data-cti-label="Internally Assessed Attribution">Internally Assessed Attribution</option>
+                </select>
+                <p class="fr-field-hint"><!--cti-i18n-->Use this to prevent a source attribution from becoming an ODYSAFE attribution by implication.<!--/cti-i18n--></p>
+            </div>
+        </section>
+
+        <!-- BLOCK 3 -->
+        <section class="flash-section" id="block-3">
+            <h2><!--cti-i18n-->3. Executive Summary<!--/cti-i18n--> <span class="section-status status-empty"><!--cti-i18n-->Incomplete<!--/cti-i18n--></span></h2>
+            <p class="fr-section-note"><!--cti-i18n-->Recommended after completing the analytical assessment.<!--/cti-i18n--></p>
+            <div class="form-group">
+                <label><!--cti-i18n-->Who is Affected?<!--/cti-i18n--></label>
+                <textarea id="affected_entities" name="affected_entities" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->What is the Threat?<!--/cti-i18n--></label>
+                <textarea id="threat_nature" name="threat_nature" rows="2"></textarea>
+            </div>
+            <div class="form-grid-3">
+                <div class="form-group">
+                    <label><!--cti-i18n-->Potential Confidentiality Impact<!--/cti-i18n--></label>
+                    <select id="impact_confidentiality" name="impact_confidentiality">
+                        <option value="None" data-cti-label="None">None</option>
+                        <option value="Low" data-cti-label="Low">Low</option>
+                        <option value="Medium" data-cti-label="Medium">Medium</option>
+                        <option value="High" data-cti-label="High">High</option>
+                        <option value="Critical" data-cti-label="Critical">Critical</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><!--cti-i18n-->Potential Integrity Impact<!--/cti-i18n--></label>
+                    <select id="impact_integrity" name="impact_integrity">
+                        <option value="None" data-cti-label="None">None</option>
+                        <option value="Low" data-cti-label="Low">Low</option>
+                        <option value="Medium" data-cti-label="Medium">Medium</option>
+                        <option value="High" data-cti-label="High">High</option>
+                        <option value="Critical" data-cti-label="Critical">Critical</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><!--cti-i18n-->Potential Availability Impact<!--/cti-i18n--></label>
+                    <select id="impact_availability" name="impact_availability">
+                        <option value="None" data-cti-label="None">None</option>
+                        <option value="Low" data-cti-label="Low">Low</option>
+                        <option value="Medium" data-cti-label="Medium">Medium</option>
+                        <option value="High" data-cti-label="High">High</option>
+                        <option value="Critical" data-cti-label="Critical">Critical</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Urgency & Action Timeframe<!--/cti-i18n--></label>
+                <textarea id="urgency_action" name="urgency_action" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Observed Impact<!--/cti-i18n--></label>
+                <textarea id="observed_impact" name="observed_impact" rows="2" placeholder="Impact actually observed, if any. Leave empty if only potential impact is assessed." data-cti-placeholder="Impact actually observed, if any. Leave empty if only potential impact is assessed."></textarea>
+                <p class="fr-field-hint"><!--cti-i18n-->Potential impact describes what could happen. Observed impact describes what has actually been seen.<!--/cti-i18n--></p>
+            </div>
+            <div class="form-group"><label><!--cti-i18n-->Initial Signal / Trigger<!--/cti-i18n--></label><textarea id="initial_signal" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->Why It Matters<!--/cti-i18n--></label><textarea id="why_it_matters" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->Immediate Action Summary<!--/cti-i18n--></label><textarea id="required_action" rows="2" placeholder="Summarize linked structured actions such as ACTION-001, not a separate instruction."></textarea></div>
+        </section>
+
+        <!-- BLOCK 4 -->
+        <section class="flash-section" id="block-4">
+            <h2><!--cti-i18n-->4. Key Judgements & Analytic Claims<!--/cti-i18n--> <span class="section-status status-empty"><!--cti-i18n-->Incomplete<!--/cti-i18n--></span></h2>
+            <div class="form-group">
+                <label><!--cti-i18n-->Key Judgements<!--/cti-i18n--></label>
+                <div id="takeaways-container">
+                    <div class="takeaway-row">
+	                        <input type="text" class="takeaway-input" placeholder="Analytic judgement for decision makers" data-cti-placeholder="Analytic judgement for decision makers">
+	                        <select class="takeaway-likelihood"><option>N/A</option><option value="Remote Chance" data-cti-label="Remote Chance">Remote Chance</option><option value="Realistic Possibility" data-cti-label="Realistic Possibility">Realistic Possibility</option><option value="Likely" data-cti-label="Likely">Likely</option><option value="Very Likely" data-cti-label="Very Likely">Very Likely</option><option value="Almost Certain" data-cti-label="Almost Certain">Almost Certain</option></select>
+	                        <select class="takeaway-confidence"><option>N/A</option><option value="Low" data-cti-label="Low">Low</option><option value="Moderate" data-cti-label="Moderate">Moderate</option><option value="High" data-cti-label="High">High</option></select>
+	                        <input type="text" class="takeaway-evidence" placeholder="Supporting claim or evidence reference" data-cti-placeholder="Supporting claim or evidence reference">
+                        <button type="button" class="btn-remove" onclick="this.parentElement.remove(); updateFieldStatus();" aria-label="Remove takeaway">×</button>
+                    </div>
+                    <div class="takeaway-row">
+	                        <input type="text" class="takeaway-input" placeholder="Analytic judgement for decision makers" data-cti-placeholder="Analytic judgement for decision makers">
+	                        <select class="takeaway-likelihood"><option>N/A</option><option value="Remote Chance" data-cti-label="Remote Chance">Remote Chance</option><option value="Realistic Possibility" data-cti-label="Realistic Possibility">Realistic Possibility</option><option value="Likely" data-cti-label="Likely">Likely</option><option value="Very Likely" data-cti-label="Very Likely">Very Likely</option><option value="Almost Certain" data-cti-label="Almost Certain">Almost Certain</option></select>
+	                        <select class="takeaway-confidence"><option>N/A</option><option value="Low" data-cti-label="Low">Low</option><option value="Moderate" data-cti-label="Moderate">Moderate</option><option value="High" data-cti-label="High">High</option></select>
+	                        <input type="text" class="takeaway-evidence" placeholder="Supporting claim or evidence reference" data-cti-placeholder="Supporting claim or evidence reference">
+                        <button type="button" class="btn-remove" onclick="this.parentElement.remove(); updateFieldStatus();" aria-label="Remove takeaway">×</button>
+                    </div>
+                    <div class="takeaway-row">
+	                        <input type="text" class="takeaway-input" placeholder="Analytic judgement for decision makers" data-cti-placeholder="Analytic judgement for decision makers">
+	                        <select class="takeaway-likelihood"><option>N/A</option><option value="Remote Chance" data-cti-label="Remote Chance">Remote Chance</option><option value="Realistic Possibility" data-cti-label="Realistic Possibility">Realistic Possibility</option><option value="Likely" data-cti-label="Likely">Likely</option><option value="Very Likely" data-cti-label="Very Likely">Very Likely</option><option value="Almost Certain" data-cti-label="Almost Certain">Almost Certain</option></select>
+	                        <select class="takeaway-confidence"><option>N/A</option><option value="Low" data-cti-label="Low">Low</option><option value="Moderate" data-cti-label="Moderate">Moderate</option><option value="High" data-cti-label="High">High</option></select>
+	                        <input type="text" class="takeaway-evidence" placeholder="Supporting claim or evidence reference" data-cti-placeholder="Supporting claim or evidence reference">
+                        <button type="button" class="btn-remove" onclick="this.parentElement.remove(); updateFieldStatus();" aria-label="Remove takeaway">×</button>
+                    </div>
+                </div>
+                <button type="button" class="btn-add" onclick="addTakeaway()"><!--cti-i18n-->+ Add Takeaway<!--/cti-i18n--></button>
+            </div>
+            <h3 class="fr-subheading"><!--cti-i18n-->Analytic Claims<!--/cti-i18n--></h3>
+            <p class="fr-field-hint"><!--cti-i18n-->Use analytical status for individual claims only. OBSERVED means direct evidence available to the analyst or organization. Vendor-reported observations remain REPORTED. INFERRED requires rationale. UNKNOWN does not mean probably false.<!--/cti-i18n--></p>
+            <div class="fr-table-scroll">
+                <table class="data-table" id="claims-table">
+                    <thead>
+                        <tr>
+                            <th><!--cti-i18n-->Claim<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Status<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Source Refs<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Evidence Refs<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Rationale / Unknown Reason<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Confidence<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Source Role<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Independence<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Depends On<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Conflicts With<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Decision Impact<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Increase Confidence If<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Decrease Confidence If<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Related Gap<!--/cti-i18n--></th>
+                            <th class="fr-table-actions" aria-label="Actions" data-cti-aria-label="Actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <button type="button" class="btn-add" onclick="addClaimRow()"><!--cti-i18n-->+ Add Claim<!--/cti-i18n--></button>
+        </section>
+
+        <!-- BLOCK 5 -->
+        <section class="flash-section" id="block-5">
+            <h2><!--cti-i18n-->5. Context & Timeline<!--/cti-i18n--> <span class="section-status status-empty"><!--cti-i18n-->Incomplete<!--/cti-i18n--></span></h2>
+            <div class="form-group">
+                <label><!--cti-i18n-->Threat History<!--/cti-i18n--></label>
+                <textarea id="threat_history" name="threat_history" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Affected Scope<!--/cti-i18n--></label>
+                <textarea id="affected_scope" name="affected_scope" rows="2"></textarea>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label><!--cti-i18n-->First Observed ITW<!--/cti-i18n--></label>
+                    <input type="datetime-local" id="first_observed" name="first_observed">
+                </div>
+                <div class="form-group">
+                    <label><!--cti-i18n-->Patch Available Date<!--/cti-i18n--></label>
+                    <input type="datetime-local" id="patch_date" name="patch_date">
+                </div>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Timeline Events<!--/cti-i18n--></label>
+                <div class="fr-table-scroll">
+                <table class="data-table" id="timeline-table">
+                    <thead>
+                        <tr><th><!--cti-i18n-->Date/Time UTC<!--/cti-i18n--></th><th><!--cti-i18n-->Event<!--/cti-i18n--></th><th><!--cti-i18n-->Status<!--/cti-i18n--></th><th><!--cti-i18n-->Significance<!--/cti-i18n--></th><th>Source</th><th><!--cti-i18n-->Evidence Reference<!--/cti-i18n--></th><th class="fr-table-actions" aria-label="Actions" data-cti-aria-label="Actions"></th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="datetime-local"></td>
+                            <td><input type="text" placeholder="Event description" data-cti-placeholder="Event description"></td>
+                            <td><select><option value="Observed" data-cti-label="Observed">Observed</option><option value="Reported" data-cti-label="Reported">Reported</option><option value="Assessed" data-cti-label="Assessed">Assessed</option></select></td>
+                            <td>
+                                <select>
+                                    <option value="Critical" data-cti-label="Critical">Critical</option>
+                                    <option value="High" data-cti-label="High">High</option>
+                                    <option value="Medium" data-cti-label="Medium">Medium</option>
+                                    <option value="Low" data-cti-label="Low">Low</option>
+                                </select>
+                            </td>
+                            <td><input type="text" placeholder="Source"></td>
+                            <td><input type="text" placeholder="Evidence reference" data-cti-placeholder="Evidence reference"></td>
+                            <td class="fr-table-actions"><button type="button" class="btn-remove" onclick="this.closest('tr').remove(); updateFieldStatus();" aria-label="Remove row">×</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+                <button type="button" class="btn-add" onclick="addTimelineRow()"><!--cti-i18n-->+ Add Event<!--/cti-i18n--></button>
+            </div>
+        </section>
+
+        <!-- BLOCK 6 -->
+        <section class="flash-section" id="block-6">
+            <h2><!--cti-i18n-->6. Technical Analysis<!--/cti-i18n--> <span class="section-status status-empty"><!--cti-i18n-->Incomplete<!--/cti-i18n--></span></h2>
+
+            <h3 class="fr-subheading">MITRE ATT&CK TTPs</h3>
+            <div class="form-group">
+                <input type="text" id="mitre-search" placeholder="Search MITRE techniques (T1059, PowerShell...)" data-cti-placeholder="Search MITRE techniques (T1059, PowerShell...)" autocomplete="off">
+                <div id="mitre-search-results" style="display: none;"></div>
+                <div id="ttps-container"></div>
+            </div>
+
+            <h3 class="fr-subheading"><!--cti-i18n-->Diamond Model<!--/cti-i18n--></h3>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label><!--cti-i18n-->Adversary<!--/cti-i18n--></label>
+                    <textarea id="diamond_adversary" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Infrastructure</label>
+                    <textarea id="diamond_infrastructure" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label><!--cti-i18n-->Capability<!--/cti-i18n--></label>
+                    <textarea id="diamond_capability" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label><!--cti-i18n-->Victim<!--/cti-i18n--></label>
+                    <textarea id="diamond_victim" rows="2"></textarea>
+                </div>
+            </div>
+
+            <h3 class="fr-subheading"><!--cti-i18n-->Technical Details<!--/cti-i18n--></h3>
+            <div class="form-group">
+                <label><!--cti-i18n-->Attack Vector<!--/cti-i18n--></label>
+                <textarea id="attack_vector" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Malware/Family<!--/cti-i18n--></label>
+                <input type="text" id="malware_family" placeholder="e.g., Cobalt Strike, LockBit, etc.">
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Persistence Mechanisms<!--/cti-i18n--></label>
+                <textarea id="persistence" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->C2 Infrastructure<!--/cti-i18n--></label>
+                <textarea id="c2_infrastructure" rows="3" placeholder="IPs, domains, protocols, certificates..."></textarea>
+            </div>
+            <h3 class="fr-subheading"><!--cti-i18n-->MITRE Details<!--/cti-i18n--></h3>
+            <div class="fr-table-scroll"><table class="data-table" id="mitre-details-table"><thead><tr><th>Technique</th><th>Procedure</th><th><!--cti-i18n-->Status<!--/cti-i18n--></th><th><!--cti-i18n-->Evidence<!--/cti-i18n--></th><th><!--cti-i18n-->Confidence<!--/cti-i18n--></th><th class="fr-table-actions" aria-label="Actions" data-cti-aria-label="Actions"></th></tr></thead><tbody></tbody></table></div>
+            <button type="button" class="btn-add" onclick="addMitreDetailRow()"><!--cti-i18n-->+ Add MITRE Detail<!--/cti-i18n--></button>
+            <div class="form-group">
+                <label><!--cti-i18n-->Anchor / Key Discriminator<!--/cti-i18n--></label>
+                <textarea id="anchor" rows="2" placeholder="Main characteristic currently linking this activity."></textarea>
+            </div>
+            <h3 class="fr-subheading"><!--cti-i18n-->Analytic Reasoning<!--/cti-i18n--></h3>
+            <div class="form-group"><label><!--cti-i18n-->Working Hypothesis<!--/cti-i18n--></label><textarea id="working_hypothesis" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->Evidence For<!--/cti-i18n--></label><textarea id="evidence_for" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->Evidence Against / Contradictions<!--/cti-i18n--></label><textarea id="evidence_against" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->Alternative Explanation<!--/cti-i18n--></label><textarea id="alternative_explanation" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->Next Best Pivot<!--/cti-i18n--></label><textarea id="next_best_pivot" rows="2"></textarea></div>
+            <h3 class="fr-subheading"><!--cti-i18n-->Attack Sequence<!--/cti-i18n--></h3>
+            <div class="fr-table-scroll"><table class="data-table" id="attack-sequence-table"><thead><tr><th><!--cti-i18n-->Step<!--/cti-i18n--></th><th><!--cti-i18n-->Date/Time<!--/cti-i18n--></th><th>Technique</th><th>Procedure</th><th><!--cti-i18n-->Evidence<!--/cti-i18n--></th><th class="fr-table-actions" aria-label="Actions" data-cti-aria-label="Actions"></th></tr></thead><tbody></tbody></table></div>
+            <button type="button" class="btn-add" onclick="addAttackSequenceRow()"><!--cti-i18n-->+ Add Step<!--/cti-i18n--></button>
+        </section>
+
+        <!-- BLOCK 7 -->
+        <section class="flash-section" id="block-7">
+            <h2><!--cti-i18n-->7. Indicators &amp; Artifacts<!--/cti-i18n--> <span class="section-status status-empty"><!--cti-i18n-->Incomplete<!--/cti-i18n--></span></h2>
+            <p class="fr-field-hint"><!--cti-i18n-->Indicator match does not equal compromise. Block Candidate does not mean approved for blocking. Last Seen and Last Validated must remain separate.<!--/cti-i18n--></p>
+            <div class="fr-table-scroll">
+                <table class="data-table" id="iocs-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th><!--cti-i18n-->Value<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Role<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Ownership / Context<!--/cti-i18n--></th>
+                            <th>TLP</th>
+                            <th><!--cti-i18n-->Confidence<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Origin<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->First Seen<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Last Seen<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Last Validated<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Discriminative Value<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->False Positive Risk<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Lifecycle Status<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Recommended Use<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Review Date<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Context / Relationship<!--/cti-i18n--></th>
+                            <th class="fr-table-actions" aria-label="Actions" data-cti-aria-label="Actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <select>
+                                    <option selected value="Unknown" data-cti-label="Unknown">Unknown</option><option>IP</option>
+                                    <option value="Domain" data-cti-label="Domain">Domain</option>
+                                    <option>URL</option>
+                                    <option>Hash_MD5</option>
+                                    <option>Hash_SHA1</option>
+                                    <option>Hash_SHA256</option>
+                                    <option value="Email" data-cti-label="Email">Email</option>
+                                    <option>CIDR</option>
+                                </select>
+                            </td>
+                            <td><input type="text" class="fr-cell-mono" placeholder="Value" data-cti-placeholder="Value"></td>
+                            <td><select><option selected value="Unknown" data-cti-label="Unknown">Unknown</option><option>C2</option><option value="Payload" data-cti-label="Payload">Payload</option><option value="Phishing" data-cti-label="Phishing">Phishing</option><option value="Redirector" data-cti-label="Redirector">Redirector</option><option>Scanner</option><option value="Staging" data-cti-label="Staging">Staging</option><option value="Malware Delivery" data-cti-label="Malware Delivery">Malware Delivery</option><option value="Victim" data-cti-label="Victim">Victim</option></select></td>
+                            <td><select><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="ATTACKER_CONTROLLED" data-cti-label="ATTACKER_CONTROLLED">ATTACKER_CONTROLLED</option><option value="VICTIM_INTERNAL" data-cti-label="VICTIM_INTERNAL">VICTIM_INTERNAL</option><option value="BENIGN_ENVIRONMENT" data-cti-label="BENIGN_ENVIRONMENT">BENIGN_ENVIRONMENT</option></select></td>
+                            <td>
+                                <select>
+                                    <option selected value="Unknown" data-cti-label="Unknown">Unknown</option><option>RED</option>
+                                    <option>AMBER</option>
+                                    <option>GREEN</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select>
+                                    <option selected value="Unknown" data-cti-label="Unknown">Unknown</option><option value="High" data-cti-label="High">High</option>
+                                    <option value="Medium" data-cti-label="Medium">Medium</option>
+                                    <option value="Low" data-cti-label="Low">Low</option>
+                                </select>
+                            </td>
+                            <td><select><option value="Observed" data-cti-label="Observed">Observed</option><option value="Reported" data-cti-label="Reported">Reported</option><option value="Derived" data-cti-label="Derived">Derived</option><option value="Imported" data-cti-label="Imported">Imported</option><option selected value="Unknown" data-cti-label="Unknown">Unknown</option></select></td>
+                            <td><input type="date"></td>
+                            <td><input type="date"></td>
+                            <td><input type="date"></td>
+                            <td><select><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="HIGH" data-cti-label="HIGH">HIGH</option><option value="MEDIUM" data-cti-label="MEDIUM">MEDIUM</option><option value="LOW" data-cti-label="LOW">LOW</option></select></td>
+                            <td><select><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="HIGH" data-cti-label="HIGH">HIGH</option><option value="MEDIUM" data-cti-label="MEDIUM">MEDIUM</option><option value="LOW" data-cti-label="LOW">LOW</option></select></td>
+                            <td><select><option value="Active" data-cti-label="Active">Active</option><option value="Inactive" data-cti-label="Inactive">Inactive</option><option value="Historical" data-cti-label="Historical">Historical</option><option value="Expired" data-cti-label="Expired">Expired</option><option selected value="Unknown" data-cti-label="Unknown">Unknown</option></select></td>
+                            <td><select><option value="Hunt" data-cti-label="Hunt">Hunt</option><option value="Monitor" data-cti-label="Monitor">Monitor</option><option value="Detect" data-cti-label="Detect">Detect</option><option value="Block Candidate" data-cti-label="Block Candidate">Block Candidate</option><option selected value="Enrichment Only" data-cti-label="Enrichment Only">Enrichment Only</option><option value="Do Not Block" data-cti-label="Do Not Block">Do Not Block</option></select></td>
+                            <td><input type="date"></td>
+                            <td>
+                                <input type="text" placeholder="Context / relationship" data-cti-placeholder="Context / relationship">
+                                <details>
+                                    <summary><!--cti-i18n-->References<!--/cti-i18n--></summary>
+                                    <input type="text" name="ioc_source_ref" placeholder="Source Reference" data-cti-placeholder="Source Reference">
+                                    <input type="text" name="ioc_evidence_refs" placeholder="EVID-001" aria-label="Evidence References" data-cti-aria-label="Evidence References">
+                                </details>
+                            </td>
+                            <td class="fr-table-actions"><button type="button" class="btn-remove" onclick="this.closest('tr').remove(); updateFieldStatus();" aria-label="Remove row">×</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="fr-inline-actions">
+                <button type="button" class="btn-add" onclick="addIocRow()"><!--cti-i18n-->+ Add Indicator<!--/cti-i18n--></button>
+                <button type="button" class="btn-add" onclick="openImportIocsModal()"><!--cti-i18n-->Import saved indicators<!--/cti-i18n--></button>
+            </div>
+            <div class="form-group fr-checkbox-row">
+                <input type="checkbox" id="defang_export" name="defang_export" checked>
+                <label for="defang_export" style="margin:0;text-transform:none;font-size:14px;"><!--cti-i18n-->Defang indicators on export (hxxp, [.], etc.)<!--/cti-i18n--></label>
+            </div>
+        </section>
+
+        <!-- BLOCK 8 -->
+        <section class="flash-section" id="block-8">
+            <h2><!--cti-i18n-->8. Detection Rules<!--/cti-i18n--> <span class="section-status status-empty"><!--cti-i18n-->Optional<!--/cti-i18n--></span></h2>
+            <div class="form-group">
+                <div class="rule-container">
+                    <div class="rule-container-header">
+                        <span class="rule-type-badge rule-sigma">SIGMA</span>
+                        <button type="button" class="btn-remove" aria-label="Remove rule">×</button>
+                    </div>
+                    <textarea placeholder="title: Suspicious PowerShell Download&#10;logsource:&#10;  product: windows&#10;  service: powershell&#10;detection:&#10;  selection:&#10;    EventID: 4104&#10;    ScriptBlockText|contains:&#10;      - 'Invoke-Expression'&#10;  condition: selection"></textarea>
+                </div>
+                <div class="rule-container">
+                    <div class="rule-container-header">
+                        <span class="rule-type-badge rule-yara">YARA</span>
+                        <button type="button" class="btn-remove" aria-label="Remove rule">×</button>
+                    </div>
+                    <textarea placeholder="rule Malware_Detection {&#10;    strings:&#10;        $a = \"malicious_string\"&#10;    condition:&#10;        $a&#10;}"></textarea>
+                </div>
+                <div class="rule-container">
+                    <div class="rule-container-header">
+                        <span class="rule-type-badge rule-kql">KQL (Sentinel)</span>
+                        <button type="button" class="btn-remove" aria-label="Remove rule">×</button>
+                    </div>
+                    <textarea placeholder="DeviceProcessEvents&#10;| where ProcessCommandLine contains \"suspicious_command\"&#10;| project Timestamp, DeviceName, ProcessCommandLine"></textarea>
+                </div>
+                <button type="button" class="btn-add" onclick="addDetectionRule()"><!--cti-i18n-->+ Add Detection Rule<!--/cti-i18n--></button>
+                <button type="button" class="btn-add" onclick="checkSigmaCoverage()"><!--cti-i18n-->Check Sigma ATT&amp;CK Mapping<!--/cti-i18n--></button>
+                <div id="sigma-coverage-results" class="fr-field-hint" style="margin-top: 10px;"><!--cti-i18n-->Mapping is based on explicit ATT&amp;CK tags in Sigma rules. A matching rule does not demonstrate effective detection coverage or deployment.<!--/cti-i18n--></div>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group"><label><!--cti-i18n-->Validation Status<!--/cti-i18n--></label><select id="detection_validation_status"><option value="Draft" data-cti-label="Draft">Draft</option><option value="Untested" data-cti-label="Untested">Untested</option><option value="Tested" data-cti-label="Tested">Tested</option><option value="Validated" data-cti-label="Validated">Validated</option></select></div>
+                <div class="form-group"><label><!--cti-i18n-->Required Telemetry<!--/cti-i18n--></label><input type="text" id="detection_telemetry"></div>
+            </div>
+            <div class="form-group"><label><!--cti-i18n-->False Positive Notes<!--/cti-i18n--></label><textarea id="detection_false_positives" rows="2"></textarea></div>
+            <h3 class="fr-subheading"><!--cti-i18n-->Hunt Leads<!--/cti-i18n--></h3>
+            <div id="hunt-leads-container"></div>
+            <button type="button" class="btn-add" onclick="addHuntLead()"><!--cti-i18n-->+ Add Hunt Lead<!--/cti-i18n--></button>
+            <h3 class="fr-subheading"><!--cti-i18n-->Hunt Result<!--/cti-i18n--></h3>
+            <div class="form-group"><label><!--cti-i18n-->Result<!--/cti-i18n--></label><textarea id="hunt_result" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->New Artifacts<!--/cti-i18n--></label><textarea id="hunt_new_artifacts" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->Interpretation<!--/cti-i18n--></label><textarea id="hunt_interpretation" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->Follow-up<!--/cti-i18n--></label><textarea id="hunt_follow_up" rows="2"></textarea></div>
+        </section>
+
+        <!-- BLOCK 9 -->
+        <section class="flash-section" id="block-9">
+            <h2><!--cti-i18n-->9. Actions<!--/cti-i18n--> <span class="section-status status-empty"><!--cti-i18n-->Incomplete<!--/cti-i18n--></span></h2>
+            <p class="fr-field-hint"><!--cti-i18n-->Actions are recommendations until an authorized owner executes them. Expected Outcome is not evidence that the outcome occurred.<!--/cti-i18n--></p>
+            <div class="form-group">
+                <div class="fr-table-scroll">
+                <table class="data-table" id="recommendations-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;"><!--cti-i18n-->Priority<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Action<!--/cti-i18n--></th>
+                            <th style="width: 120px;">Type</th>
+                            <th style="width: 120px;"><!--cti-i18n-->Owner<!--/cti-i18n--></th>
+                            <th style="width: 100px;"><!--cti-i18n-->Due Date<!--/cti-i18n--></th>
+                            <th style="width: 100px;"><!--cti-i18n-->Status<!--/cti-i18n--></th>
+                            <th style="width: 140px;"><!--cti-i18n-->Condition<!--/cti-i18n--></th>
+                            <th style="width: 120px;"><!--cti-i18n-->Linked Claim<!--/cti-i18n--></th>
+                            <th style="width: 120px;"><!--cti-i18n-->Linked Gap<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Expected Outcome<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Completion Evidence<!--/cti-i18n--></th>
+                            <th class="fr-table-actions" aria-label="Actions" data-cti-aria-label="Actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <select>
+                                    <option value="Immediate" data-cti-label="Immediate">Immediate</option>
+                                    <option value="Short" data-cti-label="Short term">Short term</option>
+                                    <option value="Medium" data-cti-label="Medium term">Medium term</option>
+                                </select>
+                            </td>
+                            <td><input type="text" placeholder="Action description" data-cti-placeholder="Action description"></td>
+                            <td>
+                                <select>
+                                    <option value="Patch" data-cti-label="Patch">Patch</option>
+                                    <option value="Block" data-cti-label="Block">Block</option>
+                                    <option value="Monitor" data-cti-label="Monitor">Monitor</option>
+                                    <option value="Isolate" data-cti-label="Isolate">Isolate</option>
+                                    <option value="Hunt" data-cti-label="Hunt">Hunt</option>
+                                    <option value="Notify" data-cti-label="Notify">Notify</option>
+                                    <option value="Escalate" data-cti-label="Escalate">Escalate</option>
+                                </select>
+                            </td>
+                            <td><input type="text" placeholder="Team/Person" data-cti-placeholder="Team/Person"></td>
+                            <td><input type="date"></td>
+                            <td>
+                                <select>
+                                    <option value="Todo" data-cti-label="Todo">Todo</option>
+                                    <option value="In Progress" data-cti-label="In Progress">In Progress</option>
+                                    <option value="Blocked" data-cti-label="Blocked">Blocked</option>
+                                    <option value="Done" data-cti-label="Done">Done</option>
+                                    <option value="Cancelled" data-cti-label="Cancelled">Cancelled</option>
+                                </select>
+                            </td>
+                            <td><select><option value="Do Now" data-cti-label="Do Now">Do Now</option><option value="Do If Confirmed" data-cti-label="Do If Confirmed">Do If Confirmed</option><option value="Monitor" data-cti-label="Monitor">Monitor</option><option value="Optional" data-cti-label="Optional">Optional</option></select></td>
+                            <td><input type="text" placeholder="CLAIM-001"></td>
+                            <td><input type="text" placeholder="GAP-001"></td>
+                            <td><input type="text" placeholder="Expected outcome" data-cti-placeholder="Expected outcome"></td>
+                            <td><input type="text" placeholder="Evidence of completion" data-cti-placeholder="Evidence of completion"></td>
+                            <td class="fr-table-actions"><button type="button" class="btn-remove" onclick="this.closest('tr').remove(); updateFieldStatus();" aria-label="Remove row">×</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+                <button type="button" class="btn-add" onclick="addRecommendationRow()"><!--cti-i18n-->+ Add Action<!--/cti-i18n--></button>
+            </div>
+        </section>
+
+        <!-- BLOCK 10 -->
+        <section class="flash-section" id="block-10">
+            <h2><!--cti-i18n-->10. Intelligence Gaps & Investigation<!--/cti-i18n--> <span class="section-status status-empty"><!--cti-i18n-->Optional<!--/cti-i18n--></span></h2>
+            <div class="form-group">
+                <label><!--cti-i18n-->Intelligence Gaps<!--/cti-i18n--></label>
+                <textarea id="known_unknowns" rows="3" placeholder="What we don't know yet (e.g., 'Attribution not confirmed', 'C2 infrastructure partially identified')..."></textarea>
+            </div>
+            <div class="fr-table-scroll"><table class="data-table" id="gaps-table"><thead><tr><th><!--cti-i18n-->Gap ID<!--/cti-i18n--></th><th><!--cti-i18n-->Question<!--/cti-i18n--></th><th><!--cti-i18n-->Linked Requirement<!--/cti-i18n--></th><th><!--cti-i18n-->Related Claim<!--/cti-i18n--></th><th><!--cti-i18n-->Why It Matters<!--/cti-i18n--></th><th><!--cti-i18n-->Priority<!--/cti-i18n--></th><th><!--cti-i18n-->What would resolve it?<!--/cti-i18n--></th><th><!--cti-i18n-->Owner<!--/cti-i18n--></th><th><!--cti-i18n-->Status<!--/cti-i18n--></th><th><!--cti-i18n-->Resolution Summary<!--/cti-i18n--></th><th><!--cti-i18n-->Resolved By Refs<!--/cti-i18n--></th><th><!--cti-i18n-->Resolved At<!--/cti-i18n--></th><th class="fr-table-actions" aria-label="Actions" data-cti-aria-label="Actions"></th></tr></thead><tbody></tbody></table></div>
+            <button type="button" class="btn-add" onclick="addGapRow()"><!--cti-i18n-->+ Add Gap<!--/cti-i18n--></button>
+            <div class="form-group">
+                <label><!--cti-i18n-->Open Questions for Hunt Teams<!--/cti-i18n--></label>
+                <textarea id="hunt_questions" rows="3" placeholder="Questions for threat hunting teams to investigate..."></textarea>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->RFIs Generated<!--/cti-i18n--></label>
+                <textarea id="rfis" rows="2" placeholder="Requests for Information sent to partners, CERTs, etc."></textarea>
+            </div>
+            <h3 class="fr-subheading"><!--cti-i18n-->Investigation Journal<!--/cti-i18n--></h3>
+            <p class="fr-field-hint">Record what was checked, where, and with which limitations. NO_HIT means no match in the stated scope; it does not prove absence of activity.</p>
+            <div class="fr-inline-actions">
+                <button type="button" class="btn-add" onclick="addJournalQuickEntry('DNS Pivot')"><!--cti-i18n-->+ DNS Pivot<!--/cti-i18n--></button>
+                <button type="button" class="btn-add" onclick="addJournalQuickEntry('WHOIS Check')"><!--cti-i18n-->+ WHOIS Check<!--/cti-i18n--></button>
+                <button type="button" class="btn-add" onclick="addJournalQuickEntry('SIEM Search')"><!--cti-i18n-->+ SIEM Search<!--/cti-i18n--></button>
+                <button type="button" class="btn-add" onclick="addJournalQuickEntry('Passive DNS')"><!--cti-i18n-->+ Passive DNS<!--/cti-i18n--></button>
+                <button type="button" class="btn-add" onclick="addJournalQuickEntry('Source Verification')"><!--cti-i18n-->+ Source Verification<!--/cti-i18n--></button>
+            </div>
+            <div class="fr-table-scroll"><table class="data-table" id="investigation-journal-table"><thead><tr><th><!--cti-i18n-->Entry ID<!--/cti-i18n--></th><th>Type</th><th><!--cti-i18n-->Performed At<!--/cti-i18n--></th><th><!--cti-i18n-->Analyst<!--/cti-i18n--></th><th><!--cti-i18n-->Input / Ref<!--/cti-i18n--></th><th>Operation</th><th><!--cti-i18n-->Tool / Source<!--/cti-i18n--></th><th><!--cti-i18n-->Method / Query<!--/cti-i18n--></th><th><!--cti-i18n-->Scope<!--/cti-i18n--></th><th><!--cti-i18n-->Time Window<!--/cti-i18n--></th><th><!--cti-i18n-->Result<!--/cti-i18n--></th><th><!--cti-i18n-->Summary<!--/cti-i18n--></th><th><!--cti-i18n-->Coverage<!--/cti-i18n--></th><th><!--cti-i18n-->Limitations<!--/cti-i18n--></th><th><!--cti-i18n-->Outputs<!--/cti-i18n--></th><th><!--cti-i18n-->Next Step<!--/cti-i18n--></th><th class="fr-table-actions" aria-label="Actions" data-cti-aria-label="Actions"></th></tr></thead><tbody></tbody></table></div>
+            <button type="button" class="btn-add" onclick="addJournalRow()"><!--cti-i18n-->+ Add Journal Entry<!--/cti-i18n--></button>
+            <h3 class="fr-subheading"><!--cti-i18n-->Investigation Handoff<!--/cti-i18n--></h3>
+            <div class="form-group"><label><!--cti-i18n-->Current Situation<!--/cti-i18n--></label><textarea id="handoff_current_situation" rows="2"></textarea></div>
+            <div class="form-grid-2">
+                <div class="form-group"><label><!--cti-i18n-->Selected Established Assessments<!--/cti-i18n--></label><input type="text" id="handoff_established_assessments" placeholder="CLAIM-001, CLAIM-004"></div>
+                <div class="form-group"><label><!--cti-i18n-->Outstanding Questions<!--/cti-i18n--></label><input type="text" id="handoff_outstanding_questions" placeholder="GAP-001, GAP-003"></div>
+            </div>
+            <div class="form-group"><label><!--cti-i18n-->Next Recommended Step<!--/cti-i18n--></label><textarea id="handoff_next_step" rows="2"></textarea></div>
+            <div class="form-grid-2">
+                <div class="form-group"><label><!--cti-i18n-->Blocked By<!--/cti-i18n--></label><input type="text" id="handoff_blocked_by"></div>
+                <div class="form-group"><label><!--cti-i18n-->Current Owner<!--/cti-i18n--></label><input type="text" id="handoff_owner"></div>
+            </div>
+            <div class="form-group"><label><!--cti-i18n-->Special Warning / Context<!--/cti-i18n--></label><textarea id="handoff_warning" rows="2"></textarea></div>
+        </section>
+
+        <!-- BLOCK 11 -->
+        <section class="flash-section" id="block-11">
+            <h2><!--cti-i18n-->11. Assessment & Confidence<!--/cti-i18n--> <span class="section-status status-empty"><!--cti-i18n-->Optional<!--/cti-i18n--></span></h2>
+            <div class="form-group">
+                <label><!--cti-i18n-->Overall Probability Assessment<!--/cti-i18n--></label>
+                <select id="overall_likelihood"><option value="" data-cti-label="Select...">Select...</option><option>N/A</option><option value="Almost Certain" data-cti-label="Almost Certain">Almost Certain</option><option value="Highly Likely" data-cti-label="Highly Likely">Highly Likely</option><option value="Likely" data-cti-label="Likely">Likely</option><option value="Realistic Possibility" data-cti-label="Realistic Possibility">Realistic Possibility</option><option value="Unlikely" data-cti-label="Unlikely">Unlikely</option><option value="Unknown" data-cti-label="Unknown">Unknown</option></select>
+                <p class="fr-field-hint">Use N/A when this product does not make a probability assessment.</p>
+            </div>
+            <div class="form-group"><label><!--cti-i18n-->Analytic Confidence<!--/cti-i18n--></label><select id="overall_analytic_confidence"><option value="" data-cti-label="Select...">Select...</option><option value="High" data-cti-label="High">High</option><option value="Moderate" data-cti-label="Moderate">Moderate</option><option value="Low" data-cti-label="Low">Low</option></select></div>
+            <div class="form-group"><label><!--cti-i18n-->Confidence Rationale<!--/cti-i18n--></label><textarea id="confidence_rationale" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->Key Assumptions<!--/cti-i18n--></label><textarea id="key_assumptions" rows="2"></textarea></div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Contradictions / Alternative Explanations<!--/cti-i18n--></label>
+                <textarea id="biases" rows="2" placeholder="Any biases that may affect this assessment..."></textarea>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Confidence by Section<!--/cti-i18n--></label>
+                <textarea id="section_confidence" rows="2" placeholder="E.g., Attribution: Low, Technical Analysis: High, Impact Assessment: Medium..."></textarea>
+            </div>
+            <h3 class="fr-subheading"><!--cti-i18n-->Internal Relevance<!--/cti-i18n--></h3>
+            <p class="fr-field-hint">Internal Relevance is not global threat severity. Technology present does not automatically mean high relevance, and Internal Observation does not automatically mean compromise.</p>
+            <div class="form-grid-3">
+                <div class="form-group"><label><!--cti-i18n-->Technology Used Internally<!--/cti-i18n--></label><select id="rel_technology"><option value="NOT_ASSESSED" data-cti-label="NOT_ASSESSED">NOT_ASSESSED</option><option value="YES" data-cti-label="YES">YES</option><option value="NO" data-cti-label="NO">NO</option><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="NOT_APPLICABLE" data-cti-label="NOT_APPLICABLE">NOT_APPLICABLE</option></select></div>
+                <div class="form-group"><label><!--cti-i18n-->Affected Version Present<!--/cti-i18n--></label><select id="rel_affected_version"><option value="NOT_ASSESSED" data-cti-label="NOT_ASSESSED">NOT_ASSESSED</option><option value="YES" data-cti-label="YES">YES</option><option value="NO" data-cti-label="NO">NO</option><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="NOT_APPLICABLE" data-cti-label="NOT_APPLICABLE">NOT_APPLICABLE</option></select></div>
+                <div class="form-group"><label><!--cti-i18n-->Internet Exposure<!--/cti-i18n--></label><select id="rel_internet_exposure"><option value="NOT_ASSESSED" data-cti-label="NOT_ASSESSED">NOT_ASSESSED</option><option value="YES" data-cti-label="YES">YES</option><option value="NO" data-cti-label="NO">NO</option><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="NOT_APPLICABLE" data-cti-label="NOT_APPLICABLE">NOT_APPLICABLE</option></select></div>
+                <div class="form-group"><label><!--cti-i18n-->Sector Relevance<!--/cti-i18n--></label><select id="rel_sector"><option value="NOT_ASSESSED" data-cti-label="NOT_ASSESSED">NOT_ASSESSED</option><option value="YES" data-cti-label="YES">YES</option><option value="NO" data-cti-label="NO">NO</option><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="NOT_APPLICABLE" data-cti-label="NOT_APPLICABLE">NOT_APPLICABLE</option></select></div>
+                <div class="form-group"><label><!--cti-i18n-->Geographic Relevance<!--/cti-i18n--></label><select id="rel_geographic"><option value="NOT_ASSESSED" data-cti-label="NOT_ASSESSED">NOT_ASSESSED</option><option value="YES" data-cti-label="YES">YES</option><option value="NO" data-cti-label="NO">NO</option><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="NOT_APPLICABLE" data-cti-label="NOT_APPLICABLE">NOT_APPLICABLE</option></select></div>
+                <div class="form-group"><label><!--cti-i18n-->Supplier Relevance<!--/cti-i18n--></label><select id="rel_supplier"><option value="NOT_ASSESSED" data-cti-label="NOT_ASSESSED">NOT_ASSESSED</option><option value="YES" data-cti-label="YES">YES</option><option value="NO" data-cti-label="NO">NO</option><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="NOT_APPLICABLE" data-cti-label="NOT_APPLICABLE">NOT_APPLICABLE</option></select></div>
+                <div class="form-group"><label><!--cti-i18n-->Internal Observation<!--/cti-i18n--></label><select id="rel_internal_observation"><option value="NOT_ASSESSED" data-cti-label="NOT_ASSESSED">NOT_ASSESSED</option><option value="YES" data-cti-label="YES">YES</option><option value="NO" data-cti-label="NO">NO</option><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="NOT_APPLICABLE" data-cti-label="NOT_APPLICABLE">NOT_APPLICABLE</option></select></div>
+                <div class="form-group"><label><!--cti-i18n-->Overall Relevance<!--/cti-i18n--></label><select id="rel_overall"><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="HIGH" data-cti-label="HIGH">HIGH</option><option value="MEDIUM" data-cti-label="MEDIUM">MEDIUM</option><option value="LOW" data-cti-label="LOW">LOW</option></select></div>
+                <div class="form-group"><label><!--cti-i18n-->Relevance Decision<!--/cti-i18n--></label><select id="rel_decision"><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="DROP" data-cti-label="DROP">DROP</option><option value="MONITOR" data-cti-label="MONITOR">MONITOR</option><option value="INVESTIGATE" data-cti-label="INVESTIGATE">INVESTIGATE</option><option value="IMMEDIATE_ACTION" data-cti-label="IMMEDIATE_ACTION">IMMEDIATE_ACTION</option></select></div>
+                <div class="form-group"><label><!--cti-i18n-->Assessed By<!--/cti-i18n--></label><input type="text" id="rel_assessed_by" placeholder="Analyst or team" data-cti-placeholder="Analyst or team"></div>
+                <div class="form-group"><label><!--cti-i18n-->Assessed At<!--/cti-i18n--></label><input type="datetime-local" id="rel_assessed_at"></div>
+            </div>
+            <div class="form-group"><label><!--cti-i18n-->Internal Relevance Rationale<!--/cti-i18n--></label><textarea id="rel_rationale" rows="2"></textarea></div>
+        </section>
+
+        <!-- BLOCK 12 -->
+        <section class="flash-section" id="block-12">
+            <h2><!--cti-i18n-->12. Sources<!--/cti-i18n--> <span class="section-status status-empty"><!--cti-i18n-->Incomplete<!--/cti-i18n--></span></h2>
+            <div class="form-group">
+                <div class="fr-table-scroll">
+                <table class="data-table" id="sources-table">
+                    <thead>
+                        <tr>
+                            <th><!--cti-i18n-->Source Name<!--/cti-i18n--></th>
+                            <th style="width: 80px;">TLP</th>
+                            <th style="width: 100px;"><!--cti-i18n-->Reliability<!--/cti-i18n--></th>
+                            <th style="width: 120px;"><!--cti-i18n-->Information Credibility<!--/cti-i18n--></th>
+                            <th style="width: 130px;">Date</th>
+                            <th><!--cti-i18n-->URL/Reference<!--/cti-i18n--></th>
+                            <th style="width: 120px;">Type</th>
+                            <th style="width: 120px;">Provenance</th>
+                            <th style="width: 120px;"><!--cti-i18n-->Relationship<!--/cti-i18n--></th>
+                            <th class="fr-table-actions" aria-label="Actions" data-cti-aria-label="Actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="text" placeholder="Source name" data-cti-placeholder="Source name"></td>
+                            <td>
+                                <select>
+                                    <option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option>RED</option>
+                                    <option>AMBER</option>
+                                    <option>GREEN</option>
+                                    <option>CLEAR</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select>
+                                    <option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option>A</option>
+                                    <option>B</option>
+                                    <option>C</option>
+                                    <option>D</option>
+                                    <option>E</option>
+                                </select>
+                            </td>
+                            <td><select><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="HIGH" data-cti-label="HIGH">HIGH</option><option value="MEDIUM" data-cti-label="MEDIUM">MEDIUM</option><option value="LOW" data-cti-label="LOW">LOW</option></select></td>
+                            <td><input type="date"></td>
+                            <td><input type="text" list="cti_urls_list" placeholder="https://..."></td>
+                            <td>
+                                <select>
+	                                    <option value="INTERNAL_TELEMETRY" data-cti-label="INTERNAL_TELEMETRY">INTERNAL_TELEMETRY</option>
+	                                    <option value="HUMAN_REPORT" data-cti-label="HUMAN_REPORT">HUMAN_REPORT</option>
+	                                    <option value="INCIDENT_RECORD" data-cti-label="INCIDENT_RECORD">INCIDENT_RECORD</option>
+	                                    <option value="ADVISORY" data-cti-label="ADVISORY">ADVISORY</option>
+	                                    <option value="VENDOR_REPORT" data-cti-label="VENDOR_REPORT">VENDOR_REPORT</option>
+	                                    <option>OSINT</option>
+	                                    <option value="OTHER" data-cti-label="OTHER">OTHER</option>
+                                </select>
+                            </td>
+                            <td><select><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="Primary" data-cti-label="Primary">Primary</option><option value="Secondary" data-cti-label="Secondary">Secondary</option></select></td>
+                            <td><select><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option>Direct</option><option value="Derived" data-cti-label="Derived">Derived</option><option value="Cited" data-cti-label="Cited">Cited</option></select></td>
+                            <td class="fr-table-actions"><button type="button" class="btn-remove" onclick="this.closest('tr').remove(); updateFieldStatus();" aria-label="Remove row">×</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+                <button type="button" class="btn-add" onclick="addSourceRow()"><!--cti-i18n-->+ Add Source<!--/cti-i18n--></button>
+                <div class="form-group" style="margin-top:16px;">
+                    <label for="report-source-search"><!--cti-i18n-->Import extracted indicators from a saved source<!--/cti-i18n--></label>
+                    <div class="fr-search-row">
+                        <input type="text" id="report-source-search" list="report-source-options" placeholder="Choose a source that contains extracted indicators" data-cti-placeholder="Choose a source that contains extracted indicators" autocomplete="off">
+                        <datalist id="report-source-options"></datalist>
+                        <button type="button" class="fr-btn fr-btn-secondary" id="report-import-source-btn" onclick="importReportSourceWithIndicators()"><!--cti-i18n-->Import source + indicators<!--/cti-i18n--></button>
+                    </div>
+	                    <p id="report-source-status" class="fr-field-hint"><!--cti-i18n-->Choose one saved source. ODYSAFE will add the source reference and import its extracted indicators into the Indicators section.<!--/cti-i18n--></p>
+	                    <div id="report-source-ioc-results" class="fr-search-results" style="display:none;"></div>
+	                    <h3 class="fr-subheading"><!--cti-i18n-->Evidence Register<!--/cti-i18n--></h3>
+	                    <p class="fr-field-hint"><!--cti-i18n-->Use this register to make EVID-* references resolvable. Evidence entries should point back to source references when possible.<!--/cti-i18n--></p>
+	                    <div class="fr-table-scroll">
+	                        <table class="data-table" id="evidence-table">
+	                            <thead>
+	                                <tr>
+	                                    <th><!--cti-i18n-->Evidence ID<!--/cti-i18n--></th>
+	                                    <th>Type</th>
+	                                    <th><!--cti-i18n-->Description<!--/cti-i18n--></th>
+	                                    <th>Source</th>
+	                                    <th><!--cti-i18n-->Observed At<!--/cti-i18n--></th>
+	                                    <th><!--cti-i18n-->Location / Reference<!--/cti-i18n--></th>
+	                                    <th><!--cti-i18n-->Collected By<!--/cti-i18n--></th>
+	                                    <th><!--cti-i18n-->Integrity / Hash<!--/cti-i18n--></th>
+	                                    <th><!--cti-i18n-->Notes<!--/cti-i18n--></th>
+	                                    <th class="fr-table-actions" aria-label="Actions" data-cti-aria-label="Actions"></th>
+	                                </tr>
+	                            </thead>
+	                            <tbody></tbody>
+	                        </table>
+	                    </div>
+	                    <button type="button" class="btn-add" onclick="addEvidenceRow()"><!--cti-i18n-->+ Add Evidence<!--/cti-i18n--></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- BLOCK 13 -->
+        <section class="flash-section" id="block-13">
+            <h2><!--cti-i18n-->13. Distribution<!--/cti-i18n--> <span class="section-status status-empty"><!--cti-i18n-->Incomplete<!--/cti-i18n--></span></h2>
+            <h3 class="fr-subheading"><!--cti-i18n-->Sharing Review<!--/cti-i18n--></h3>
+            <p class="fr-field-hint"><!--cti-i18n-->ODYSAFE flags sensitive sharing checks; the analyst decides what can be shared.<!--/cti-i18n--></p>
+            <div id="sharing-review-warning" class="fr-inline-warning" style="display:none;"><!--cti-i18n-->Sharing review is outdated because the workspace changed after review.<!--/cti-i18n--></div>
+            <div class="form-grid-2">
+                <label class="fr-checkbox-row"><input type="checkbox" id="share_internal_hostnames"> <!--cti-i18n-->Internal hostnames reviewed<!--/cti-i18n--></label>
+                <label class="fr-checkbox-row"><input type="checkbox" id="share_internal_ips"> <!--cti-i18n-->Internal IPs reviewed<!--/cti-i18n--></label>
+                <label class="fr-checkbox-row"><input type="checkbox" id="share_user_identifiers"> <!--cti-i18n-->Employee/user identifiers reviewed<!--/cti-i18n--></label>
+                <label class="fr-checkbox-row"><input type="checkbox" id="share_email_addresses"> <!--cti-i18n-->Email addresses reviewed<!--/cti-i18n--></label>
+                <label class="fr-checkbox-row"><input type="checkbox" id="share_victim_infrastructure"> <!--cti-i18n-->Victim infrastructure reviewed<!--/cti-i18n--></label>
+                <label class="fr-checkbox-row"><input type="checkbox" id="share_sensitive_evidence"> <!--cti-i18n-->Sensitive evidence reviewed<!--/cti-i18n--></label>
+                <label class="fr-checkbox-row"><input type="checkbox" id="share_tlp_verified"> <!--cti-i18n-->TLP verified<!--/cti-i18n--></label>
+                <label class="fr-checkbox-row"><input type="checkbox" id="share_recipients_verified"> <!--cti-i18n-->Named recipients verified when required<!--/cti-i18n--></label>
+                <label class="fr-checkbox-row"><input type="checkbox" id="share_defanging_verified"> <!--cti-i18n-->Defanging verified if applicable<!--/cti-i18n--></label>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group"><label><!--cti-i18n-->Reviewed By<!--/cti-i18n--></label><input type="text" id="sharing_reviewed_by"></div>
+                <div class="form-group"><label><!--cti-i18n-->Reviewed At<!--/cti-i18n--></label><input type="datetime-local" id="sharing_reviewed_at"></div>
+            </div>
+            <div class="form-group"><label><!--cti-i18n-->Sharing Review Notes<!--/cti-i18n--></label><textarea id="sharing_review_notes" rows="2"></textarea></div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Named Recipients (required for TLP:RED)<!--/cti-i18n--></label>
+                <div class="fr-table-scroll">
+                <table class="data-table" id="recipients-table">
+                    <thead>
+                        <tr>
+                            <th><!--cti-i18n-->Name<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Role/Function<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Organization<!--/cti-i18n--></th>
+                            <th><!--cti-i18n-->Email<!--/cti-i18n--></th>
+                            <th class="fr-table-actions" aria-label="Actions" data-cti-aria-label="Actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="text" placeholder="Full name" data-cti-placeholder="Full name"></td>
+                            <td><input type="text" placeholder="CISO, SOC Lead..."></td>
+                            <td><input type="text" placeholder="Organization" data-cti-placeholder="Organization"></td>
+                            <td><input type="email" placeholder="email@org.com"></td>
+                            <td class="fr-table-actions"><button type="button" class="btn-remove" onclick="this.closest('tr').remove(); updateFieldStatus();" aria-label="Remove row">×</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+                <button type="button" class="btn-add" onclick="addRecipientRow()"><!--cti-i18n-->+ Add Recipient<!--/cti-i18n--></button>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Feedback Contact<!--/cti-i18n--></label>
+                <input type="email" id="feedback_contact" placeholder="cti-team@organization.com">
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Handling Instructions<!--/cti-i18n--></label>
+                <textarea id="distribution_handling" rows="2" placeholder="Do not forward, Do not print, Named recipients only..."></textarea>
+            </div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Disclaimer<!--/cti-i18n--></label>
+                <textarea id="disclaimer" rows="2" placeholder="Legal/operational disclaimer for external distribution..."></textarea>
+            </div>
+            <h3 class="fr-subheading"><!--cti-i18n-->Feedback / Closure<!--/cti-i18n--></h3>
+            <div class="form-grid-2">
+                <div class="form-group"><label><!--cti-i18n-->Requirement Answered?<!--/cti-i18n--></label><select id="closure_requirement_answered"><option value="UNKNOWN" data-cti-label="UNKNOWN">UNKNOWN</option><option value="YES" data-cti-label="YES">YES</option><option value="PARTIAL" data-cti-label="PARTIAL">PARTIAL</option><option value="NO" data-cti-label="NO">NO</option></select></div>
+                <div class="form-group"><label><!--cti-i18n-->Closed At<!--/cti-i18n--></label><input type="datetime-local" id="closure_closed_at"></div>
+            </div>
+            <div class="form-group"><label><!--cti-i18n-->Decision Supported<!--/cti-i18n--></label><textarea id="closure_decision_supported" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->Operational Outcome<!--/cti-i18n--></label><textarea id="closure_operational_outcome" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->Actions Executed<!--/cti-i18n--></label><input type="text" id="closure_actions_executed" placeholder="ACTION-001, ACTION-004"></div>
+            <div class="form-group"><label><!--cti-i18n-->Remaining Gaps<!--/cti-i18n--></label><input type="text" id="closure_remaining_gaps" placeholder="GAP-009, GAP-012"></div>
+            <div class="form-group"><label><!--cti-i18n-->Consumer Feedback<!--/cti-i18n--></label><textarea id="closure_consumer_feedback" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->What Worked<!--/cti-i18n--></label><textarea id="closure_what_worked" rows="2"></textarea></div>
+            <div class="form-group"><label><!--cti-i18n-->What Should Change Next Time<!--/cti-i18n--></label><textarea id="closure_change_next_time" rows="2"></textarea></div>
+        </section>
+        </div>
+    </form>
+
+    <div class="fr-section-nav">
+        <button type="button" class="fr-btn fr-btn-ghost" id="fr-prev-section" onclick="navigateSection(-1)" disabled><!--cti-i18n-->Previous<!--/cti-i18n--></button>
+        <button type="button" class="fr-btn fr-btn-secondary" id="fr-next-section" onclick="navigateSection(1)"><!--cti-i18n-->Next<!--/cti-i18n--></button>
+    </div>
+        </div>
+    </div>
+
+    <datalist id="mitre_groups_list"></datalist>
+    <datalist id="cti_urls_list"></datalist>
+
+    <div class="fr-modal-overlay" id="import-iocs-modal" onclick="if(event.target===this)closeImportIocsModal()">
+        <div class="fr-modal">
+            <h3><!--cti-i18n-->Import Indicators &amp; Artifacts<!--/cti-i18n--></h3>
+            <div class="form-group">
+                <label for="import-source-select">Source</label>
+                <div class="fr-search-row">
+                    <select id="import-source-select">
+                        <option value="" data-cti-label="Choose a source">Choose a source</option>
+                    </select>
+                    <button type="button" class="fr-btn fr-btn-secondary" id="btn-import-source-iocs" onclick="importAllIocsFromSource()" disabled><!--cti-i18n-->Import all from source<!--/cti-i18n--></button>
+                </div>
+                <div id="import-source-ioc-results" class="fr-search-results"><div class="fr-search-results-empty"><!--cti-i18n-->Choose a source to list its indicators<!--/cti-i18n--></div></div>
+            </div>
+            <div class="fr-modal-divider"><!--cti-i18n-->or<!--/cti-i18n--></div>
+            <div class="form-group">
+                <label><!--cti-i18n-->Search individual indicators<!--/cti-i18n--></label>
+                <div class="fr-search-row">
+                    <input type="text" id="import-ioc-search-input" placeholder="Search by value or type" data-cti-placeholder="Search by value or type">
+                    <button type="button" class="fr-btn fr-btn-secondary" onclick="searchIndividualIocs()"><!--cti-i18n-->Search<!--/cti-i18n--></button>
+                </div>
+                <div id="import-ioc-search-results" class="fr-search-results">
+                    <div class="fr-search-results-empty"><!--cti-i18n-->Search to find indicators<!--/cti-i18n--></div>
+                </div>
+            </div>
+            <div class="fr-modal-footer">
+                <button type="button" class="fr-btn fr-btn-ghost" onclick="closeImportIocsModal()"><!--cti-i18n-->Close<!--/cti-i18n--></button>
+                <button type="button" class="fr-btn fr-btn-primary" id="btn-import-checked-iocs" style="display:none;" onclick="importCheckedIocs()"><!--cti-i18n-->Import selected (<!--/cti-i18n--><span id="checked-iocs-count">0</span>)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="fr-drawer-overlay" id="fr-drawer-overlay" onclick="closeHistoryDrawer()"></div>
+    <aside class="fr-drawer" id="fr-history-drawer">
+        <div class="fr-drawer-header">
+            <h3><!--cti-i18n-->Saved reports<!--/cti-i18n--></h3>
+            <button type="button" class="btn-remove" onclick="closeHistoryDrawer()" aria-label="Close" data-cti-aria-label="Close">×</button>
+        </div>
+        <div class="fr-drawer-body">
+            <div class="reports-list" id="reports-list"></div>
+        </div>
+    </aside>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/flash_report.js') }}"></script>
+{% endblock %}

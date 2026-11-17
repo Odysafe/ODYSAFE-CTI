@@ -1,0 +1,144 @@
+#!/bin/sh
+set -eu
+. "$(dirname "$0")/tools/common.sh"
+
+usage='Usage: ./start.dh [--build | --build-only | --offline | --online] [--https | --http]'
+mode=
+transport=
+for arg do
+    case "$arg" in
+        --build|--build-only|--offline|--online)
+            [ -z "$mode" ] || fail "$usage"
+            mode=$arg
+            ;;
+        --https|--http)
+            [ -z "$transport" ] || fail "$usage"
+            transport=${arg#--}
+            ;;
+        *) fail "$usage" ;;
+    esac
+done
+
+docker_server_version=$(docker version --format '{{.Server.Version}}')
+docker_major=${docker_server_version%%.*}
+case "$docker_major" in
+    ''|*[!0-9]*) fail "Cannot identify Docker Engine version: $docker_server_version" ;;
+esac
+[ "$docker_major" -ge 28 ] || fail 'Docker Engine 28+ is required for loopback-only port publishing.'
+docker compose version >/dev/null
+
+export CTI_NETWORK=connected CTI_ALLOW_REMOTE=1
+if [ "$mode" = --offline ]; then
+    export CTI_NETWORK=isolated CTI_ALLOW_REMOTE=0
+fi
+
+if [ "$mode" = --offline ] || { [ ! -f "$CTI_ROOT/Dockerfile" ] && { [ -z "$mode" ] || [ "$mode" = --online ]; }; }; then
+    if [ -f "$CTI_ROOT/images.tar" ]; then
+        (cd "$CTI_ROOT" && sha256sum -c images.tar.sha256)
+        expected=$(cat "$CTI_ROOT/image.id")
+        current=$(docker image inspect --format '{{.Id}}' "$CTI_IMAGE" 2>/dev/null || true)
+        if [ "$current" != "$expected" ]; then
+            docker image load -i "$CTI_ROOT/images.tar"
+        fi
+        [ "$(docker image inspect --format '{{.Id}}' "$CTI_IMAGE")" = "$expected" ] ||
+            fail 'The imported image does not match this release.'
+    elif [ -f "$CTI_ROOT/image.id" ]; then
+        [ "$(docker image inspect --format '{{.Id}}' "$CTI_IMAGE")" = "$(cat "$CTI_ROOT/image.id")" ] ||
+            fail 'Restore images.tar from the original release.'
+    fi
+    docker image inspect "$CTI_IMAGE" >/dev/null
+elif [ ! -f "$CTI_ROOT/Dockerfile" ]; then
+    fail 'This is a release archive. Run ./start.dh --offline.'
+elif [ "$mode" = --build ] || [ "$mode" = --build-only ] || ! docker image inspect "$CTI_IMAGE" >/dev/null 2>&1; then
+    docker build --platform linux/amd64 -t "$CTI_IMAGE" "$CTI_ROOT"
+fi
+
+[ "$mode" != --build-only ] || exit 0
+
+ask() {
+    while :; do
+        printf '%s ' "$1" >&2
+        IFS= read -r answer || answer=
+        case "$answer" in
+            [yYoO]|[yY][eE][sS]|[oO][uU][iI]) return 0 ;;
+            [nN]|[nN][oO]|[nN][oO][nN]) return 1 ;;
+            '') [ "$2" = yes ]; return ;;
+        esac
+    done
+}
+
+prepare_state
+transport_file="$CTI_STATE_DIR/ssl/transport"
+first_start=0
+if [ -f "$transport_file" ]; then
+    saved_transport=$(cat "$transport_file")
+    case "$saved_transport" in
+        https|http) transport=${transport:-$saved_transport} ;;
+        *) fail 'Invalid saved transport. Remove ssl/transport or fix its value to http or https.' ;;
+    esac
+else
+    first_start=1
+fi
+
+if [ -z "$transport" ]; then
+    transport=https
+    if [ -t 0 ] && ! ask 'Activer HTTPS / Enable HTTPS? [Y/n]' yes; then
+        transport=http
+    fi
+fi
+CTI_USE_SSL=false
+[ "$transport" = http ] || CTI_USE_SSL=true
+export CTI_USE_SSL
+
+set --
+if [ "$first_start" -eq 1 ] && [ -t 0 ]; then
+    if [ "$CTI_ALLOW_REMOTE" = 1 ]; then
+        printf '%s\n' 'Optional datasets. ZettelForge and its local model are already included.'
+        if [ ! -s "$CTI_STATE_DIR/docs/enterprise-attack.json" ] && ask 'Download MITRE ATT&CK? [y/N]' no; then
+            set -- "$@" mitre-attack/download
+        fi
+        if [ ! -d "$CTI_STATE_DIR/datasets/deepdarkCTI-main/.git" ] && ask 'Download DeepDarkCTI? [y/N]' no; then
+            set -- "$@" cti-resources/download
+        fi
+        if [ ! -d "$CTI_STATE_DIR/datasets/Ransomware-Tool-Matrix-main/.git" ] && ask 'Download Ransomware Tool Matrix? [y/N]' no; then
+            set -- "$@" ransomware-tools/download
+        fi
+        if [ ! -s "$CTI_STATE_DIR/data_shield/prod_data-shield_ipv4_blocklist.txt" ] && ask 'Download Data-Shield IPv4? [y/N]' no; then
+            set -- "$@" data-shield/download
+        fi
+    else
+        printf '%s\n' 'Offline mode: optional datasets can be transferred locally. ZettelForge is included.'
+    fi
+fi
+
+compose up -d --no-build --pull never --wait --wait-timeout 120
+temporary=$(mktemp "$transport_file.XXXXXX")
+printf '%s\n' "$transport" > "$temporary"
+mv "$temporary" "$transport_file"
+printf 'ODYSAFE CTI is ready at %s://localhost:%s\n' "$transport" "${CTI_HOST_PORT:-5001}"
+
+if [ "$#" -gt 0 ]; then
+    if ! compose exec -T cti python - "$transport" "$@" <<'PY_SETUP'
+import ssl
+import sys
+from urllib.error import URLError
+from urllib.request import Request, urlopen
+
+transport, *datasets = sys.argv[1:]
+context = ssl._create_unverified_context() if transport == 'https' else None
+failed = False
+for dataset in datasets:
+    print(f'Downloading {dataset.split("/")[0]}...')
+    request = Request(f'{transport}://127.0.0.1:5001/api/{dataset}', method='POST')
+    try:
+        with urlopen(request, context=context, timeout=180) as response:
+            response.read()
+    except (URLError, TimeoutError) as error:
+        print(f'Download failed for {dataset}: {error}', file=sys.stderr)
+        failed = True
+sys.exit(failed)
+PY_SETUP
+    then
+        printf '%s\n' 'CTI is running. Retry any failed download in the interface.' >&2
+    fi
+fi

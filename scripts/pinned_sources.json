@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "updated": "2026-11-17",
+  "mitre_attack": {
+    "commit": "f59b03ecf828579d5f9e93683ce25b7e2e5fd9d7",
+    "path": "enterprise-attack/enterprise-attack-20.1.json",
+    "latest_url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/refs/heads/master/enterprise-attack/enterprise-attack.json",
+    "version": "20.1",
+    "sha256": "539a843a7b53ed9749740b2123dddae3726b1a4831841c32aca740b011b910b5"
+  },
+  "deepdarkcti": {
+    "url": "https://github.com/fastfire/deepdarkCTI.git",
+    "commit": "b8ef1bee423cfa30233ad4dd22dbe5562d935d2d"
+  },
+  "ransomware_tool_matrix": {
+    "url": "https://github.com/BushidoUK/Ransomware-Tool-Matrix.git",
+    "commit": "bbdd31db57c1621e0bef3da04ca873fc2fc174f7"
+  }
+}
